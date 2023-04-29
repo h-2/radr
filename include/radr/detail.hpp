@@ -18,6 +18,11 @@
 
 #include "bind_back.hpp"
 
+#define RADR_RVALUE_ASSERTION_STRING                                                                                   \
+    "RADR adaptors and coroutines only take arguments as (r)values. If you want to "                                   \
+    "adapt an lvalue range, wrap it in radr::range_fwd() or wrap it std::ref() "                                       \
+    "and pass it to the respective object in radr::pipe::"
+
 namespace radr::detail
 {
 
@@ -45,6 +50,12 @@ constexpr auto to_unsigned_like(T v) noexcept
 {
     return static_cast<std::make_unsigned_t<T>>(v);
 }
+
+template <typename... Fn>
+struct overloaded : Fn...
+{
+    using Fn::operator()...;
+};
 
 //=============================================================================
 // Range adaptor closure

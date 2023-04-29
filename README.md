@@ -1,4 +1,4 @@
-# C++ 𝗥ange 𝗔𝐝apters 𝗥eimagined
+# C++ 𝗥ange 𝗔𝐝aptors 𝗥eimagined
 
 This library explores a different design for C++ Range Adaptors, commonly referred to as "Views". It tries to reduce complexity in the conceptual space and provide a better, more consistent user experience.
 The library only replaces certain components from the Standard's Ranges library, and aims to maintain a sufficient level of compatibility with existing code.
@@ -52,17 +52,16 @@ This library divides ranges into two major domains and ties certain properties t
 | iterating¹ w/o side-effects | no                     | yes                       |
 | const-iterable              | no                     | yes                       |
 
-<small>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it</small>
+<sup><sub>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it<sup><sub>
 
-* A single-pass range is typically a generator or range that creates elements from a resource like a stream.
+A **single-pass range** is typically a generator or range that creates elements from a resource like a stream.
 Iterating over the range changes it.
-* This library: range adaptors on single-pass ranges are always implemented as coroutines and are never copyable, const-iterable etc.
+This library: range adaptors on single-pass ranges are always implemented as coroutines and are never copyable, const-iterable etc.
 
-
-* Multi-pass ranges are containers and similar ranges.
-* They can be copied, iterating over them does not change them, and it is thus also possible to iterate over a `const` container.
-* Standard library views do not promise to preserve any of these properties, e.g. `std::vector{1, 2, 3} | std::views::filter(/**/)` is not copyable, calling `.begin()` has side-effects, and it is not const-iterable.
-* This library: all properties are preserved, e.g. `std::vector{1, 2, 3} | radr::filter(/**/)` is copyable, const-iterable and iterating over it has no side-effects.
+**Multi-pass ranges** are containers and similar ranges.
+They can be copied, iterating over them does not change them, and it is thus also possible to iterate over a `const` container.
+Standard library views do not promise to preserve any of these properties, e.g. `std::vector{1, 2, 3} | std::views::filter(/**/)` is not copyable, calling `.begin()` has side-effects, and it is not const-iterable.
+This library: all properties are preserved, e.g. `std::vector{1, 2, 3} | radr::filter(/**/)` is copyable, const-iterable and iterating over it has no side-effects.
 
 See the [wiki-article on range properties](TODO) to learn the trade-offs required for this design.
 
@@ -94,18 +93,20 @@ We aim to replicate all standard library range adaptors and not much else.
 
 **Range adaptor objects:**
 
-|  Standard library             |   RAdR                  | Remarks              |
-|-------------------------------|–------------------------|----------------------|
-| `std::views::transform`       | `radr::pipe::transform` |                      |
+|  Standard library             |   RAdR                         | Remarks                         |
+|-------------------------------|--------------------------------|---------------------------------|
+| `std::views::transform`       | `radr::pipe::transform`        |                                 |
+|  *not available yet*          | `radr::pipe::make_single_pass` | reduces range category to input |
 
 Note, that our adaptor objects automatically dispatch single-pass ranges to the coroutine and multi-pass ranges
 to the range adaptor template (see below). In certain cases, they contain additional logic.
 
 **Range adaptor classes:**
 
-|  Standard library             |   Coroutine             |  Range Adaptor              | Remarks              |
-|-------------------------------|–------------------------|-----------------------------|----------------------|
-| `std::ranges::transform_view` | `radr::transform_coro`  | `radr::transform_rad`       |                      |
+|  Standard library             |   Coroutine                   |  Range Adaptor              | Remarks              |
+|-------------------------------|-------------------------------|-----------------------------|----------------------|
+| `std::ranges::transform_view` | `radr::transform_coro`        | `radr::transform_rad`       |                      |
+| *not available yet*           | `radr::make_single_pass_coro` |  --                         | doesn't need adaptor |
 
 Things that are meaningless in this design and need no corresponding implementation: `std::ranges::view`,
 `std::ranges::viewable_range`, `std::ranges::owning_view`.
@@ -114,4 +115,4 @@ Things that are meaningless in this design and need no corresponding implementat
 
 This library relies heavily on the standard library implementation of the LLVM project. It also uses a draft implementation of std::generator from https://github.com/lewissbaker/generator.
 
-I want to thank various members of the DIN AK Programmiersprachen for
+I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.

@@ -388,6 +388,8 @@ inline constexpr auto transform_coro = []<adaptable_range URange, typename Fn>(U
     requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              detail::can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
+    static_assert(!std::is_lvalue_reference_v<URange> && !std::is_lvalue_reference_v<Fn>, RADR_RVALUE_ASSERTION_STRING);
+
     // we need to create inner functor so that it can take by value
     // range_fwd ensures that temporaries are moved and that lvalues are bound by range_ref
     return
@@ -395,7 +397,7 @@ inline constexpr auto transform_coro = []<adaptable_range URange, typename Fn>(U
     {
         for (auto && elem : urange_)
             co_yield fn(std::forward<decltype(elem)>(elem));
-    }(range_fwd(std::forward<URange>(urange)), std::move(fn));
+    }(std::move(urange), std::move(fn));
 };
 
 } // namespace radr
@@ -408,23 +410,21 @@ struct transform_fn
     template <std::ranges::input_range Range, class Fn>
     [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
       noexcept(noexcept(transform_rad(std::forward<Range>(range), std::forward<Fn>(f))))
-    // -> decltype(transform_rad(std::forward<Range>(range), std::forward<Fn>(f)))
     {
         return transform_coro(std::forward<Range>(range), std::forward<Fn>(f));
     }
 
-    // template <std::ranges::forward_range Range, class Fn>
-    // [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
-    //   noexcept(noexcept(transform_rad(std::forward<Range>(range), std::forward<Fn>(f))))
-    //     // -> decltype(transform_rad(std::forward<Range>(range), std::forward<Fn>(f)))
-    // {
-    //     return transform_rad(std::forward<Range>(range), std::forward<Fn>(f));
-    // }
+    template <std::ranges::forward_range Range, class Fn>
+    [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
+      noexcept(noexcept(transform_rad(std::forward<Range>(range), std::forward<Fn>(f))))
+    {
+        return transform_rad(std::forward<Range>(range), std::forward<Fn>(f));
+    }
 
     template <class Range, class Fn>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> const & range, Fn && f) const
       noexcept(noexcept(operator()(range_ref{range}, std::forward<Fn>(f))))
-    // -> decltype(operator()(range_ref{range}, std::forward<Fn>(f)))
+        -> decltype(operator()(range_ref{range}, std::forward<Fn>(f)))
     {
         return operator()(range_ref{range}, std::forward<Fn>(f));
     }
