@@ -17,6 +17,7 @@
 #include <ranges>
 
 #include "bind_back.hpp"
+#include "fwd.hpp"
 
 #define RADR_RVALUE_ASSERTION_STRING                                                                                   \
     "RADR adaptors and coroutines only take arguments as (r)values. If you want to "                                   \
@@ -116,5 +117,35 @@ using iterator_concept_tag = decltype([]()
     else
         return iterator_category_tag<T>{};
 }());*/
+
+//=============================================================================
+// tuple_like
+//=============================================================================
+
+template <class _Tp>
+struct tuple_like_impl : std::false_type
+{};
+
+template <class _T1, class _T2>
+struct tuple_like_impl<std::pair<_T1, _T2>> : std::true_type
+{};
+
+template <class _Tp, size_t _Size>
+struct tuple_like_impl<std::array<_Tp, _Size>> : std::true_type
+{};
+
+template <class _Ip, class _Sp, std::ranges::subrange_kind _Kp>
+struct tuple_like_impl<std::ranges::subrange<_Ip, _Sp, _Kp>> : std::true_type
+{};
+
+template <class _Ip, class _Sp, class _CIp, class _CSp, range_bounds_kind _Kp>
+struct tuple_like_impl<range_bounds<_Ip, _Sp, _CIp, _CSp, _Kp>> : std::true_type
+{};
+
+template <class _Tp>
+concept tuple_like = tuple_like_impl<std::remove_cvref_t<_Tp>>::value;
+
+template <class _Tp>
+concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>::value == 2;
 
 } // namespace radr::detail

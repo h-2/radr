@@ -84,16 +84,18 @@ TODO
 
 We aim to replicate all standard library range adaptors and not much else.
 
-**Standalone ranges, helpers, etc:**
+**Borrowed ranges:**
 
-|  Standard library             |  RAdR                   |  Remarks              |
-|-------------------------------|-------------------------|-----------------------|
-| `std::ranges::view_interface` | `radr::rad_interface`   |                       |
-| `std::ranges::ref_view`       | `radr::range_ref`       | deep const            |
+|  Standard library             |  radr                   |  Remarks                 |
+|-------------------------------|-------------------------|--------------------------|
+| `std::span`                   | `std::span`             | *we don't replace this*  |
+| `std::string_view`            | `std::string_view`      | *we don't replace this*  |
+| `std::ranges::ref_view`       | `radr::range_ref`       | deep const               |
+| `std::ranges::subrange`       | `radr::range_bounds`    | deep const               |
 
 **Range adaptor objects:**
 
-|  Standard library             |   RAdR                         | Remarks                         |
+|  Standard library             |   radr                         | Remarks                         |
 |-------------------------------|--------------------------------|---------------------------------|
 | `std::views::transform`       | `radr::pipe::transform`        |                                 |
 |  *not available yet*          | `radr::pipe::make_single_pass` | reduces range category to input |
@@ -105,8 +107,9 @@ to the range adaptor template (see below). In certain cases, they contain additi
 
 |  Standard library             |   Coroutine                   |  Range Adaptor              | Remarks              |
 |-------------------------------|-------------------------------|-----------------------------|----------------------|
+| `std::ranges::view_interface` | –                             | `radr::rad_interface`       |                      |
 | `std::ranges::transform_view` | `radr::transform_coro`        | `radr::transform_rad`       |                      |
-| *not available yet*           | `radr::make_single_pass_coro` |  --                         | doesn't need adaptor |
+| *not available yet*           | `radr::make_single_pass_coro` | *not needed*                |                      |
 
 Things that are meaningless in this design and need no corresponding implementation: `std::ranges::view`,
 `std::ranges::viewable_range`, `std::ranges::owning_view`.
