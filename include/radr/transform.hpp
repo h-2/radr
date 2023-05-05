@@ -384,14 +384,13 @@ public:
     }
 };
 
-inline constexpr auto transform_coro = []<adaptable_range URange, typename Fn>(URange && urange, Fn && fn)
+inline constexpr auto transform_coro = []<adaptable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              detail::can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
-    static_assert(!std::is_lvalue_reference_v<URange> && !std::is_lvalue_reference_v<Fn>, RADR_RVALUE_ASSERTION_STRING);
+    static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
 
     // we need to create inner functor so that it can take by value
-    // range_fwd ensures that temporaries are moved and that lvalues are bound by range_ref
     return
       [](auto urange_, Fn fn) -> radr::generator<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>
     {
@@ -409,7 +408,7 @@ struct transform_fn
 {
     template <std::ranges::input_range Range, class Fn>
     [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
-      noexcept(noexcept(transform_rad(std::forward<Range>(range), std::forward<Fn>(f))))
+      noexcept(noexcept(transform_coro(std::forward<Range>(range), std::forward<Fn>(f))))
     {
         return transform_coro(std::forward<Range>(range), std::forward<Fn>(f));
     }
