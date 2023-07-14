@@ -87,6 +87,10 @@ struct range_adaptor_closure_t : Fn, range_adaptor_closure<range_adaptor_closure
     constexpr explicit range_adaptor_closure_t(Fn && f) : Fn(std::move(f)) {}
 };
 
+// #define RADR_SIMPLE_CLOSURE
+
+
+
 //=============================================================================
 // concepts
 //=============================================================================

@@ -97,11 +97,12 @@ We aim to replicate all standard library range adaptors and not much else.
 
 |  Standard library             |   radr                         | Remarks                         |
 |-------------------------------|--------------------------------|---------------------------------|
+|                               | `radr::pipe::cached_bounds`    | caches `begin()` and `end()`    |
 | `std::views::transform`       | `radr::pipe::transform`        |                                 |
 |  *not available yet*          | `radr::pipe::make_single_pass` | reduces range category to input |
 
 Note, that our adaptor objects automatically dispatch single-pass ranges to the coroutine and multi-pass ranges
-to the range adaptor template (see below). In certain cases, they contain additional logic.
+to the range adaptor template. Like in the standard library, some of them contain additional logic.
 
 **Range adaptor classes:**
 
