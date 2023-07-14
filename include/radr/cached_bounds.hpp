@@ -118,17 +118,23 @@ namespace radr::pipe
 
 inline namespace cpo
 {
-inline constexpr auto cached_bounds = detail::range_adaptor_closure_t{
-  detail::overloaded{[]<std::ranges::forward_range URange>(URange && urange)
-{
-static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
-if constexpr (std::ranges::borrowed_range<URange>)
-return range_bounds{urange};
-else
-return cached_bounds_rad{std::move(urange)};
-}, []<std::ranges::forward_range URange>(std::reference_wrapper<URange> const & urange)
- { return range_bounds{static_cast<URange &>(urange)}; }}
-};
+// clang-format off
+inline constexpr auto cached_bounds = detail::range_adaptor_closure_t{detail::overloaded{
+    []<std::ranges::forward_range URange>(URange && urange)
+    {
+        static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
+        if constexpr (std::ranges::borrowed_range<URange>)
+            return range_bounds{urange};
+        else
+            return cached_bounds_rad{std::move(urange)};
+    },
+    []<std::ranges::forward_range URange>(std::reference_wrapper<URange> const & urange)
+    {
+        return range_bounds{static_cast<URange &>(urange)};
+    }
+}};
+
+// clang-format on
 
 } // namespace cpo
 } // namespace radr::pipe

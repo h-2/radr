@@ -95,25 +95,19 @@ We aim to replicate all standard library range adaptors and not much else.
 
 **Range adaptor objects:**
 
-|  Standard library             |   radr                         | Remarks                         |
-|-------------------------------|--------------------------------|---------------------------------|
-|                               | `radr::pipe::cached_bounds`    | caches `begin()` and `end()`    |
-| `std::views::transform`       | `radr::pipe::transform`        |                                 |
-|  *not available yet*          | `radr::pipe::make_single_pass` | reduces range category to input |
+|  Standard library             |   radr                                            | Remarks                          |
+|-------------------------------|---------------------------------------------------|----------------------------------|
+|                               | `radr::pipe::cached_bounds`                       | caches `begin()` and `end()`     |
+| `std::views::filter`          | `radr::pipe::filter` ²                            | const-iterable                   |
+| `std::views::transform`       | `radr::pipe::transform`                           |                                  |
+|  *not available yet*          | `radr::pipe::make_single_pass`                    | reduces range category to input  |
 
 Note, that our adaptor objects automatically dispatch single-pass ranges to the coroutine and multi-pass ranges
 to the range adaptor template. Like in the standard library, some of them contain additional logic.
 
-**Range adaptor classes:**
-
-|  Standard library             |   Coroutine                   |  Range Adaptor              | Remarks              |
-|-------------------------------|-------------------------------|-----------------------------|----------------------|
-| `std::ranges::view_interface` | –                             | `radr::rad_interface`       |                      |
-| `std::ranges::transform_view` | `radr::transform_coro`        | `radr::transform_rad`       |                      |
-| *not available yet*           | `radr::make_single_pass_coro` | *not needed*                |                      |
-
-Things that are meaningless in this design and need no corresponding implementation: `std::ranges::view`,
-`std::ranges::viewable_range`, `std::ranges::owning_view`.
+² These adaptors cache the begin iterator on construction (for some inputs) whereas the standard library equivalents
+cache it on the first call of `begin()`. For each of these adaptors, this library also provides a version that doesn't
+cache at all, e.g. `radr::pipe::filter_nc` in addition to `radr::pipe::filter`.
 
 ## Credits
 

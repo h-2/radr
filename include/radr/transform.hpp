@@ -410,6 +410,7 @@ struct transform_fn
     [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
       noexcept(noexcept(transform_coro(std::forward<Range>(range), std::forward<Fn>(f))))
     {
+        static_assert(!std::is_lvalue_reference_v<Range>, RADR_RVALUE_ASSERTION_STRING);
         return transform_coro(std::forward<Range>(range), std::forward<Fn>(f));
     }
 
@@ -417,6 +418,7 @@ struct transform_fn
     [[nodiscard]] constexpr auto operator()(Range && range, Fn && f) const
       noexcept(noexcept(transform_rad(std::forward<Range>(range), std::forward<Fn>(f))))
     {
+        static_assert(!std::is_lvalue_reference_v<Range>, RADR_RVALUE_ASSERTION_STRING);
         return transform_rad(std::forward<Range>(range), std::forward<Fn>(f));
     }
 

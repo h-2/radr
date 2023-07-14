@@ -45,6 +45,9 @@ using plus_ref = T &;
 template <typename T>
 concept can_reference = requires { typename plus_ref<T>; };
 
+template <typename Ip>
+concept has_arrow = std::input_iterator<Ip> && (std::is_pointer_v<Ip> || requires(Ip i) { i.operator->(); });
+
 //TODO special cases
 template <std::integral T>
 constexpr auto to_unsigned_like(T v) noexcept
@@ -88,8 +91,6 @@ struct range_adaptor_closure_t : Fn, range_adaptor_closure<range_adaptor_closure
 };
 
 // #define RADR_SIMPLE_CLOSURE
-
-
 
 //=============================================================================
 // concepts
