@@ -153,4 +153,29 @@ concept tuple_like = tuple_like_impl<std::remove_cvref_t<_Tp>>::value;
 template <class _Tp>
 concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>::value == 2;
 
+//=============================================================================
+// tuple_like
+//=============================================================================
+
+template <typename T>
+struct const_bounds
+{
+    using it_type  = std::nullptr_t;
+    using sen_type = std::nullptr_t;
+};
+
+template <typename T>
+    requires std::ranges::forward_range<T const>
+struct const_bounds<T>
+{
+    using it_type  = std::ranges::iterator_t<T const>;
+    using sen_type = std::ranges::sentinel_t<T const>;
+};
+
+template <typename Range>
+using const_it_or_nullptr_t = typename const_bounds<Range>::it_type;
+
+template <typename Range>
+using const_sen_or_nullptr_t = typename const_bounds<Range>::sen_type;
+
 } // namespace radr::detail

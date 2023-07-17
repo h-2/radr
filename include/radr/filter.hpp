@@ -130,8 +130,8 @@ class filter_rad_nc<URange, Pred>::iterator : public filter_iterator_category<UR
     friend class filter_rad_nc<URange, Pred>::sentinel;
 
 public:
-    [[no_unique_address]] std::ranges::iterator_t<URangeC> current_ = std::ranges::iterator_t<URangeC>();
     [[no_unique_address]] Parent *                         parent_  = nullptr;
+    [[no_unique_address]] std::ranges::iterator_t<URangeC> current_ = std::ranges::iterator_t<URangeC>();
 
     // clang-format off
     using iterator_concept =
@@ -149,7 +149,7 @@ public:
     = default;
 
     constexpr iterator(Parent & parent, std::ranges::iterator_t<URangeC> current) :
-      current_(std::move(current)), parent_(std::addressof(parent))
+      parent_(std::addressof(parent)), current_(std::move(current))
     {}
 
     // Note: `i` should always be `iterator<false>`, but directly using

@@ -89,7 +89,7 @@ public:
                            Sent                                               sent,
                            std::make_unsigned_t<std::iter_difference_t<Iter>> n)
         requires(Kind == range_bounds_kind::sized)
-      : begin_(std::move(iter)), end_(std::move(sent))
+      : begin_(std::move(iter)), end_(std::move(sent)), size_(n)
     {
         if constexpr (std::sized_sentinel_for<Sent, Iter>)
             assert((end_ - begin_) == static_cast<std::iter_difference_t<Iter>>(n));

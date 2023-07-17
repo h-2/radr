@@ -1,8 +1,11 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
+// Copyright (c) 2023 The LLVM Project
+// Copyright (c) 2023 Hannes Hauswedell
+//
+// Licensed under the Apache License v2.0 with LLVM Exceptions.
+// See the LICENSE file for details.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
@@ -18,16 +21,21 @@
 #include "rad_interface.hpp"
 #include "range_bounds.hpp"
 
+/* TODO add version that stores offsets for RA+sized uranges
+ * this avoids unique_ptr and RangeBounds
+ *
+ * TODO add collapsing constructor that avoids nesting cached_bounds_rad
+ *
+ */
+
 namespace radr
 {
 
-template <rad_constraints URange>
+template <rad_constraints URange, typename RangeBounds = decltype(range_bounds{std::declval<URange &>()})>
 class cached_bounds_rad : public rad_interface<cached_bounds_rad<URange>>
 {
     [[no_unique_address]] std::unique_ptr<URange> base_ = nullptr;
-
-    using RangeBounds = decltype(range_bounds{std::declval<URange &>()});
-    [[no_unique_address]] RangeBounds bounds;
+    [[no_unique_address]] RangeBounds             bounds;
 
     static constexpr bool const_iterable = std::ranges::forward_range<RangeBounds const &>;
     static constexpr bool simple         = detail::simple_range<RangeBounds>;
@@ -41,6 +49,7 @@ public:
     cached_bounds_rad & operator=(cached_bounds_rad &&) = default;
 
     cached_bounds_rad(cached_bounds_rad const & rhs)
+        requires(std::constructible_from<URange, URange const &> && std::copyable<RangeBounds>)
     {
         if (rhs.base_ != nullptr)
         {
@@ -50,6 +59,7 @@ public:
     }
 
     cached_bounds_rad & operator=(cached_bounds_rad const & rhs)
+        requires(std::constructible_from<URange, URange const &> && std::copyable<RangeBounds>)
     {
         if (rhs.base_ == nullptr)
         {
@@ -66,6 +76,12 @@ public:
     }
 
     constexpr explicit cached_bounds_rad(URange && base) : base_(new URange(std::move(base))), bounds{*base_} {}
+    //TODO collapsing constructor
+
+    constexpr cached_bounds_rad(URange && base, std::regular_invocable<URange &> auto cacher_fn) :
+      base_(new URange(std::move(base))), bounds{cacher_fn(*base_)}
+    {}
+    //TODO collapsing constructor
 
     constexpr URange base() const &
         requires std::copy_constructible<URange>
@@ -107,6 +123,10 @@ public:
 
 template <class Range>
 cached_bounds_rad(Range &&) -> cached_bounds_rad<std::remove_cvref_t<Range>>;
+
+template <class Range, std::regular_invocable<std::remove_cvref_t<Range> &> CacherFn>
+cached_bounds_rad(Range &&, CacherFn)
+  -> cached_bounds_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn, std::remove_cvref_t<Range> &>>;
 
 } // namespace radr
 
