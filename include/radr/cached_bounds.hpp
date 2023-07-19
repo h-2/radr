@@ -31,8 +31,8 @@
 namespace radr
 {
 
-template <rad_constraints URange, typename RangeBounds = decltype(range_bounds{std::declval<URange &>()})>
-class cached_bounds_rad : public rad_interface<cached_bounds_rad<URange>>
+template <rad_constraints URange, typename RangeBounds>
+class cached_bounds_rad : public rad_interface<cached_bounds_rad<URange, RangeBounds>>
 {
     [[no_unique_address]] std::unique_ptr<URange> base_ = nullptr;
     [[no_unique_address]] RangeBounds             bounds;
@@ -86,9 +86,9 @@ public:
     constexpr URange base() const &
         requires std::copy_constructible<URange>
     {
-        return base_;
+        return *base_;
     }
-    constexpr URange base() && { return std::move(base_); }
+    constexpr URange base() && { return std::move(*base_); }
 
     constexpr auto begin()
         requires(!simple)
@@ -119,19 +119,114 @@ public:
     {
         return bounds.size();
     }
+
+    // debug
+    static constexpr bool is_specialisation = false;
+};
+
+template <rad_constraints URange>
+    requires (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+class cached_bounds_rad<URange, size_t> : public rad_interface<cached_bounds_rad<URange, size_t>>
+{
+    [[no_unique_address]] URange base_ = URange{};
+    [[no_unique_address]] size_t drop = 0ull;
+    [[no_unique_address]] size_t size_ = std::ranges::size(base_);
+
+    static constexpr bool const_iterable = std::ranges::forward_range<URange const &>;
+    static constexpr bool simple         = detail::simple_range<URange>;
+
+public:
+    cached_bounds_rad()
+        requires std::default_initializable<URange>
+    = default;
+
+    cached_bounds_rad(cached_bounds_rad &&)             = default;
+    cached_bounds_rad & operator=(cached_bounds_rad &&) = default;
+    cached_bounds_rad(cached_bounds_rad const & rhs) = default;
+    cached_bounds_rad & operator=(cached_bounds_rad const & rhs) = default;
+
+    constexpr explicit cached_bounds_rad(URange && base) : base_(std::move(base))
+    {}
+
+    //TODO collapsing constructor
+
+    template <std::regular_invocable<URange &> CacherFn>
+        requires (std::ranges::random_access_range<std::invoke_result_t<CacherFn, URange &>> &&
+                  std::sized_sentinel_for<std::ranges::iterator_t<std::invoke_result_t<CacherFn, URange &>>,
+                                                  std::ranges::iterator_t<URange>>)
+    constexpr cached_bounds_rad(URange && base, CacherFn cacher_fn) :
+      base_(std::move(base))
+    {
+        auto bounds = cacher_fn(base_);
+        drop = std::ranges::begin(bounds) - std::ranges::begin(base_);
+        size_ = std::ranges::size(bounds);
+    }
+    //TODO collapsing constructor
+
+    constexpr URange base() const &
+        requires std::copy_constructible<URange>
+    {
+        return base_;
+    }
+    constexpr URange base() && { return std::move(base_); }
+
+    constexpr auto begin()
+        requires(!simple)
+    {
+        return std::ranges::begin(base_) + drop;
+    }
+
+    constexpr auto begin() const
+        requires const_iterable
+    {
+        return std::ranges::begin(base_) + drop;
+    }
+
+    constexpr auto end()
+        requires(!simple)
+    {
+        return std::ranges::begin(base_) + drop + size_;
+    }
+
+    constexpr auto end() const
+        requires const_iterable
+    {
+        return std::ranges::begin(base_) + drop + size_;
+    }
+
+    constexpr auto size() const
+    {
+        return size_;
+    }
+
+    // debug
+    static constexpr bool is_specialisation = true;
 };
 
 template <class Range>
-cached_bounds_rad(Range &&) -> cached_bounds_rad<std::remove_cvref_t<Range>>;
+cached_bounds_rad(Range &&) -> cached_bounds_rad<std::remove_cvref_t<Range>,  decltype(range_bounds{std::declval<std::remove_cvref_t<Range> &>()})>;
 
 template <class Range, std::regular_invocable<std::remove_cvref_t<Range> &> CacherFn>
 cached_bounds_rad(Range &&, CacherFn)
   -> cached_bounds_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn, std::remove_cvref_t<Range> &>>;
 
+template <class Range>
+    requires (std::ranges::random_access_range<Range> && std::ranges::sized_range<Range>)
+cached_bounds_rad(Range &&) -> cached_bounds_rad<std::remove_cvref_t<Range>, size_t>;
+
+template <class Range, std::regular_invocable<std::remove_cvref_t<Range> &> CacherFn>
+    requires (std::ranges::random_access_range<Range> && std::ranges::sized_range<Range> &&
+              std::ranges::random_access_range<std::invoke_result_t<CacherFn, Range &>> &&
+              std::sized_sentinel_for<std::ranges::iterator_t<std::invoke_result_t<CacherFn, Range &>>,
+                                              std::ranges::iterator_t<Range>>)
+cached_bounds_rad(Range &&, CacherFn)
+  -> cached_bounds_rad<std::remove_cvref_t<Range>, size_t>;
+
 } // namespace radr
 
-template <class Range>
-inline constexpr bool std::ranges::enable_view<radr::cached_bounds_rad<Range>> = std::ranges::view<Range>;
+template <class Range, class RangeBounds>
+inline constexpr bool std::ranges::enable_view<radr::cached_bounds_rad<Range, RangeBounds>> =
+    std::ranges::view<Range> && (std::ranges::view<RangeBounds> || std::same_as<RangeBounds, size_t>);
 
 namespace radr::pipe
 {

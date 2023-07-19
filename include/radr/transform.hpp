@@ -13,6 +13,7 @@
 #include <ranges>
 
 #include "concepts.hpp"
+#include "copyable_box.hpp"
 #include "detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
@@ -47,7 +48,7 @@ class transform_rad : public rad_interface<transform_rad<URange, Fn>>
     template <bool>
     class sentinel;
 
-    [[no_unique_address]] detail::box<Fn> func_;
+    [[no_unique_address]] copyable_box<Fn> func_;
     [[no_unique_address]] URange          base_ = URange();
 
 public:

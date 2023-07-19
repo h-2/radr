@@ -30,15 +30,6 @@ namespace radr::detail
 template <bool b, typename T>
 using maybe_const = std::conditional_t<b, T const, T>;
 
-#if defined(__GLIBCXX__)
-template <typename T>
-using box = std::ranges::__detail::__box<T>;
-#elif defined(_LIBCPP_VERSION)
-using box = std::ranges::__copyable_box<T>;
-#else
-#    error "RADR requires either libstdc++ or libc++ standard libraries."
-#endif
-
 template <typename T>
 using plus_ref = T &;
 
