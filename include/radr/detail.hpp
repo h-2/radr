@@ -167,9 +167,9 @@ struct const_bounds<T>
 };
 
 template <typename Range>
-using const_it_or_nullptr_t = typename const_bounds<Range>::it_type;
+using const_it_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::it_type;
 
 template <typename Range>
-using const_sen_or_nullptr_t = typename const_bounds<Range>::sen_type;
+using const_sen_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::sen_type;
 
 } // namespace radr::detail

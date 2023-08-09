@@ -97,19 +97,18 @@ We aim to replicate all standard library range adaptors and not much else.
 
 |  Standard library             |   radr                                            | Remarks                          |
 |-------------------------------|---------------------------------------------------|----------------------------------|
-|                               | `radr::pipe::cached_bounds`                       | caches `begin()` and `end()`     |
 | `std::views::drop`            | `radr::pipe::drop` ²                              |                                  |
-| `std::views::filter`          | `radr::pipe::filter` ²                            | const-iterable                   |
-| `std::views::take`            | `radr::pipe::take` ²                              |                                  |
+| `std::views::filter`          | `radr::pipe::filter` ²                            |                                  |
+| `std::views::take`            | `radr::pipe::take`                                |                                  |
+| *not yet available*           | `radr::pipe::take_exactly`                        | turns unsized into sized         |
 | `std::views::transform`       | `radr::pipe::transform`                           |                                  |
-|  *not available yet*          | `radr::pipe::make_single_pass`                    | reduces range category to input  |
+| *not yet available*           | `radr::pipe::make_single_pass`                    | reduces range category to input  |
 
 Note, that our adaptor objects automatically dispatch single-pass ranges to the coroutine and multi-pass ranges
 to the range adaptor template. Like in the standard library, some of them contain additional logic.
 
 ² These adaptors cache the begin iterator on construction (for some inputs) whereas the standard library equivalents
-cache it on the first call of `begin()`. For some of these adaptors, this library also provides a version that doesn't
-cache at all, e.g. `radr::pipe::filter_nc` in addition to `radr::pipe::filter`.
+cache it on the first call of `begin()`. This makes the returned ranges in RADR const-iterable.
 
 ## Credits
 
