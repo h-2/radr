@@ -40,7 +40,7 @@ public:
     template <class... Args>
         requires std::is_constructible_v<Tp, Args...>
     constexpr explicit copyable_box(std::in_place_t,
-                                   Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
+                                    Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
       val_(std::in_place, std::forward<Args>(args)...)
     {}
 
@@ -89,7 +89,7 @@ public:
     constexpr bool has_value() const noexcept { return val_.has_value(); }
 };
 
-}
+} // namespace radr
 
 // This partial specialization implements an optimization for when we know we don't need to store
 // an empty state to represent failure to perform an assignment. For copy-assignment, this happens:
@@ -113,7 +113,7 @@ concept doesnt_need_empty_state_for_copy = std::copyable<Tp> || std::is_nothrow_
 template <class Tp>
 concept doesnt_need_empty_state_for_move = std::movable<Tp> || std::is_nothrow_move_constructible_v<Tp>;
 
-}
+} // namespace radr::detail
 
 namespace radr
 {
@@ -128,7 +128,7 @@ public:
     template <class... Args>
         requires std::is_constructible_v<Tp, Args...>
     constexpr explicit copyable_box(std::in_place_t,
-                                   Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
+                                    Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
       val_(std::forward<Args>(args)...)
     {}
 

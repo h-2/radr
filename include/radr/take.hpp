@@ -59,20 +59,19 @@ struct take_fn
         auto fn = [n](auto & urange_)
         {
             static constexpr range_bounds_kind kind = range_bounds_kind::sized;
-              // std::ranges::sized_range<Range> ? range_bounds_kind::sized : range_bounds_kind::unsized;
-
+            // std::ranges::sized_range<Range> ? range_bounds_kind::sized : range_bounds_kind::unsized;
 
             if constexpr (std::ranges::random_access_range<Range> && std::ranges::sized_range<Range>)
             {
                 using RangeBounds = range_bounds<std::ranges::iterator_t<Range>,
-                                                std::ranges::iterator_t<Range>,
-                                                detail::const_it_or_nullptr_t<Range>,
-                                                detail::const_it_or_nullptr_t<Range>,
-                                                kind>;
+                                                 std::ranges::iterator_t<Range>,
+                                                 detail::const_it_or_nullptr_t<Range>,
+                                                 detail::const_it_or_nullptr_t<Range>,
+                                                 kind>;
 
                 return RangeBounds{std::ranges::begin(urange_),
-                                    std::ranges::begin(urange_) + std::min<size_t>(n, std::ranges::size(urange_)),
-                                    std::min<size_t>(n, std::ranges::size(urange_))};
+                                   std::ranges::begin(urange_) + std::min<size_t>(n, std::ranges::size(urange_)),
+                                   std::min<size_t>(n, std::ranges::size(urange_))};
             }
             //TODO we currently implement "take_exactly" on forward_ranges and not take (safely)
             else if constexpr (std::ranges::forward_range<Range const>)
@@ -83,9 +82,10 @@ struct take_fn
                                                  std::default_sentinel_t,
                                                  kind>;
 
-                return RangeBounds{std::counted_iterator<std::ranges::iterator_t<Range>>(std::ranges::begin(urange_), n),
-                                   std::default_sentinel,
-                                   n};
+                return RangeBounds{
+                  std::counted_iterator<std::ranges::iterator_t<Range>>(std::ranges::begin(urange_), n),
+                  std::default_sentinel,
+                  n};
             }
             else
             {
@@ -95,9 +95,10 @@ struct take_fn
                                                  std::nullptr_t,
                                                  kind>;
 
-                return RangeBounds{std::counted_iterator<std::ranges::iterator_t<Range>>(std::ranges::begin(urange_), n),
-                                   std::default_sentinel,
-                                   n};
+                return RangeBounds{
+                  std::counted_iterator<std::ranges::iterator_t<Range>>(std::ranges::begin(urange_), n),
+                  std::default_sentinel,
+                  n};
             }
         };
 

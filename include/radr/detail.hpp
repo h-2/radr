@@ -52,6 +52,9 @@ struct overloaded : Fn...
     using Fn::operator()...;
 };
 
+template <typename... Fn>
+overloaded(Fn...) -> overloaded<Fn...>;
+
 //=============================================================================
 // Range adaptor closure
 //=============================================================================

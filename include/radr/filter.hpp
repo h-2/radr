@@ -17,8 +17,8 @@
 #include <ranges>
 
 #include "cached_bounds.hpp"
-#include "copyable_box.hpp"
 #include "concepts.hpp"
+#include "copyable_box.hpp"
 #include "detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
@@ -31,7 +31,7 @@ template <rad_constraints URange, std::indirect_unary_predicate<std::ranges::ite
     requires std::is_object_v<Pred>
 class filter_rad_nc : public rad_interface<filter_rad_nc<URange, Pred>>
 {
-    [[no_unique_address]] URange            base_ = URange();
+    [[no_unique_address]] URange             base_ = URange();
     [[no_unique_address]] copyable_box<Pred> pred_;
 
     template <bool>
