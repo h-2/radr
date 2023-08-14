@@ -15,9 +15,9 @@
 #include <functional>
 #include <ranges>
 
-#include "_pipe.hpp"
 #include "concepts.hpp"
-#include "detail.hpp"
+#include "detail/detail.hpp"
+#include "detail/pipe.hpp"
 #include "generator.hpp"
 #include "tags.hpp"
 
@@ -85,7 +85,7 @@ concept subborrowable_range = std::ranges::borrowed_range<Range> && std::ranges:
 };
 
 //=============================================================================
-// slice adaptor
+// Wrapper function
 //=============================================================================
 
 inline constexpr auto subborrow =

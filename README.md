@@ -88,11 +88,12 @@ We aim to replicate all standard library range adaptors and not much else.
 
 |  Standard library             |   radr                                            | Remarks                          |
 |-------------------------------|---------------------------------------------------|----------------------------------|
-| `std::views::drop`            | `radr::pipe::drop` ²                              |                                  |
-| `std::views::filter`          | `radr::pipe::filter` ²                            |                                  |
-| `std::views::take`            | `radr::pipe::take`                                |                                  |
-| *not yet available*           | `radr::pipe::take_exactly`                        | turns unsized into sized         |
-| `std::views::transform`       | `radr::pipe::transform`                           |                                  |
+| `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                  |
+| `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                  |
+| *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n     |
+| `std::views::take`            | `radr::pipe::take(n)`                             |                                  |
+| *not yet available*           | `radr::pipe::take_exactly(n)`                     | turns unsized into sized         |
+| `std::views::transform`       | `radr::pipe::transform(fn)`                       |                                  |
 | *not yet available*           | `radr::pipe::make_single_pass`                    | reduces range category to input  |
 
 Our adaptor objects automatically dispatch to one of three classes, see below. Like in the standard library, some of them contain additional logic.

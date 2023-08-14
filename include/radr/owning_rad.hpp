@@ -16,7 +16,7 @@
 #include <ranges>
 
 #include "concepts.hpp"
-#include "detail.hpp"
+#include "detail/detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
 #include "tags.hpp"
@@ -40,6 +40,9 @@ class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 
     static constexpr bool const_iterable = std::ranges::forward_range<BorrowedRange const &>;
     static constexpr bool simple         = detail::simple_range<BorrowedRange>;
+
+    template <rad_constraints URange_, std::ranges::borrowed_range BorrowedRange_>
+    friend class owning_rad;
 
 public:
     owning_rad()

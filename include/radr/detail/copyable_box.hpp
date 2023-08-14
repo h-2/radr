@@ -26,12 +26,8 @@ namespace radr::detail
 template <class Tp>
 concept copy_constructible_object = std::copy_constructible<Tp> && std::is_object_v<Tp>;
 
-}
-
-namespace radr
-{
 // Primary template - uses std::optional and introduces an empty state in case assignment fails.
-template <detail::copy_constructible_object Tp>
+template <copy_constructible_object Tp>
 class copyable_box
 {
     [[no_unique_address]] std::optional<Tp> val_;
@@ -89,8 +85,6 @@ public:
     constexpr bool has_value() const noexcept { return val_.has_value(); }
 };
 
-} // namespace radr
-
 // This partial specialization implements an optimization for when we know we don't need to store
 // an empty state to represent failure to perform an assignment. For copy-assignment, this happens:
 //
@@ -104,22 +98,14 @@ public:
 // whenever we can apply any of these optimizations for both the copy assignment and the move assignment
 // operator.
 
-namespace radr::detail
-{
-
 template <class Tp>
 concept doesnt_need_empty_state_for_copy = std::copyable<Tp> || std::is_nothrow_copy_constructible_v<Tp>;
 
 template <class Tp>
 concept doesnt_need_empty_state_for_move = std::movable<Tp> || std::is_nothrow_move_constructible_v<Tp>;
 
-} // namespace radr::detail
-
-namespace radr
-{
-
-template <detail::copy_constructible_object Tp>
-    requires detail::doesnt_need_empty_state_for_copy<Tp> && detail::doesnt_need_empty_state_for_move<Tp>
+template <copy_constructible_object Tp>
+    requires doesnt_need_empty_state_for_copy<Tp> && doesnt_need_empty_state_for_move<Tp>
 class copyable_box<Tp>
 {
     [[no_unique_address]] Tp val_;
@@ -179,4 +165,5 @@ public:
 
     constexpr bool has_value() const noexcept { return true; }
 };
-} // namespace radr
+
+} // namespace radr::detail

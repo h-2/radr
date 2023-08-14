@@ -16,7 +16,7 @@
 
 #include "borrow.hpp"
 #include "concepts.hpp"
-#include "detail.hpp"
+#include "detail/detail.hpp"
 #include "generator.hpp"
 
 namespace radr

@@ -15,9 +15,9 @@
 #include <functional>
 #include <ranges>
 
-#include "_pipe.hpp"
 #include "concepts.hpp"
-#include "detail.hpp"
+#include "detail/detail.hpp"
+#include "detail/pipe.hpp"
 #include "drop.hpp"
 #include "generator.hpp"
 #include "tags.hpp"
@@ -27,11 +27,13 @@ namespace radr
 {
 
 inline constexpr auto slice_borrow =
-  []<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
-{
-    size_t const t = end >= start ? end - start : 0ull;
-    return take_borrow(drop_borrow(std::forward<URange>(urange), start), t);
-};
+  detail::overloaded{[]<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
+                     {
+                         size_t const t = end >= start ? end - start : 0ull;
+                         return take_borrow(drop_borrow(std::forward<URange>(urange), start), t);
+                     },
+                     []<subborrowable_range URange>(URange && urange, size_t const start, size_t const end)
+                     { return subborrow(std::forward<URange>(urange), start, end); }};
 
 inline constexpr auto slice_coro = []<adaptable_range URange>(URange && urange, size_t const start, size_t const end)
 {

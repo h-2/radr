@@ -14,7 +14,7 @@
 
 #include <ranges>
 
-#include "detail.hpp"
+#include "detail/detail.hpp"
 
 namespace radr
 {

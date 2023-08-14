@@ -17,10 +17,9 @@
 #include <ranges>
 
 #include "borrow.hpp"
-#include "cached_bounds.hpp"
 #include "concepts.hpp"
-#include "copyable_box.hpp"
-#include "detail.hpp"
+#include "detail/copyable_box.hpp"
+#include "detail/detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
 
@@ -31,8 +30,8 @@ template <rad_constraints URange, std::indirect_unary_predicate<std::ranges::ite
     requires std::is_object_v<Pred>
 class filter_rad_nc : public rad_interface<filter_rad_nc<URange, Pred>>
 {
-    [[no_unique_address]] URange             base_ = URange();
-    [[no_unique_address]] copyable_box<Pred> pred_;
+    [[no_unique_address]] URange                     base_ = URange();
+    [[no_unique_address]] detail::copyable_box<Pred> pred_;
 
     template <bool>
     class iterator;
@@ -299,10 +298,10 @@ struct filter_fn
     template <std::ranges::forward_range URange, class Fn>
         requires(caching)
     [[nodiscard]] constexpr auto operator()(URange && range, Fn && f) const
-      noexcept(noexcept(filter_rad_nc(std::forward<URange>(range), std::forward<Fn>(f)) | pipe::cached_bounds))
+      noexcept(noexcept(owning_rad{filter_rad_nc(std::forward<URange>(range), std::forward<Fn>(f))}))
     {
         static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
-        return filter_rad_nc(std::forward<URange>(range), std::forward<Fn>(f)) | pipe::cached_bounds;
+        return owning_rad{filter_rad_nc(std::forward<URange>(range), std::forward<Fn>(f))};
     }
 
     template <class URange, class Fn>

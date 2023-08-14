@@ -15,10 +15,10 @@
 #include <functional>
 #include <ranges>
 
-#include "_pipe.hpp"
 #include "concepts.hpp"
-#include "copyable_box.hpp"
-#include "detail.hpp"
+#include "detail/copyable_box.hpp"
+#include "detail/detail.hpp"
+#include "detail/pipe.hpp"
 #include "generator.hpp"
 
 namespace radr::detail
@@ -91,7 +91,7 @@ class transform_iterator : public detail::transform::iterator_category_base<URan
 {
     using Base = detail::maybe_const<Const, URange>;
 
-    [[no_unique_address]] copyable_box<Fn> func_;
+    [[no_unique_address]] detail::copyable_box<Fn> func_;
 
     template <typename URange_, typename Fn_, bool Const_>
         requires detail::transform::constraints<URange, Fn>
@@ -108,7 +108,7 @@ public:
     using difference_type = std::ranges::range_difference_t<Base>;
 
     transform_iterator()
-        requires(std::default_initializable<copyable_box<Fn>> &&
+        requires(std::default_initializable<detail::copyable_box<Fn>> &&
                  std::default_initializable<std::ranges::iterator_t<Base>>)
     = default;
 

@@ -15,9 +15,8 @@
 #include <functional>
 #include <ranges>
 
-#include "cached_bounds.hpp"
 #include "concepts.hpp"
-#include "detail.hpp"
+#include "detail/detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
 #include "subborrow.hpp"
