@@ -16,13 +16,13 @@
 #include <functional>
 #include <ranges>
 
+#include "borrow.hpp"
 #include "cached_bounds.hpp"
 #include "concepts.hpp"
 #include "copyable_box.hpp"
 #include "detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
-#include "range_ref.hpp"
 
 namespace radr
 {
@@ -307,10 +307,10 @@ struct filter_fn
 
     template <class URange, class Fn>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<URange> const & range, Fn && f) const
-      noexcept(noexcept(operator()(range_ref{range}, std::forward<Fn>(f))))
-        -> decltype(operator()(range_ref{range}, std::forward<Fn>(f)))
+      noexcept(noexcept(operator()(borrow(static_cast<URange &>(range)), std::forward<Fn>(f))))
+        -> decltype(operator()(borrow(static_cast<URange &>(range)), std::forward<Fn>(f)))
     {
-        return operator()(range_ref{range}, std::forward<Fn>(f));
+        return operator()(borrow(static_cast<URange &>(range)), std::forward<Fn>(f));
     }
 
     template <class Fn>

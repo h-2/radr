@@ -19,6 +19,7 @@
 #include "detail.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
+#include "tags.hpp"
 
 /* TODO add version that stores offsets for RA+sized uranges
  * this avoids unique_ptr and BorrowedRange
@@ -53,7 +54,12 @@ public:
     {
         if (rhs.base_ != nullptr)
         {
-            base_.reset(new URange(*rhs.base_)); // deep copy of range
+            // deep copy of range
+            if (base_)
+                *base_ = *rhs.base_;
+            else
+                base_.reset(new URange(*rhs.base_));
+            // shallow copy of bounds
             bounds = BorrowedRange{*base_};
         }
     }
@@ -68,7 +74,12 @@ public:
         }
         else
         {
-            base_.reset(new URange(*rhs.base_)); // deep copy of range
+            // deep copy of range
+            if (base_)
+                *base_ = *rhs.base_;
+            else
+                base_.reset(new URange(*rhs.base_));
+            // shallow copy of bounds
             bounds = BorrowedRange{*base_};
         }
 
@@ -76,14 +87,19 @@ public:
     }
 
     constexpr explicit owning_rad(URange && base) : base_(new URange(std::move(base))), bounds{*base_} {}
-    //TODO collapsing constructor
 
     template <typename Fn>
         requires std::regular_invocable<Fn &&, URange &>
     constexpr owning_rad(URange && base, Fn cacher_fn) :
       base_(new URange(std::move(base))), bounds{std::move(cacher_fn)(*base_)}
     {}
-    //TODO collapsing constructor
+
+    //!\brief Collapsing constructor
+    template <typename Fn, typename BorrowedRange_>
+        requires std::regular_invocable<Fn &&, BorrowedRange_ &>
+    constexpr owning_rad(owning_rad<URange, BorrowedRange_> && urange, Fn cacher_fn) :
+      base_(std::move(urange.base_)), bounds{std::move(cacher_fn)(urange.bounds)}
+    {}
 
     constexpr URange base() const &
         requires std::copy_constructible<URange>
@@ -131,12 +147,17 @@ public:
 
 template <class Range>
 owning_rad(Range &&)
-  -> owning_rad<std::remove_cvref_t<Range>, decltype(range_bounds{std::declval<std::remove_cvref_t<Range> &>()})>;
+  -> owning_rad<std::remove_cvref_t<Range>, decltype(borrowing_rad{std::declval<std::remove_cvref_t<Range> &>()})>;
 
 template <class Range, class CacherFn>
     requires std::regular_invocable<CacherFn &&, std::remove_cvref_t<Range> &>
 owning_rad(Range &&, CacherFn)
   -> owning_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn &&, std::remove_cvref_t<Range> &>>;
+
+template <class Range, class BorrowedRange_, class CacherFn>
+    requires std::regular_invocable<CacherFn &&, std::remove_cvref_t<BorrowedRange_> &>
+owning_rad(owning_rad<Range, BorrowedRange_> &&, CacherFn)
+  -> owning_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn &&, std::remove_cvref_t<BorrowedRange_> &>>;
 
 } // namespace radr
 

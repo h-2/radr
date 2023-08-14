@@ -17,7 +17,7 @@
 namespace radr
 {
 
-enum class range_bounds_kind : bool
+enum class borrowing_rad_kind : bool
 {
     unsized,
     sized
@@ -27,8 +27,8 @@ template <std::input_or_output_iterator Iter,
           std::sentinel_for<Iter>       Sent,
           typename CIter,
           typename CSent,
-          range_bounds_kind Kind>
-    requires(Kind == range_bounds_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
-class range_bounds;
+          borrowing_rad_kind Kind>
+    requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
+class borrowing_rad;
 
 } // namespace radr

@@ -15,9 +15,9 @@
 #include <ranges>
 #include <utility>
 
+#include "borrow.hpp"
 #include "detail.hpp"
 #include "owning_rad.hpp"
-#include "range_ref.hpp"
 
 namespace radr::detail
 {
@@ -61,10 +61,10 @@ struct pipe_with_args_fn
     template <class Range, class... Args>
         requires non_empty_args<Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> const & range, Args &&... args) const
-      noexcept(noexcept(operator()(range_ref{range}, std::forward<Args>(args)...)))
-        -> decltype(operator()(range_ref{range}, std::forward<Args>(args)...))
+      noexcept(noexcept(operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))
+        -> decltype(operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...))
     {
-        return operator()(range_ref{range}, std::forward<Args>(args)...);
+        return operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...);
     }
 
     template <class... Args>

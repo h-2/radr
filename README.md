@@ -9,9 +9,9 @@ The following is a short overview of the main differences. See the Wiki for in-d
 
 **Terminology, names and namespaces**
 
-* We call the class (template) that adapts another range a *range adaptor* (short "rad"); `std::ranges::transform_view<>` → `radr::transform_rad<>`.
-* Each range adaptor has an auxiliary object in the `radr::pipe::` namespace that enables composing in pipelines (via the `|`-operator); `std::views::transform` → `radr::pipe::transform`.
-* In several places we use the term "bounds" to refer to the iterator-sentinel-pair of a range, e.g. `radr::range_bounds` is a range that stores another range's iterator-sentinel-pair (~ `std::ranges::subrange`).
+* We call the class (template) that adapts another range a *range adaptor* (short "rad"); in contrast to the standard
+library, there are only two main type templates (`radr::borrowing_rad` and `radr::owning_rad`).
+* Each range adaptor is defined by an object in the `radr::pipe::` namespace that dispatches to the right class template and enables composing in pipelines (via the `|`-operator); `std::views::transform` → `radr::pipe::transform`.
 
 **Range capture**
 
@@ -84,15 +84,6 @@ TODO
 
 We aim to replicate all standard library range adaptors and not much else.
 
-**Borrowed ranges:**
-
-|  Standard library             |  radr                   |  Remarks                 |
-|-------------------------------|-------------------------|--------------------------|
-| `std::span`                   | `std::span`             | *we don't replace this*  |
-| `std::string_view`            | `std::string_view`      | *we don't replace this*  |
-| `std::ranges::ref_view`       | `radr::range_ref`       | deep const               |
-| `std::ranges::subrange`       | `radr::range_bounds`    | deep const               |
-
 **Range adaptor objects:**
 
 |  Standard library             |   radr                                            | Remarks                          |
@@ -104,11 +95,24 @@ We aim to replicate all standard library range adaptors and not much else.
 | `std::views::transform`       | `radr::pipe::transform`                           |                                  |
 | *not yet available*           | `radr::pipe::make_single_pass`                    | reduces range category to input  |
 
-Note, that our adaptor objects automatically dispatch single-pass ranges to the coroutine and multi-pass ranges
-to the range adaptor template. Like in the standard library, some of them contain additional logic.
+Our adaptor objects automatically dispatch to one of three classes, see below. Like in the standard library, some of them contain additional logic.
 
 ² These adaptors cache the begin iterator on construction (for some inputs) whereas the standard library equivalents
 cache it on the first call of `begin()`. This makes the returned ranges in RADR const-iterable.
+
+**Class types:**
+
+|  Standard library             |  radr                   |  Remarks                 |
+|-------------------------------|-------------------------|--------------------------|
+| `std::ranges::subrange`       | `radr::borrowing_rad`   | deep const               |
+| `std::ranges::owning_view`    | `radr::owning_rad`      |                          |
+
+Range adaptors in this library return a specialisation of one of the following types:
+  * `std::generator` if the underlying range is single-pass
+  * `radr::borrowing_rad` if the underlying range is borrowed
+  * `radr::owning_rad` else (e.g. the underlying range is a container)
+
+There are no distinct type templates per adaptor (like e.g. `transform_view` for `views::transform` in the standard library).
 
 ## Credits
 

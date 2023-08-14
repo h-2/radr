@@ -137,8 +137,8 @@ template <class _Ip, class _Sp, std::ranges::subrange_kind _Kp>
 struct tuple_like_impl<std::ranges::subrange<_Ip, _Sp, _Kp>> : std::true_type
 {};
 
-template <class _Ip, class _Sp, class _CIp, class _CSp, range_bounds_kind _Kp>
-struct tuple_like_impl<range_bounds<_Ip, _Sp, _CIp, _CSp, _Kp>> : std::true_type
+template <class _Ip, class _Sp, class _CIp, class _CSp, borrowing_rad_kind _Kp>
+struct tuple_like_impl<borrowing_rad<_Ip, _Sp, _CIp, _CSp, _Kp>> : std::true_type
 {};
 
 template <class _Tp>

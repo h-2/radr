@@ -19,36 +19,40 @@
 #include "concepts.hpp"
 #include "detail.hpp"
 #include "generator.hpp"
+#include "subborrow.hpp"
 
 namespace radr
 {
 
-inline constexpr auto drop_borrow = []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
-    requires(std::ranges::forward_range<URange>)
+inline constexpr auto drop_borrow = detail::overloaded{
+  []<std::ranges::borrowed_range URange>(URange && urange, size_t const n) requires(std::ranges::forward_range<URange>){
+    static constexpr borrowing_rad_kind kind =
+      std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
+
+using BorrowingRad = borrowing_rad<std::ranges::iterator_t<URange>,
+                                   std::ranges::sentinel_t<URange>,
+                                   detail::const_it_or_nullptr_t<URange>,
+                                   detail::const_sen_or_nullptr_t<URange>,
+                                   kind>;
+
+auto it  = std::ranges::begin(urange);
+auto end = std::ranges::end(urange);
+
+std::ranges::advance(it, n, end);
+
+if constexpr (std::ranges::sized_range<URange>)
 {
-    static constexpr range_bounds_kind kind =
-      std::ranges::sized_range<URange> ? range_bounds_kind::sized : range_bounds_kind::unsized;
-
-    using RangeBounds = range_bounds<std::ranges::iterator_t<URange>,
-                                     std::ranges::sentinel_t<URange>,
-                                     detail::const_it_or_nullptr_t<URange>,
-                                     detail::const_sen_or_nullptr_t<URange>,
-                                     kind>;
-
-    auto it  = std::ranges::begin(urange);
-    auto end = std::ranges::end(urange);
-
-    std::ranges::advance(it, n, end);
-
-    if constexpr (std::ranges::sized_range<URange>)
-    {
-        return RangeBounds{it, end, n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n};
-    }
-    else
-    {
-        return RangeBounds{it, end};
-    }
-};
+    return BorrowingRad{it, end, n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n};
+}
+else
+{
+    return BorrowingRad{it, end};
+}
+} // namespace radr
+, []<subborrowable_range URange>(URange && urange, size_t const n)
+{ return subborrow(std::forward<URange>(urange), n, std::ranges::size(urange)); }
+}
+;
 
 inline constexpr auto drop_coro = []<adaptable_range URange>(URange && urange, size_t const n)
 {

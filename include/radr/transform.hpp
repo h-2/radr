@@ -341,10 +341,10 @@ inline constexpr auto transform_borrow =
 
     if constexpr (std::ranges::sized_range<URange>)
     {
-        using RangeBounds =
-          range_bounds<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, range_bounds_kind::sized>;
+        using BorrowingRad =
+          borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::sized>;
 
-        return RangeBounds{
+        return BorrowingRad{
           iterator_t{fn, std::ranges::begin(urange)},
           sentinel_t{fn,   std::ranges::end(urange)},
           std::ranges::size(urange)
@@ -352,10 +352,10 @@ inline constexpr auto transform_borrow =
     }
     else
     {
-        using RangeBounds =
-          range_bounds<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, range_bounds_kind::unsized>;
+        using BorrowingRad =
+          borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
 
-        return RangeBounds{
+        return BorrowingRad{
           iterator_t{fn, std::ranges::begin(urange)},
           sentinel_t{fn,   std::ranges::end(urange)}
         };

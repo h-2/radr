@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <cassert>
+
 #include "detail.hpp"
 #include "fwd.hpp"
 #include "rad_interface.hpp"
@@ -43,14 +45,14 @@ template <std::input_or_output_iterator Iter,
           std::sentinel_for<Iter>       Sent = Iter,
           typename CIter                     = std::nullptr_t,
           typename CSent                     = std::nullptr_t,
-          range_bounds_kind Kind =
-            std::sized_sentinel_for<Sent, Iter> ? range_bounds_kind::sized : range_bounds_kind::unsized>
-    requires(Kind == range_bounds_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
-class range_bounds : public rad_interface<range_bounds<Iter, Sent, CIter, CSent, Kind>>
+          borrowing_rad_kind Kind =
+            std::sized_sentinel_for<Sent, Iter> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized>
+    requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
+class borrowing_rad : public rad_interface<borrowing_rad<Iter, Sent, CIter, CSent, Kind>>
 {
 public:
     // Note: this is an internal implementation detail that is public only for internal usage.
-    static constexpr bool StoreSize = (Kind == range_bounds_kind::sized && !std::sized_sentinel_for<Sent, Iter>);
+    static constexpr bool StoreSize = (Kind == borrowing_rad_kind::sized && !std::sized_sentinel_for<Sent, Iter>);
 
 private:
     static constexpr bool MustProvideSizeAtConstruction = !StoreSize; // just to improve compiler diagnostics
@@ -76,52 +78,52 @@ private:
     [[no_unique_address]] Size size_  = 0;
 
 public:
-    range_bounds()
+    borrowing_rad()
         requires std::default_initializable<Iter>
     = default;
 
-    constexpr range_bounds(detail::convertible_to_non_slicing<Iter> auto iter, Sent sent)
+    constexpr borrowing_rad(detail::convertible_to_non_slicing<Iter> auto iter, Sent sent)
         requires MustProvideSizeAtConstruction
       : begin_(std::move(iter)), end_(std::move(sent))
     {}
 
-    constexpr range_bounds(detail::convertible_to_non_slicing<Iter> auto      iter,
-                           Sent                                               sent,
-                           std::make_unsigned_t<std::iter_difference_t<Iter>> n)
-        requires(Kind == range_bounds_kind::sized)
+    constexpr borrowing_rad(detail::convertible_to_non_slicing<Iter> auto      iter,
+                            Sent                                               sent,
+                            std::make_unsigned_t<std::iter_difference_t<Iter>> n)
+        requires(Kind == borrowing_rad_kind::sized)
       : begin_(std::move(iter)), end_(std::move(sent)), size_(n)
     {
         if constexpr (std::sized_sentinel_for<Sent, Iter>)
             assert((end_ - begin_) == static_cast<std::iter_difference_t<Iter>>(n));
     }
 
-    template <detail::different_from<range_bounds> Range>
+    template <detail::different_from<borrowing_rad> Range>
         requires(std::ranges::borrowed_range<Range> &&
                  detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
                  std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
-    constexpr range_bounds(Range && range)
+    constexpr borrowing_rad(Range && range)
         requires(!StoreSize)
-      : range_bounds(std::ranges::begin(range), std::ranges::end(range))
+      : borrowing_rad(std::ranges::begin(range), std::ranges::end(range))
     {}
 
-    template <detail::different_from<range_bounds> Range>
+    template <detail::different_from<borrowing_rad> Range>
         requires(std::ranges::borrowed_range<Range> &&
                  detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
                  std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
-    constexpr range_bounds(Range && range)
+    constexpr borrowing_rad(Range && range)
         requires StoreSize && std::ranges::sized_range<Range>
-      : range_bounds(range, std::ranges::size(range))
+      : borrowing_rad(range, std::ranges::size(range))
     {}
 
     template <std::ranges::borrowed_range Range>
         requires(detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
                  std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
-    constexpr range_bounds(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
-        requires(Kind == range_bounds_kind::sized)
-      : range_bounds(std::ranges::begin(range), std::ranges::end(range), n)
+    constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
+        requires(Kind == borrowing_rad_kind::sized)
+      : borrowing_rad(std::ranges::begin(range), std::ranges::end(range), n)
     {}
 
-    template <detail::different_from<range_bounds> Pair>
+    template <detail::different_from<borrowing_rad> Pair>
         requires detail::pair_like_convertible_from<Pair, Iter const &, Sent const &>
     constexpr operator Pair() const
     {
@@ -174,7 +176,7 @@ public:
     [[nodiscard]] constexpr bool empty() const { return begin_ == end_; }
 
     constexpr std::make_unsigned_t<std::iter_difference_t<Iter>> size() const
-        requires(Kind == range_bounds_kind::sized)
+        requires(Kind == borrowing_rad_kind::sized)
     {
         if constexpr (StoreSize)
             return size_;
@@ -182,7 +184,7 @@ public:
             return detail::to_unsigned_like(end_ - begin_);
     }
 
-    [[nodiscard]] constexpr range_bounds next(std::iter_difference_t<Iter> n = 1) const &
+    [[nodiscard]] constexpr borrowing_rad next(std::iter_difference_t<Iter> n = 1) const &
         requires std::forward_iterator<Iter>
     {
         auto tmp = *this;
@@ -190,13 +192,13 @@ public:
         return tmp;
     }
 
-    [[nodiscard]] constexpr range_bounds next(std::iter_difference_t<Iter> n = 1) &&
+    [[nodiscard]] constexpr borrowing_rad next(std::iter_difference_t<Iter> n = 1) &&
     {
         advance(n);
         return std::move(*this);
     }
 
-    [[nodiscard]] constexpr range_bounds prev(std::iter_difference_t<Iter> n = 1) const
+    [[nodiscard]] constexpr borrowing_rad prev(std::iter_difference_t<Iter> n = 1) const
         requires std::bidirectional_iterator<Iter>
     {
         auto tmp = *this;
@@ -204,7 +206,7 @@ public:
         return tmp;
     }
 
-    constexpr range_bounds & advance(std::iter_difference_t<Iter> n)
+    constexpr borrowing_rad & advance(std::iter_difference_t<Iter> n)
     {
         if constexpr (std::bidirectional_iterator<Iter>)
         {
@@ -225,87 +227,87 @@ public:
 };
 
 template <std::input_or_output_iterator Iter, std::sentinel_for<Iter> Sent>
-range_bounds(Iter, Sent) -> range_bounds<Iter, Sent>;
+borrowing_rad(Iter, Sent) -> borrowing_rad<Iter, Sent>;
 
 template <typename TValue>
-range_bounds(TValue *, TValue *) -> range_bounds<TValue *, TValue *, TValue const *, TValue const *>;
+borrowing_rad(TValue *, TValue *) -> borrowing_rad<TValue *, TValue *, TValue const *, TValue const *>;
 
 template <std::input_or_output_iterator Iter, std::sentinel_for<Iter> Sent>
-range_bounds(Iter, Sent, std::make_unsigned_t<std::iter_difference_t<Iter>>)
-  -> range_bounds<Iter, Sent, std::nullptr_t, std::nullptr_t, range_bounds_kind::sized>;
+borrowing_rad(Iter, Sent, std::make_unsigned_t<std::iter_difference_t<Iter>>)
+  -> borrowing_rad<Iter, Sent, std::nullptr_t, std::nullptr_t, borrowing_rad_kind::sized>;
 
 template <typename TValue>
-range_bounds(TValue *, TValue *, std::make_unsigned_t<std::ptrdiff_t>)
-  -> range_bounds<TValue *, TValue *, TValue const *, TValue const *, range_bounds_kind::sized>;
+borrowing_rad(TValue *, TValue *, std::make_unsigned_t<std::ptrdiff_t>)
+  -> borrowing_rad<TValue *, TValue *, TValue const *, TValue const *, borrowing_rad_kind::sized>;
 
 template <std::ranges::borrowed_range Range>
-range_bounds(Range &&)
-  -> range_bounds<std::ranges::iterator_t<Range>,
-                  std::ranges::sentinel_t<Range>,
-                  std::nullptr_t,
-                  std::nullptr_t,
-                  (std::ranges::sized_range<Range> ||
-                   std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
-                    ? range_bounds_kind::sized
-                    : range_bounds_kind::unsized>;
-
-template <std::ranges::borrowed_range Range>
-    requires std::ranges::range<std::remove_cvref_t<Range> const &>
-range_bounds(Range &&)
-  -> range_bounds<std::ranges::iterator_t<Range>,
-                  std::ranges::sentinel_t<Range>,
-                  std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
-                  std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
-                  (std::ranges::sized_range<Range> ||
-                   std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
-                    ? range_bounds_kind::sized
-                    : range_bounds_kind::unsized>;
-
-template <std::ranges::borrowed_range Range>
-range_bounds(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
-  -> range_bounds<std::ranges::iterator_t<Range>,
-                  std::ranges::sentinel_t<Range>,
-                  std::nullptr_t,
-                  std::nullptr_t,
-                  range_bounds_kind::sized>;
+borrowing_rad(Range &&)
+  -> borrowing_rad<std::ranges::iterator_t<Range>,
+                   std::ranges::sentinel_t<Range>,
+                   std::nullptr_t,
+                   std::nullptr_t,
+                   (std::ranges::sized_range<Range> ||
+                    std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
+                     ? borrowing_rad_kind::sized
+                     : borrowing_rad_kind::unsized>;
 
 template <std::ranges::borrowed_range Range>
     requires std::ranges::range<std::remove_cvref_t<Range> const &>
-range_bounds(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
-  -> range_bounds<std::ranges::iterator_t<Range>,
-                  std::ranges::sentinel_t<Range>,
-                  std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
-                  std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
-                  range_bounds_kind::sized>;
+borrowing_rad(Range &&)
+  -> borrowing_rad<std::ranges::iterator_t<Range>,
+                   std::ranges::sentinel_t<Range>,
+                   std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
+                   std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
+                   (std::ranges::sized_range<Range> ||
+                    std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
+                     ? borrowing_rad_kind::sized
+                     : borrowing_rad_kind::unsized>;
 
-template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, range_bounds_kind Kind>
+template <std::ranges::borrowed_range Range>
+borrowing_rad(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
+  -> borrowing_rad<std::ranges::iterator_t<Range>,
+                   std::ranges::sentinel_t<Range>,
+                   std::nullptr_t,
+                   std::nullptr_t,
+                   borrowing_rad_kind::sized>;
+
+template <std::ranges::borrowed_range Range>
+    requires std::ranges::range<std::remove_cvref_t<Range> const &>
+borrowing_rad(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
+  -> borrowing_rad<std::ranges::iterator_t<Range>,
+                   std::ranges::sentinel_t<Range>,
+                   std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
+                   std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
+                   borrowing_rad_kind::sized>;
+
+template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, borrowing_rad_kind Kind>
     requires((Index == 0 && std::copyable<Iter>) || Index == 1)
-constexpr auto get(range_bounds<Iter, Sent, CIter, CSent, Kind> const & range_bounds)
+constexpr auto get(borrowing_rad<Iter, Sent, CIter, CSent, Kind> const & borrowing_rad)
 {
     if constexpr (Index == 0)
-        return range_bounds.begin();
+        return borrowing_rad.begin();
     else
-        return range_bounds.end();
+        return borrowing_rad.end();
 }
 
-template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, range_bounds_kind Kind>
+template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, borrowing_rad_kind Kind>
     requires((Index == 0 && std::copyable<Iter>) || Index == 1)
-constexpr auto get(range_bounds<Iter, Sent, CIter, CSent, Kind> & range_bounds)
+constexpr auto get(borrowing_rad<Iter, Sent, CIter, CSent, Kind> & borrowing_rad)
 {
     if constexpr (Index == 0)
-        return range_bounds.begin();
+        return borrowing_rad.begin();
     else
-        return range_bounds.end();
+        return borrowing_rad.end();
 }
 
-template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, range_bounds_kind Kind>
+template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, borrowing_rad_kind Kind>
     requires(Index < 2)
-constexpr auto get(range_bounds<Iter, Sent, CIter, CSent, Kind> && range_bounds)
+constexpr auto get(borrowing_rad<Iter, Sent, CIter, CSent, Kind> && borrowing_rad)
 {
     if constexpr (Index == 0)
-        return range_bounds.begin();
+        return borrowing_rad.begin();
     else
-        return range_bounds.end();
+        return borrowing_rad.end();
 }
 
 } // namespace radr
@@ -313,44 +315,40 @@ constexpr auto get(range_bounds<Iter, Sent, CIter, CSent, Kind> && range_bounds)
 namespace std
 {
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-inline constexpr bool ranges::enable_borrowed_range<radr::range_bounds<Ip, Sp, CIp, CSp, Kp>> = true;
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+inline constexpr bool ranges::enable_borrowed_range<radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>> = true;
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-inline constexpr bool ranges::enable_view<radr::range_bounds<Ip, Sp, CIp, CSp, Kp>> = true;
-
-// template <std::ranges::range Rp>
-// using std::borrowed_range_bounds_t =
-//   If<std::ranges::borrowed_range<Rp>, range_bounds<std::ranges::iterator_t<Rp>>, dangling>;
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+inline constexpr bool ranges::enable_view<radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>> = true;
 
 using radr::get;
 
 // [ranges.syn]
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-struct tuple_size<radr::range_bounds<Ip, Sp, CIp, CSp, Kp>> : integral_constant<size_t, 2>
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+struct tuple_size<radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>> : integral_constant<size_t, 2>
 {};
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-struct tuple_element<0, radr::range_bounds<Ip, Sp, CIp, CSp, Kp>>
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+struct tuple_element<0, radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>>
 {
     using type = Ip;
 };
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-struct tuple_element<1, radr::range_bounds<Ip, Sp, CIp, CSp, Kp>>
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+struct tuple_element<1, radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>>
 {
     using type = Sp;
 };
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-struct tuple_element<0, const radr::range_bounds<Ip, Sp, CIp, CSp, Kp>>
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+struct tuple_element<0, const radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>>
 {
     using type = CIp;
 };
 
-template <class Ip, class Sp, class CIp, class CSp, radr::range_bounds_kind Kp>
-struct tuple_element<1, const radr::range_bounds<Ip, Sp, CIp, CSp, Kp>>
+template <class Ip, class Sp, class CIp, class CSp, radr::borrowing_rad_kind Kp>
+struct tuple_element<1, const radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>>
 {
     using type = CSp;
 };

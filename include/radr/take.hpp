@@ -19,32 +19,14 @@
 #include "concepts.hpp"
 #include "detail.hpp"
 #include "generator.hpp"
+#include "subborrow.hpp"
 
 namespace radr
 {
 
-inline constexpr auto take_borrow = []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
-    requires(std::ranges::forward_range<URange>)
-{
-    static constexpr range_bounds_kind kind = range_bounds_kind::sized;
-    // std::ranges::sized_range<Range> ? range_bounds_kind::sized : range_bounds_kind::unsized;
-
-    static_assert(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>,
-                  "This is not yet implemented for ranges that are forward but not RA+sized.");
-
-    // if constexpr (std::ranges::random_access_range<Range> && std::ranges::sized_range<Range>)
-    // {
-    using RangeBounds = range_bounds<std::ranges::iterator_t<URange>,
-                                     std::ranges::iterator_t<URange>,
-                                     detail::const_it_or_nullptr_t<URange>,
-                                     detail::const_it_or_nullptr_t<URange>,
-                                     kind>;
-
-    return RangeBounds{std::ranges::begin(urange),
-                       std::ranges::begin(urange) + std::min<size_t>(n, std::ranges::size(urange)),
-                       std::min<size_t>(n, std::ranges::size(urange))};
-    // }
-};
+inline constexpr auto take_borrow = []<subborrowable_range URange>(URange && urange, size_t const n)
+{ return subborrow(std::forward<URange>(urange), 0ull, n); };
+//TODO generic implementation
 
 inline constexpr auto take_coro = []<adaptable_range URange>(URange && urange, size_t const n)
 {
