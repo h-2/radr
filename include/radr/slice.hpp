@@ -35,7 +35,7 @@ inline constexpr auto slice_borrow =
                      []<subborrowable_range URange>(URange && urange, size_t const start, size_t const end)
                      { return subborrow(std::forward<URange>(urange), start, end); }};
 
-inline constexpr auto slice_coro = []<adaptable_range URange>(URange && urange, size_t const start, size_t const end)
+inline constexpr auto slice_coro = []<movable_range URange>(URange && urange, size_t const start, size_t const end)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
     size_t const t = end >= start ? end - start : 0ull;

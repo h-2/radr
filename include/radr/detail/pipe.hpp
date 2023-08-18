@@ -31,7 +31,7 @@ struct pipe_with_args_fn
     constexpr pipe_with_args_fn() noexcept = default;
     constexpr pipe_with_args_fn(CoroFn, BorrowFn) noexcept {}
 
-    template <std::ranges::input_range Range, class... Args>
+    template <movable_range Range, class... Args>
         requires non_empty_args<Args...>
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
@@ -40,25 +40,27 @@ struct pipe_with_args_fn
         return CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
     }
 
-    template <std::ranges::forward_range Range, class... Args>
-        requires non_empty_args<Args...>
+    template <movable_range Range, class... Args>
+        requires (non_empty_args<Args...> && std::ranges::forward_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const noexcept(
       noexcept(owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)}))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_RVALUE_ASSERTION_STRING);
+        //TODO static_assert that range is copyable and const_iterable?
         return owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)};
     }
 
-    template <std::ranges::forward_range Range, class... Args>
-        requires(non_empty_args<Args...> && std::ranges::borrowed_range<Range>)
+    template <movable_range Range, class... Args>
+        requires(non_empty_args<Args...> && std::ranges::forward_range<Range> && std::ranges::borrowed_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_RVALUE_ASSERTION_STRING);
+        //TODO static_assert that we only borrow from forward ranges?
         return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
     }
 
-    template <class Range, class... Args>
+    template <std::ranges::input_range Range, class... Args>
         requires non_empty_args<Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> const & range, Args &&... args) const
       noexcept(noexcept(operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))

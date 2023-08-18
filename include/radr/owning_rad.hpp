@@ -32,7 +32,7 @@
 namespace radr
 {
 
-template <rad_constraints URange, std::ranges::borrowed_range BorrowedRange>
+template <unqualified_range URange, std::ranges::borrowed_range BorrowedRange>
 class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 {
     [[no_unique_address]] std::unique_ptr<URange> base_ = nullptr;
@@ -41,7 +41,7 @@ class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
     static constexpr bool const_iterable = std::ranges::forward_range<BorrowedRange const &>;
     static constexpr bool simple         = detail::simple_range<BorrowedRange>;
 
-    template <rad_constraints URange_, std::ranges::borrowed_range BorrowedRange_>
+    template <unqualified_range URange_, std::ranges::borrowed_range BorrowedRange_>
     friend class owning_rad;
 
 public:

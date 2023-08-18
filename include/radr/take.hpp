@@ -28,7 +28,7 @@ inline constexpr auto take_borrow = []<subborrowable_range URange>(URange && ura
 { return subborrow(std::forward<URange>(urange), 0ull, n); };
 //TODO generic implementation
 
-inline constexpr auto take_coro = []<adaptable_range URange>(URange && urange, size_t const n)
+inline constexpr auto take_coro = []<movable_range URange>(URange && urange, size_t const n)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
 

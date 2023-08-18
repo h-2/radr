@@ -54,7 +54,7 @@ else
 }
 ;
 
-inline constexpr auto drop_coro = []<adaptable_range URange>(URange && urange, size_t const n)
+inline constexpr auto drop_coro = []<movable_range URange>(URange && urange, size_t const n)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
 

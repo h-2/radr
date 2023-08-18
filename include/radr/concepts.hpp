@@ -19,15 +19,15 @@ namespace radr
 /*!\brief Ranges that are movable in O(1).
  * \details
  *
- * TODO
+ * TODO do we exclude std::array and std::initializer_list?
  */
 template <typename T>
-concept adaptable_range = std::ranges::input_range<T> && std::movable<T>;
+concept movable_range = std::ranges::input_range<T> && std::movable<T>;
 
 template <typename T>
-concept rad_constraints =
-  adaptable_range<T> && std::ranges::forward_range<T> && std::same_as<T, std::remove_cvref_t<T>>;
+concept unqualified_range = std::ranges::forward_range<T> && std::same_as<T, std::remove_cvref_t<T>>;
 
+//TODO do we want forward_range here:
 template <typename Range>
 concept const_iterable_range = std::ranges::forward_range<std::remove_reference_t<Range>> &&
                                std::ranges::forward_range<std::remove_reference_t<Range> const>;

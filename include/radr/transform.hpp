@@ -21,21 +21,14 @@
 #include "detail/pipe.hpp"
 #include "generator.hpp"
 
-namespace radr::detail
-{
-
-template <class Fn, class URange>
-concept regular_invocable_with_range_ref = std::regular_invocable<Fn, std::ranges::range_reference_t<URange>>;
-
-}
-
 namespace radr::detail::transform
 {
 
 template <class URange, class Fn>
-concept constraints = std::ranges::forward_range<URange> && std::is_object_v<Fn> && std::copy_constructible<Fn> &&
-                      std::regular_invocable<Fn const &, std::ranges::range_reference_t<URange>> &&
-                      detail::can_reference<std::invoke_result_t<Fn const &, std::ranges::range_reference_t<URange>>>;
+concept fn_constraints =
+  std::is_object_v<Fn> && std::copy_constructible<Fn> &&
+  std::regular_invocable<Fn const &, std::ranges::range_reference_t<URange>> &&
+  detail::can_reference<std::invoke_result_t<Fn const &, std::ranges::range_reference_t<URange>>>;
 
 template <class URange>
 struct iterator_concept
@@ -81,23 +74,23 @@ struct iterator_category_base<URange, Fn>
 namespace radr
 {
 
-template <typename URange, typename Fn, bool Const>
-    requires detail::transform::constraints<URange, Fn>
+template <unqualified_range URange, typename Fn, bool Const>
+    requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_sentinel;
 
-template <typename URange, typename Fn, bool Const>
-    requires detail::transform::constraints<URange, Fn>
+template <unqualified_range URange, typename Fn, bool Const>
+    requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_iterator : public detail::transform::iterator_category_base<URange, Fn>
 {
     using Base = detail::maybe_const<Const, URange>;
 
     [[no_unique_address]] detail::copyable_box<Fn> func_;
 
-    template <typename URange_, typename Fn_, bool Const_>
-        requires detail::transform::constraints<URange, Fn>
+    template <unqualified_range URange_, typename Fn_, bool Const_>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_iterator;
-    template <typename URange_, typename Fn_, bool Const_>
-        requires detail::transform::constraints<URange, Fn>
+    template <unqualified_range URange_, typename Fn_, bool Const_>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_sentinel;
 
 public:
@@ -253,19 +246,19 @@ public:
     }
 };
 
-template <typename URange, typename Fn, bool Const>
-    requires detail::transform::constraints<URange, Fn>
+template <unqualified_range URange, typename Fn, bool Const>
+    requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_sentinel
 {
     using Base = detail::maybe_const<Const, URange>;
 
     std::ranges::sentinel_t<Base> end_ = std::ranges::sentinel_t<Base>();
 
-    template <typename URange_, typename Fn_, bool Const_>
-        requires detail::transform::constraints<URange, Fn>
+    template <unqualified_range URange_, typename Fn_, bool Const_>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_iterator;
-    template <typename URange_, typename Fn_, bool Const_>
-        requires detail::transform::constraints<URange, Fn>
+    template <unqualified_range URange_, typename Fn_, bool Const_>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_sentinel;
 
 public:
@@ -316,7 +309,7 @@ public:
 
 inline constexpr auto transform_borrow =
   []<std::ranges::borrowed_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(detail::transform::constraints<URange, Fn>)
+    requires(detail::transform::fn_constraints<URange, Fn>)
 {
     using URangeNoCVRef = std::remove_cvref_t<URange>;
     static constexpr bool is_simple =
@@ -362,7 +355,7 @@ inline constexpr auto transform_borrow =
     }
 };
 
-inline constexpr auto transform_coro = []<adaptable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
+inline constexpr auto transform_coro = []<movable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              detail::can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {

@@ -22,7 +22,7 @@
 namespace radr
 {
 
-inline constexpr auto make_single_pass_coro = []<adaptable_range URange>(URange && urange)
+inline constexpr auto make_single_pass_coro = []<movable_range URange>(URange && urange)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
 

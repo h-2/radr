@@ -88,11 +88,7 @@ concept subborrowable_range = std::ranges::borrowed_range<Range> && std::ranges:
 // Wrapper function
 //=============================================================================
 
-inline constexpr auto subborrow =
-  []<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
-    requires(subborrowable_range<URange>)
-{
-    return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), start, end);
-};
+inline constexpr auto subborrow = []<subborrowable_range URange>(URange && urange, size_t const start, size_t const end)
+{ return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), start, end); };
 
 } // namespace radr
