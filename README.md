@@ -89,6 +89,7 @@ We aim to replicate all standard library range adaptors and not much else.
 |  Standard library             |   radr                                            | Remarks                          |
 |-------------------------------|---------------------------------------------------|----------------------------------|
 | `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                  |
+| `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                  |
 | `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                  |
 | *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n     |
 | `std::views::take`            | `radr::pipe::take(n)`                             |                                  |

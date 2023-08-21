@@ -64,7 +64,7 @@ inline constexpr auto take_borrow = detail::overloaded{
       if constexpr (std::ranges::sized_range<URange>)
           sz = std::min<sz_t>(n, std::ranges::size(urange));
 
-      using URangeNoCVRef    = std::remove_cvref_t<URange>;
+      using URangeNoCVRef = std::remove_cvref_t<URange>;
       using const_iterator_t =
         decltype(detail::overloaded{[] [[noreturn]] (auto &&) -> std::nullptr_t { /*unreachable*/ },
                                     []<std::ranges::borrowed_range Rng> [[noreturn]] (
@@ -103,9 +103,7 @@ inline constexpr auto take_borrow = detail::overloaded{
       }
   },
   []<subborrowable_range URange>(URange && urange, std::ranges::range_size_t<URange> const n)
-  {
-      return subborrow(std::forward<URange>(urange), 0ull, n);
-  }};
+  { return subborrow(std::forward<URange>(urange), 0ull, n); }};
 
 inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std::size_t const n)
 {
