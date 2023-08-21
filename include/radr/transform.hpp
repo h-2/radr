@@ -311,13 +311,12 @@ inline constexpr auto transform_borrow =
   []<std::ranges::borrowed_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(detail::transform::fn_constraints<URange, Fn>)
 {
-    using URangeNoCVRef = std::remove_cvref_t<URange>;
-    static constexpr bool is_simple =
-      std::is_const_v<std::remove_reference_t<URange>> || detail::simple_range<URangeNoCVRef>;
+    using URangeNoCVRef             = std::remove_cvref_t<URange>;
+    static constexpr bool const_sym = const_symmetric_range<URange>;
 
-    using iterator_t = transform_iterator<URangeNoCVRef, Fn, is_simple>;
+    using iterator_t = transform_iterator<URangeNoCVRef, Fn, const_sym>;
     using sentinel_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> transform_sentinel<URangeNoCVRef, Fn, is_simple> { /*unreachable*/ },
+      [] [[noreturn]] (auto &&) -> transform_sentinel<URangeNoCVRef, Fn, const_sym> { /*unreachable*/ },
       []<std::ranges::common_range Rng> [[noreturn]] (Rng &&) -> iterator_t { /*unreachable*/ }}(urange));
 
     using const_iterator_t = decltype(detail::overloaded{

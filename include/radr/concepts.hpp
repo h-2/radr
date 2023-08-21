@@ -27,7 +27,6 @@ concept movable_range = std::ranges::input_range<T> && std::movable<T>;
 template <typename T>
 concept unqualified_range = std::ranges::forward_range<T> && std::same_as<T, std::remove_cvref_t<T>>;
 
-//TODO do we want forward_range here:
 template <typename Range>
 concept const_iterable_range = std::ranges::forward_range<std::remove_reference_t<Range>> &&
                                std::ranges::forward_range<std::remove_reference_t<Range> const>;

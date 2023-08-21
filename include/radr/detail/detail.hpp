@@ -93,11 +93,6 @@ struct range_adaptor_closure_t : Fn, range_adaptor_closure<range_adaptor_closure
 template <typename T, typename T2>
 concept different_from = !std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<T2>>;
 
-template <typename Range>
-concept simple_range = std::ranges::range<Range> && std::ranges::range<Range const> &&
-                       std::same_as<std::ranges::iterator_t<Range>, std::ranges::iterator_t<Range const>> &&
-                       std::same_as<std::ranges::sentinel_t<Range>, std::ranges::sentinel_t<Range const>>;
-
 /*
 template <typename T>
 using iterator_category_tag = decltype([]()

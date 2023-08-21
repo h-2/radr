@@ -21,15 +21,13 @@ namespace radr
 {
 
 inline constexpr auto borrow = []<std::ranges::borrowed_range URange>(URange && urange)
-/*requires(!std::ranges::borrowed_range<std::remove_cvref_t<URange>> ||
-             std::constructible_from<std::remove_cvref_t<URange>, URange>)*/
 {
     using URangeNoCVRef = std::remove_cvref_t<URange>;
 
     // already a borrowed type
     if constexpr (std::ranges::borrowed_range<URangeNoCVRef> && std::constructible_from<URangeNoCVRef, URange>)
     {
-        return urange; // NOOP
+        return std::forward<URange>(urange); // NOOP
     }
     else if constexpr (std::ranges::contiguous_range<URange> && std::ranges::sized_range<URange>)
     {

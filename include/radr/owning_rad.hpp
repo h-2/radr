@@ -39,7 +39,7 @@ class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
     [[no_unique_address]] BorrowedRange           bounds;
 
     static constexpr bool const_iterable = std::ranges::forward_range<BorrowedRange const &>;
-    static constexpr bool simple         = detail::simple_range<BorrowedRange>;
+    static constexpr bool simple         = const_symmetric_range<BorrowedRange>;
 
     template <unqualified_range URange_, std::ranges::borrowed_range BorrowedRange_>
     friend class owning_rad;
