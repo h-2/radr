@@ -27,13 +27,18 @@ namespace radr
 {
 
 inline constexpr auto slice_borrow =
-  detail::overloaded{[]<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
-                     {
-                         size_t const t = end >= start ? end - start : 0ull;
-                         return take_borrow(drop_borrow(std::forward<URange>(urange), start), t);
-                     },
-                     []<subborrowable_range URange>(URange && urange, size_t const start, size_t const end)
-                     { return subborrow(std::forward<URange>(urange), start, end); }};
+  []<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
+{
+    if constexpr (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+    {
+        return subborrow(std::forward<URange>(urange), start, end);
+    }
+    else
+    {
+        size_t const t = end >= start ? end - start : 0ull;
+        return take_borrow(drop_borrow(std::forward<URange>(urange), start), t);
+    }
+};
 
 inline constexpr auto slice_coro = []<movable_range URange>(URange && urange, size_t const start, size_t const end)
 {

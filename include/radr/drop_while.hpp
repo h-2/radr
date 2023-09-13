@@ -24,12 +24,10 @@
 namespace radr
 {
 // clang-format off
-inline constexpr auto drop_while_borrow = detail::overloaded{
-  []<std::ranges::borrowed_range URange,
-     std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)
+inline constexpr auto drop_while_borrow =
+  []<std::ranges::borrowed_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>
+    (URange && urange, Fn fn)
   {
-      using BorrowingRad = decltype(borrowing_rad{std::forward<URange>(urange)});
-
       auto it  = std::ranges::begin(urange);
       auto e   = std::ranges::end(urange);
 
@@ -40,26 +38,13 @@ inline constexpr auto drop_while_borrow = detail::overloaded{
       if constexpr (std::ranges::sized_range<URange>)
       {
           assert(count <= std::ranges::size(urange));
-          return BorrowingRad{it, e, std::ranges::size(urange) - count};
+          return subborrow(std::forward<URange>(urange), it, e, std::ranges::size(urange) - count);
       }
       else
       {
-          return BorrowingRad{it, e};
+          return subborrow(std::forward<URange>(urange), it, e);
       }
-  },
-  []<subborrowable_range URange,
-     std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)
-  {
-      auto it  = std::ranges::begin(urange);
-      auto e   = std::ranges::end(urange);
-
-      size_t count = 0ull;
-      for (; it != e && fn(*it); ++it, ++count)
-      {}
-
-      return subborrow(std::forward<URange>(urange), count, std::ranges::size(urange));
-  }
-};
+  };
 // clang-format on
 
 inline constexpr auto drop_while_coro =

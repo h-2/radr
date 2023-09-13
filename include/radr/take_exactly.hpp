@@ -55,9 +55,10 @@ inline constexpr auto take_exactly_borrow = detail::overloaded{
                               n};
       }
   },
-  []<subborrowable_range URange>(URange && urange, size_t const n)
+  []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
+      requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
   {
-      return subborrow(std::forward<URange>(urange), 0, n);
+      return subborrow(std::forward<URange>(urange), 0ull, n);
   }};
 // clang-format on
 

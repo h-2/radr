@@ -102,8 +102,12 @@ inline constexpr auto take_borrow = detail::overloaded{
                               std::default_sentinel};
       }
   },
-  []<subborrowable_range URange>(URange && urange, std::ranges::range_size_t<URange> const n)
-  { return subborrow(std::forward<URange>(urange), 0ull, n); }};
+  []<std::ranges::borrowed_range URange>(URange && urange, std::ranges::range_size_t<URange> const n) requires(
+    std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>){
+    return subborrow(std::forward<URange>(urange), 0ull, n);
+} // namespace radr
+}
+;
 
 inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std::size_t const n)
 {

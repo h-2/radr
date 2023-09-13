@@ -56,4 +56,4 @@ inline constexpr auto range_fwd = []<std::ranges::range Range>(Range && range) -
 
 } // namespace radr
 
-#define RADR_FWD(R) radr::range_fwd(std::forward<decltype(R)>(R))
+#define RADRFWD(R) radr::range_fwd(std::forward<decltype(R)>(R))

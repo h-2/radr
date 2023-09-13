@@ -28,8 +28,6 @@ inline constexpr auto drop_borrow = detail::overloaded{
   []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
     requires std::ranges::forward_range<URange>
   {
-      using BorrowingRad = decltype(borrowing_rad{std::forward<URange>(urange)});
-
       auto it  = std::ranges::begin(urange);
       auto end = std::ranges::end(urange);
 
@@ -37,16 +35,15 @@ inline constexpr auto drop_borrow = detail::overloaded{
 
       if constexpr (std::ranges::sized_range<URange>)
       {
-          return BorrowingRad{it, end, n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n};
+          return subborrow(std::forward<URange>(urange),
+                           it,
+                           end,
+                           n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n);
       }
       else
       {
-          return BorrowingRad{it, end};
+          return subborrow(std::forward<URange>(urange), it, end);
       }
-  },
-  []<subborrowable_range URange>(URange && urange, size_t const n)
-  {
-      return subborrow(std::forward<URange>(urange), n, std::ranges::size(urange));
   }
 };
 // clang-format on
