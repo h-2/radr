@@ -99,7 +99,7 @@ inline constexpr auto take_borrow = detail::overloaded{
                                              borrowing_rad_kind::unsized>;
 
           return BorrowingRad{std::counted_iterator<std::ranges::iterator_t<URange>>(std::ranges::begin(urange), sz),
-                              std::default_sentinel};
+                              take_sentinel<URangeNoCVRef, const_symmetric_range<URange>>{std::ranges::end(urange)}};
       }
   },
   []<std::ranges::borrowed_range URange>(URange && urange, std::ranges::range_size_t<URange> const n) requires(
