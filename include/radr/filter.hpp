@@ -51,22 +51,22 @@ concept filter_pred_constraints = std::is_object_v<Pred> && std::copy_constructi
 namespace radr
 {
 
-template <unqualified_range                                                   URange,
+template <unqualified_forward_range                                           URange,
           bool                                                                Const,
           detail::filter_pred_constraints<detail::maybe_const<Const, URange>> Pred>
 class filter_iterator : public detail::filter_iterator_category<URange>
 {
     using URangeC = detail::maybe_const<Const, URange>;
 
-    [[no_unique_address]] detail::copyable_box<Pred> pred_;
 
-    template <unqualified_range                                                     URange_,
+    template <unqualified_forward_range                                             URange_,
               bool                                                                  Const_,
               detail::filter_pred_constraints<detail::maybe_const<Const_, URange_>> Pred_>
     friend class filter_iterator;
 
     [[no_unique_address]] std::ranges::iterator_t<URangeC> current_{};
     [[no_unique_address]] std::ranges::sentinel_t<URangeC> end_{};
+    [[no_unique_address]] detail::copyable_box<Pred> pred_;
 
 public:
     // clang-format off
@@ -80,11 +80,7 @@ public:
     using value_type      = std::ranges::range_value_t<URangeC>;
     using difference_type = std::ranges::range_difference_t<URangeC>;
 
-    filter_iterator()
-        requires(std::default_initializable<std::ranges::iterator_t<URangeC>> &&
-                 std::default_initializable<std::ranges::sentinel_t<URangeC>> &&
-                 std::default_initializable<detail::copyable_box<Pred>>)
-    = default;
+    filter_iterator() = default;
 
     constexpr filter_iterator(Pred                             pred,
                               std::ranges::iterator_t<URangeC> current,
@@ -107,7 +103,7 @@ public:
 
     constexpr std::ranges::range_reference_t<URangeC> operator*() const { return *current_; }
     constexpr std::ranges::iterator_t<URangeC>        operator->() const
-        requires detail::has_arrow<std::ranges::iterator_t<URangeC>> && std::copyable<std::ranges::iterator_t<URangeC>>
+        requires detail::has_arrow<std::ranges::iterator_t<URangeC>>
     {
         return current_;
     }
@@ -117,9 +113,8 @@ public:
         current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*pred_));
         return *this;
     }
-    constexpr void            operator++(int) { ++*this; }
+    
     constexpr filter_iterator operator++(int)
-        requires std::ranges::forward_range<URangeC>
     {
         auto tmp = *this;
         ++*this;
@@ -145,57 +140,41 @@ public:
     }
 
     friend constexpr bool operator==(filter_iterator const & x, filter_iterator const & y)
-        requires std::equality_comparable<std::ranges::iterator_t<URangeC>>
     {
         return x.current_ == y.current_;
     }
 
     friend constexpr bool operator==(filter_iterator const & x, std::default_sentinel_t const &)
-        requires(std::equality_comparable<std::ranges::iterator_t<URangeC>> && !std::ranges::common_range<URangeC>)
+        requires (!std::ranges::common_range<URangeC>)
     {
         return x.current_ == x.end_;
     }
 
-    friend constexpr std::ranges::range_rvalue_reference_t<URangeC> iter_move(filter_iterator const & it) noexcept(
-      noexcept(std::ranges::iter_move(it.current_)))
-    {
-        return std::ranges::iter_move(it.current_);
-    }
+    //TODO what do we do with this
+    // friend constexpr std::ranges::range_rvalue_reference_t<URangeC> iter_move(filter_iterator const & it) noexcept(
+    //   noexcept(std::ranges::iter_move(it.current_)))
+    // {
+    //     return std::ranges::iter_move(it.current_);
+    // }
 
     friend constexpr void iter_swap(filter_iterator const & x, filter_iterator const & y) noexcept(
       noexcept(std::ranges::iter_swap(x.current_, y.current_)))
         requires std::indirectly_swappable<std::ranges::iterator_t<URangeC>>
     {
         std::ranges::iter_swap(x.current_, y.current_);
-        //TODO do we need to swap ends, too?
         std::ranges::iter_swap(x.end_, y.end_);
     }
 };
 
 inline constexpr auto filter_borrow =
-  []<std::ranges::borrowed_range URange, detail::filter_pred_constraints<URange> Fn>(URange && urange, Fn fn)
+  []<const_borrowable_range URange, detail::filter_pred_constraints<URange> Fn>(URange && urange, Fn fn)
 {
-    using URangeNoCVRef = std::remove_cvref_t<URange>;
+    using iterator_t = filter_iterator<std::remove_cvref_t<URange>, const_symmetric_range<URange>, Fn>;
+    using sentinel_t = std::conditional_t<std::ranges::common_range<URange>, iterator_t, std::default_sentinel_t>;
 
-    static constexpr bool is_const_iterable =
-      const_iterable_range<URange> && detail::filter_pred_constraints<Fn, URangeNoCVRef const>;
-    static constexpr bool is_const_symmetric = is_const_iterable && const_symmetric_range<URange>;
-
-    using iterator_t = filter_iterator<URangeNoCVRef, is_const_symmetric, Fn>;
-    using sentinel_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> std::default_sentinel_t { /*unreachable*/ },
-      []<std::ranges::common_range Rng> [[noreturn]] (Rng &&) -> iterator_t { /*unreachable*/ }}(urange));
-
-    using const_iterator_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> std::nullptr_t { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> [[noreturn]] (Rng &&) -> filter_iterator<std::remove_cvref_t<Rng>, true, Fn>
-      { /*unreachable*/ }}(std::as_const(urange)));
-
-    using const_sentinel_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> std::nullptr_t { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> [[noreturn]] (Rng &&) -> std::default_sentinel_t { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> requires std::ranges::common_range<Rng> [[noreturn]] (Rng &&)
-        ->const_iterator_t{/*unreachable*/}}(std::as_const(urange)));
+    using const_iterator_t = filter_iterator<std::remove_cvref_t<URange>, true, Fn>;
+    using const_sentinel_t =
+      std::conditional_t<std::ranges::common_range<URange const>, const_iterator_t, std::default_sentinel_t>;
 
     using BorrowingRad =
       borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
@@ -222,7 +201,7 @@ inline constexpr auto filter_borrow =
 inline constexpr auto filter_coro =
   []<movable_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
+    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
 
     // we need to create inner functor so that it can take by value
     return [](auto urange_,

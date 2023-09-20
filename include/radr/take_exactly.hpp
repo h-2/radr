@@ -26,36 +26,21 @@ namespace radr
 {
 // clang-format off
 inline constexpr auto take_exactly_borrow = detail::overloaded{
-  []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
-      requires(std::ranges::forward_range<URange>)
+  []<const_borrowable_range URange>(URange && urange, size_t const n)
   {
-      if constexpr (const_iterable_range<URange>)
-      {
-          using URangeNoRef = std::remove_reference_t<URange>;
-          using BorrowingRad = borrowing_rad<std::counted_iterator<std::ranges::iterator_t<URangeNoRef>>,
-                                             std::default_sentinel_t,
-                                             std::counted_iterator<std::ranges::iterator_t<URangeNoRef const>>,
-                                             std::default_sentinel_t,
-                                             borrowing_rad_kind::sized>;
+      using URangeNoRef = std::remove_reference_t<URange>;
+      using BorrowingRad = borrowing_rad<std::counted_iterator<std::ranges::iterator_t<URangeNoRef>>,
+                                         std::default_sentinel_t,
+                                         std::counted_iterator<std::ranges::iterator_t<URangeNoRef const>>,
+                                         std::default_sentinel_t,
+                                         borrowing_rad_kind::sized>;
 
-          return BorrowingRad{std::counted_iterator<std::ranges::iterator_t<URange>>(std::ranges::begin(urange), n),
-                              std::default_sentinel,
-                              n};
-      }
-      else
-      {
-          using BorrowingRad = borrowing_rad<std::counted_iterator<std::ranges::iterator_t<URange>>,
-                                             std::default_sentinel_t,
-                                             std::nullptr_t,
-                                             std::nullptr_t,
-                                             borrowing_rad_kind::sized>;
+      return BorrowingRad{std::counted_iterator<std::ranges::iterator_t<URange>>(std::ranges::begin(urange), n),
+                          std::default_sentinel,
+                          n};
 
-          return BorrowingRad{std::counted_iterator<std::ranges::iterator_t<URange>>(std::ranges::begin(urange), n),
-                              std::default_sentinel,
-                              n};
-      }
   },
-  []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
+  []<const_borrowable_range URange>(URange && urange, size_t const n)
       requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
   {
       return subborrow(std::forward<URange>(urange), 0ull, n);

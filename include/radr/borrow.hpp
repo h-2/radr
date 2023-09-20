@@ -16,40 +16,17 @@
 #include <string_view>
 
 #include "borrowing_rad.hpp"
+#include "subborrow.hpp"
 
 namespace radr
 {
 
-inline constexpr auto borrow = []<std::ranges::borrowed_range URange>(URange && urange)
-{
-    using URangeNoCVRef = std::remove_cvref_t<URange>;
-
-    // already a borrowed type
-    if constexpr (std::ranges::borrowed_range<URangeNoCVRef> && std::constructible_from<URangeNoCVRef, URange>)
-    {
-        return std::forward<URange>(urange); // NOOP
-    }
-    else if constexpr (std::ranges::contiguous_range<URange> && std::ranges::sized_range<URange>)
-    {
-        if constexpr (std::same_as<std::ranges::range_reference_t<URange>, char const &>)
-        {
-            return std::string_view{std::ranges::data(urange), std::ranges::data(urange) + std::ranges::size(urange)};
-        }
-        else
-        {
-            return std::span{std::forward<URange>(urange)};
-        }
-    }
-    else
-    {
-        return borrowing_rad{std::forward<URange>(urange)};
-    }
-};
+//TODO nothing uses this at the moment
 
 inline constexpr auto range_fwd = []<std::ranges::range Range>(Range && range) -> decltype(auto)
 {
     if constexpr (std::is_lvalue_reference_v<Range>)
-        return borrow(range);
+        return subborrow(range);
     else
         return std::forward<Range>(range);
 };

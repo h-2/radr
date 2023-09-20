@@ -19,10 +19,30 @@
 #include "bind_back.hpp"
 #include "fwd.hpp"
 
-#define RADR_RVALUE_ASSERTION_STRING                                                                                   \
+#define RADR_ASSERTSTRING_RVALUE                                                                                       \
     "RADR adaptors and coroutines only take arguments as (r)values. If you want to "                                   \
-    "adapt an lvalue range, wrap it in radr::range_fwd() or wrap it std::ref() "                                       \
-    "and pass it to the respective object in radr::pipe::"
+    "adapt an lvalue range, wrap it in std::ref(), e.g.:\nauto a = std::ref(lvalue) | radr::take(3);"
+
+#define RADR_ASSERTSTRING_CONST_ITERABLE                                                                               \
+    "RADR adaptors created on forward ranges require those ranges to be radr::const_iterable, i.e. they need to "      \
+    "provide ´.begin() const`.\n"                                                                                        \
+    "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
+    "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
+    "auto a = your_range | std::views::filter(/**/) | radr::make_single_pass | radr::take(3);\n "                      \
+    "Here, std::views::filter is non-conforming because not const-iterable, so radr's multi-pass take doesn't "        \
+    "accept it, but radr's single-pass take does."
+    
+#define RADR_ASSERTSTRING_COPYABLE                                                                                     \
+    "RADR adaptors created on rvalues of forward ranges require those ranges to be std::copyable.\n"                   \
+    "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
+    "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
+    "auto a = std::vector{1,2,3} | std::views::transform(/**/) | radr::make_single_pass | radr::take(3);\n "           \
+    "Here, std::views::transform is non-conforming because not copyable, so radr's multi-pass take doesn't "           \
+    "accept it, but radr's single-pass take does."
+    
+#define RADR_ASSERTSTRING_NOBORROW_SINGLEPASS                                                                          \
+    "RADR adaptors only borrow from (complete) forward ranges. Single-pass input ranges can only be adapted "          \
+    "by moving them into the adaptor, e.g.\nauto a = std::move(streamrange) | radr::take(3);"
 
 namespace radr::detail
 {
@@ -146,25 +166,42 @@ concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>
 // tuple_like
 //=============================================================================
 
-template <typename T>
-struct const_bounds
-{
-    using it_type  = std::nullptr_t;
-    using sen_type = std::nullptr_t;
-};
+// template <typename T>
+// struct const_bounds
+// {
+//     using it_type  = std::nullptr_t;
+//     using sen_type = std::nullptr_t;
+// };
+//
+// template <typename T>
+//     requires std::ranges::forward_range<T const>
+// struct const_bounds<T>
+// {
+//     using it_type  = std::ranges::iterator_t<T const>;
+//     using sen_type = std::ranges::sentinel_t<T const>;
+// };
+//
+// template <typename Range>
+// using const_it_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::it_type;
+//
+// template <typename Range>
+// using const_sen_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::sen_type;
+
+//=============================================================================
+// add_const_t
+//=============================================================================
 
 template <typename T>
-    requires std::ranges::forward_range<T const>
-struct const_bounds<T>
-{
-    using it_type  = std::ranges::iterator_t<T const>;
-    using sen_type = std::ranges::sentinel_t<T const>;
-};
+using add_const_t = 
+    std::conditional_t<std::is_same_v<std::remove_cvref_t<T> &, T>, std::remove_cvref_t<T> const &,
+    std::conditional_t<std::is_same_v<std::remove_cvref_t<T> &&, T>, std::remove_cvref_t<T> const &&, T const>>;
 
-template <typename Range>
-using const_it_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::it_type;
-
-template <typename Range>
-using const_sen_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::sen_type;
+static_assert(std::same_as<add_const_t<int>, int const>);
+static_assert(std::same_as<add_const_t<int &>, int const &>);
+static_assert(std::same_as<add_const_t<int &&>, int const &&>);
+static_assert(std::same_as<add_const_t<int const>, int const>);
+static_assert(std::same_as<add_const_t<int const &>, int const &>);
+static_assert(std::same_as<add_const_t<int const &&>, int const &&>);
+static_assert(std::same_as<add_const_t<int *>, int * const>);
 
 } // namespace radr::detail

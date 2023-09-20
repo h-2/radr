@@ -29,31 +29,39 @@
  *
  */
 
+namespace radr::detail
+{
+
+template <typename Range>
+concept owned_range_constraints =
+  unqualified_forward_range<Range> && const_iterable_range<Range> && std::copyable<Range>;
+
+template <typename Range>
+concept borrowed_range_constraints =
+  owned_range_constraints<Range> && std::default_initializable<Range> && std::ranges::borrowed_range<Range>;
+
+} // namespace radr::detail
+
 namespace radr
 {
 
-template <unqualified_range URange, std::ranges::borrowed_range BorrowedRange>
+template <detail::owned_range_constraints URange, detail::borrowed_range_constraints BorrowedRange>
 class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 {
     [[no_unique_address]] std::unique_ptr<URange> base_ = nullptr;
-    [[no_unique_address]] BorrowedRange           bounds;
+    [[no_unique_address]] BorrowedRange           bounds{};
 
-    static constexpr bool const_iterable = std::ranges::forward_range<BorrowedRange const &>;
-    static constexpr bool simple         = const_symmetric_range<BorrowedRange>;
+    static constexpr bool const_symmetric = const_symmetric_range<BorrowedRange>;
 
-    template <unqualified_range URange_, std::ranges::borrowed_range BorrowedRange_>
+    template <detail::owned_range_constraints URange_, detail::borrowed_range_constraints BorrowedRange_>
     friend class owning_rad;
 
 public:
-    owning_rad()
-        requires std::default_initializable<BorrowedRange>
-    = default;
-
+    owning_rad()                          = default;
     owning_rad(owning_rad &&)             = default;
     owning_rad & operator=(owning_rad &&) = default;
 
     owning_rad(owning_rad const & rhs)
-        requires(std::constructible_from<URange, URange const &> && std::copyable<BorrowedRange>)
     {
         if (rhs.base_ != nullptr)
         {
@@ -68,7 +76,6 @@ public:
     }
 
     owning_rad & operator=(owning_rad const & rhs)
-        requires(std::constructible_from<URange, URange const &> && std::copyable<BorrowedRange>)
     {
         if (rhs.base_ == nullptr)
         {
@@ -104,36 +111,24 @@ public:
       base_(std::move(urange.base_)), bounds{std::move(cacher_fn)(urange.bounds)}
     {}
 
-    constexpr URange base() const &
-        requires std::copy_constructible<URange>
-    {
-        return *base_;
-    }
+    constexpr URange base() const & { return *base_; }
     constexpr URange base() && { return std::move(*base_); }
 
     constexpr auto begin()
-        requires(!simple)
+        requires(!const_symmetric)
     {
         return std::ranges::begin(bounds);
     }
 
-    constexpr auto begin() const
-        requires const_iterable
-    {
-        return std::ranges::begin(bounds);
-    }
+    constexpr auto begin() const { return std::ranges::begin(bounds); }
 
     constexpr auto end()
-        requires(!simple)
+        requires(!const_symmetric)
     {
         return std::ranges::end(bounds);
     }
 
-    constexpr auto end() const
-        requires const_iterable
-    {
-        return std::ranges::end(bounds);
-    }
+    constexpr auto end() const { return std::ranges::end(bounds); }
 
     constexpr auto size()
         requires std::ranges::sized_range<BorrowedRange>

@@ -50,7 +50,7 @@ inline constexpr auto drop_while_borrow =
 inline constexpr auto drop_while_coro =
   []<movable_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
+    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
 
     // we need to create inner functor so that it can drop by value
     return [](auto urange_,

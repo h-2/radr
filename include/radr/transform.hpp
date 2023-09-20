@@ -74,11 +74,11 @@ struct iterator_category_base<URange, Fn>
 namespace radr
 {
 
-template <unqualified_range URange, typename Fn, bool Const>
+template <unqualified_forward_range URange, typename Fn, bool Const>
     requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_sentinel;
 
-template <unqualified_range URange, typename Fn, bool Const>
+template <unqualified_forward_range URange, typename Fn, bool Const>
     requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_iterator : public detail::transform::iterator_category_base<URange, Fn>
 {
@@ -86,10 +86,10 @@ class transform_iterator : public detail::transform::iterator_category_base<URan
 
     [[no_unique_address]] detail::copyable_box<Fn> func_;
 
-    template <unqualified_range URange_, typename Fn_, bool Const_>
+    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
         requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_iterator;
-    template <unqualified_range URange_, typename Fn_, bool Const_>
+    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
         requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_sentinel;
 
@@ -246,7 +246,7 @@ public:
     }
 };
 
-template <unqualified_range URange, typename Fn, bool Const>
+template <unqualified_forward_range URange, typename Fn, bool Const>
     requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
 class transform_sentinel
 {
@@ -254,10 +254,10 @@ class transform_sentinel
 
     std::ranges::sentinel_t<Base> end_ = std::ranges::sentinel_t<Base>();
 
-    template <unqualified_range URange_, typename Fn_, bool Const_>
+    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
         requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_iterator;
-    template <unqualified_range URange_, typename Fn_, bool Const_>
+    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
         requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
     friend class transform_sentinel;
 
@@ -308,28 +308,19 @@ public:
 };
 
 inline constexpr auto transform_borrow =
-  []<std::ranges::borrowed_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
+  []<const_borrowable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(detail::transform::fn_constraints<URange, Fn>)
 {
     using URangeNoCVRef             = std::remove_cvref_t<URange>;
     static constexpr bool const_sym = const_symmetric_range<URange>;
 
     using iterator_t = transform_iterator<URangeNoCVRef, Fn, const_sym>;
-    using sentinel_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> transform_sentinel<URangeNoCVRef, Fn, const_sym> { /*unreachable*/ },
-      []<std::ranges::common_range Rng> [[noreturn]] (Rng &&) -> iterator_t { /*unreachable*/ }}(urange));
+    using sentinel_t = std::
+      conditional_t<std::ranges::common_range<URange>, iterator_t, transform_sentinel<URangeNoCVRef, Fn, const_sym>>;
 
-    using const_iterator_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> std::nullptr_t { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> [[noreturn]] (Rng &&) -> transform_iterator<URangeNoCVRef, Fn, true>
-      { /*unreachable*/ }}(std::as_const(urange)));
-
-    using const_sentinel_t = decltype(detail::overloaded{
-      [] [[noreturn]] (auto &&) -> std::nullptr_t { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> [[noreturn]] (Rng &&) -> transform_sentinel<URangeNoCVRef, Fn, true>
-      { /*unreachable*/ },
-      []<std::ranges::borrowed_range Rng> requires std::ranges::common_range<Rng> [[noreturn]] (Rng &&)
-        ->const_iterator_t{/*unreachable*/}}(std::as_const(urange)));
+    using const_iterator_t = transform_iterator<URangeNoCVRef, Fn, true>;
+    using const_sentinel_t =
+      std::conditional_t<std::ranges::common_range<URange>, iterator_t, transform_sentinel<URangeNoCVRef, Fn, true>>;
 
     if constexpr (std::ranges::sized_range<URange>)
     {
@@ -358,7 +349,7 @@ inline constexpr auto transform_coro = []<movable_range URange, std::copy_constr
     requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              detail::can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_RVALUE_ASSERTION_STRING);
+    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
 
     // we need to create inner functor so that it can take by value
     return

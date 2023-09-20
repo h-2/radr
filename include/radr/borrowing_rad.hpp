@@ -14,6 +14,7 @@
 
 #include <cassert>
 
+#include "concepts.hpp"
 #include "detail/detail.hpp"
 #include "detail/fwd.hpp"
 #include "rad_interface.hpp"
@@ -36,16 +37,21 @@ concept pair_like_convertible_from =
   convertible_to_non_slicing<Iter, std::tuple_element_t<0, Pair>> &&
   std::convertible_to<Sent, std::tuple_element_t<1, Pair>>;
 
+  
+template <class CIter, class CSent, class OtherRange>
+concept compatible_contiguous_range = std::ranges::contiguous_range<OtherRange> && 
+    std::same_as<std::ranges::range_value_t<OtherRange> const *, CIter> &&
+    std::same_as<std::ranges::range_value_t<OtherRange> const *, CSent>;
 } // namespace radr::detail
 
 namespace radr
 {
 
-template <std::input_or_output_iterator Iter,
-          std::sentinel_for<Iter>       Sent = Iter,
-          typename CIter                     = std::nullptr_t,
-          typename CSent                     = std::nullptr_t,
-          borrowing_rad_kind Kind =
+template <std::forward_iterator    Iter,
+          std::sentinel_for<Iter>  Sent,
+          std::forward_iterator    CIter,
+          std::sentinel_for<CIter> CSent,
+          borrowing_rad_kind       Kind =
             std::sized_sentinel_for<Sent, Iter> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized>
     requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
 class borrowing_rad : public rad_interface<borrowing_rad<Iter, Sent, CIter, CSent, Kind>>
@@ -62,31 +68,28 @@ private:
     };
     using Size = std::conditional_t<StoreSize, std::make_unsigned_t<std::iter_difference_t<Iter>>, Empty>;
 
-    static constexpr bool const_iterable = !std::same_as<CIter, std::nullptr_t> || !std::same_as<CSent, std::nullptr_t>;
+    static constexpr bool const_symmetric = std::same_as<CIter, Iter> && std::same_as<CSent, Sent>;
 
-    static constexpr bool simple = std::same_as<CIter, Iter> && std::same_as<CSent, Sent>;
-
-    static_assert(!const_iterable || std::sentinel_for<CSent, CIter>,
-                  "The const_sentinel is not a sentinel for the const_iterator.");
-    static_assert(!const_iterable || std::convertible_to<Iter, CIter>,
-                  "The iterator is not convertible to the const_iterator.");
-    static_assert(!const_iterable || std::convertible_to<Sent, CSent>,
-                  "The sentinel is not convertible to the const_sentinel.");
+    static_assert(std::sized_sentinel_for<Sent, Iter> == std::sized_sentinel_for<CSent, CIter>,
+                  "The const sentinel shall be a sized sentinel for the const iterator IF AND ONLY IF "
+                  "the sentinel is a sized sentinel for the iterator.");
+    static_assert(std::convertible_to<Iter, CIter>, "The iterator is not convertible to the const_iterator.");
+    static_assert(std::convertible_to<Sent, CSent>, "The sentinel is not convertible to the const_sentinel.");
 
     [[no_unique_address]] Iter begin_ = Iter();
     [[no_unique_address]] Sent end_   = Sent();
     [[no_unique_address]] Size size_  = 0;
 
 public:
-    borrowing_rad()
-        requires std::default_initializable<Iter>
-    = default;
+    borrowing_rad() = default;
 
+    //!\brief Iterator, Sentinel
     constexpr borrowing_rad(detail::convertible_to_non_slicing<Iter> auto iter, Sent sent)
         requires MustProvideSizeAtConstruction
       : begin_(std::move(iter)), end_(std::move(sent))
     {}
 
+    //!\brief Iterator, Sentinel, Size
     constexpr borrowing_rad(detail::convertible_to_non_slicing<Iter> auto      iter,
                             Sent                                               sent,
                             std::make_unsigned_t<std::iter_difference_t<Iter>> n)
@@ -97,32 +100,54 @@ public:
             assert((end_ - begin_) == static_cast<std::iter_difference_t<Iter>>(n));
     }
 
+    //!\brief Range generic
     template <detail::different_from<borrowing_rad> Range>
         requires(std::ranges::borrowed_range<Range> &&
                  detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
                  std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range)
-        requires(!StoreSize)
+        requires(Kind == borrowing_rad_kind::unsized)
       : borrowing_rad(std::ranges::begin(range), std::ranges::end(range))
     {}
 
+    //!\brief Range sized
     template <detail::different_from<borrowing_rad> Range>
-        requires(std::ranges::borrowed_range<Range> &&
-                 detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
-                 std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
+        requires(std::ranges::borrowed_range<Range> && std::ranges::sized_range<Range> &&
+                 ((detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
+                 std::convertible_to<std::ranges::sentinel_t<Range>, Sent>) || 
+                 detail::compatible_contiguous_range<CIter, CSent, Range>))
     constexpr borrowing_rad(Range && range)
-        requires StoreSize && std::ranges::sized_range<Range>
       : borrowing_rad(range, std::ranges::size(range))
     {}
-
+    
+    //!\brief Range, Size
     template <std::ranges::borrowed_range Range>
         requires(detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
-                 std::convertible_to<std::ranges::sentinel_t<Range>, Sent>)
+                 std::convertible_to<std::ranges::sentinel_t<Range>, Sent> && 
+                 !std::ranges::random_access_range<Range>)
     constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
         requires(Kind == borrowing_rad_kind::sized)
       : borrowing_rad(std::ranges::begin(range), std::ranges::end(range), n)
     {}
-
+    
+     //!\brief Range RA, Size
+    template <std::ranges::borrowed_range Range>
+        requires(detail::convertible_to_non_slicing<std::ranges::iterator_t<Range>, Iter> &&
+                 std::same_as<Iter, Sent> && std::ranges::random_access_range<Range> &&
+                 !detail::compatible_contiguous_range<CIter, CSent, Range>)
+    constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
+        requires(Kind == borrowing_rad_kind::sized)
+      : borrowing_rad(std::ranges::begin(range), std::ranges::begin(range) + n, n)
+    {}
+ 
+    //!\brief Range contiguous, Size
+    template <std::ranges::borrowed_range Range>
+        requires(detail::compatible_contiguous_range<CIter, CSent, Range>)
+    constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
+        requires(Kind == borrowing_rad_kind::sized)
+      : borrowing_rad(std::ranges::data(range), std::ranges::data(range) + n, n)
+    {}
+    
     template <detail::different_from<borrowing_rad> Pair>
         requires detail::pair_like_convertible_from<Pair, Iter const &, Sent const &>
     constexpr operator Pair() const
@@ -131,44 +156,37 @@ public:
     }
 
     constexpr Iter begin()
-        requires(std::copyable<Iter> && !simple)
+        requires(!const_symmetric)
     {
         return begin_;
     }
 
     constexpr Iter begin() const
-        requires(std::copyable<Iter> && const_iterable && simple)
+        requires(const_symmetric)
     {
         return begin_;
     }
 
-    constexpr auto begin() const
-        requires(std::copyable<Iter> && const_iterable && !simple)
+    constexpr CIter begin() const
+        requires(!const_symmetric)
     {
         return static_cast<CIter>(begin_);
     }
 
-    // Only single-pass input ranges can have move-only iterators and these are not const-iterable
-    [[nodiscard]] constexpr Iter begin()
-        requires(!std::copyable<Iter>)
-    {
-        return std::move(begin_);
-    }
-
     constexpr Sent end()
-        requires(!simple)
+        requires(!const_symmetric)
     {
         return end_;
     }
 
     constexpr Sent end() const
-        requires(const_iterable && simple)
+        requires(const_symmetric)
     {
         return end_;
     }
 
-    constexpr auto end() const
-        requires(const_iterable && !simple)
+    constexpr CSent end() const
+        requires(!const_symmetric)
     {
         return static_cast<CSent>(end_);
     }
@@ -185,7 +203,6 @@ public:
     }
 
     [[nodiscard]] constexpr borrowing_rad next(std::iter_difference_t<Iter> n = 1) const &
-        requires std::forward_iterator<Iter>
     {
         auto tmp = *this;
         tmp.advance(n);
@@ -226,60 +243,65 @@ public:
     }
 };
 
-template <std::input_or_output_iterator Iter, std::sentinel_for<Iter> Sent>
-borrowing_rad(Iter, Sent) -> borrowing_rad<Iter, Sent>;
-
 template <typename TValue>
 borrowing_rad(TValue *, TValue *) -> borrowing_rad<TValue *, TValue *, TValue const *, TValue const *>;
-
-template <std::input_or_output_iterator Iter, std::sentinel_for<Iter> Sent>
-borrowing_rad(Iter, Sent, std::make_unsigned_t<std::iter_difference_t<Iter>>)
-  -> borrowing_rad<Iter, Sent, std::nullptr_t, std::nullptr_t, borrowing_rad_kind::sized>;
 
 template <typename TValue>
 borrowing_rad(TValue *, TValue *, std::make_unsigned_t<std::ptrdiff_t>)
   -> borrowing_rad<TValue *, TValue *, TValue const *, TValue const *, borrowing_rad_kind::sized>;
 
-template <std::ranges::borrowed_range Range>
+template <const_borrowable_range Range>
 borrowing_rad(Range &&)
   -> borrowing_rad<std::ranges::iterator_t<Range>,
                    std::ranges::sentinel_t<Range>,
-                   std::nullptr_t,
-                   std::nullptr_t,
-                   (std::ranges::sized_range<Range> ||
-                    std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
-                     ? borrowing_rad_kind::sized
-                     : borrowing_rad_kind::unsized>;
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
+                   std::ranges::sentinel_t<detail::add_const_t<Range>>,
+                   (std::ranges::sized_range<Range> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized)>;
 
-template <std::ranges::borrowed_range Range>
-    requires std::ranges::range<std::remove_cvref_t<Range> const &>
+template <const_borrowable_range Range>
+    requires (std::ranges::random_access_range<Range> && std::ranges::sized_range<Range>)
 borrowing_rad(Range &&)
   -> borrowing_rad<std::ranges::iterator_t<Range>,
-                   std::ranges::sentinel_t<Range>,
-                   std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
-                   std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
-                   (std::ranges::sized_range<Range> ||
-                    std::sized_sentinel_for<std::ranges::sentinel_t<Range>, std::ranges::iterator_t<Range>>)
-                     ? borrowing_rad_kind::sized
-                     : borrowing_rad_kind::unsized>;
+                   std::ranges::iterator_t<Range>,
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
+                   borrowing_rad_kind::sized>;
+                   
+template <const_borrowable_range Range>
+    requires (std::ranges::contiguous_range<Range> && std::ranges::sized_range<Range>)
+borrowing_rad(Range && r)
+  -> borrowing_rad<decltype(std::to_address(std::ranges::begin(r))),
+                   decltype(std::to_address(std::ranges::begin(r))),
+                   decltype(std::to_address(std::ranges::cbegin(r))),
+                   decltype(std::to_address(std::ranges::cbegin(r))),
+                   borrowing_rad_kind::sized>;
 
-template <std::ranges::borrowed_range Range>
+template <const_borrowable_range Range>
 borrowing_rad(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
   -> borrowing_rad<std::ranges::iterator_t<Range>,
                    std::ranges::sentinel_t<Range>,
-                   std::nullptr_t,
-                   std::nullptr_t,
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
+                   std::ranges::sentinel_t<detail::add_const_t<Range>>,
                    borrowing_rad_kind::sized>;
 
-template <std::ranges::borrowed_range Range>
-    requires std::ranges::range<std::remove_cvref_t<Range> const &>
+template <const_borrowable_range Range>
+    requires std::ranges::random_access_range<Range>
 borrowing_rad(Range &&, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
   -> borrowing_rad<std::ranges::iterator_t<Range>,
-                   std::ranges::sentinel_t<Range>,
-                   std::ranges::iterator_t<std::remove_cvref_t<Range> const &>,
-                   std::ranges::sentinel_t<std::remove_cvref_t<Range> const &>,
+                   std::ranges::iterator_t<Range>,
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
+                   std::ranges::iterator_t<detail::add_const_t<Range>>,
                    borrowing_rad_kind::sized>;
-
+                   
+template <const_borrowable_range Range>
+    requires (std::ranges::contiguous_range<Range>)
+borrowing_rad(Range && r, std::make_unsigned_t<std::ranges::range_difference_t<Range>>)
+  -> borrowing_rad<decltype(std::to_address(std::ranges::begin(r))),
+                   decltype(std::to_address(std::ranges::begin(r))),
+                   decltype(std::to_address(std::ranges::cbegin(r))),
+                   decltype(std::to_address(std::ranges::cbegin(r))),
+                   borrowing_rad_kind::sized>;
+                   
 template <std::size_t Index, class Iter, class Sent, class CIter, class CSent, borrowing_rad_kind Kind>
     requires((Index == 0 && std::copyable<Iter>) || Index == 1)
 constexpr auto get(borrowing_rad<Iter, Sent, CIter, CSent, Kind> const & borrowing_rad)

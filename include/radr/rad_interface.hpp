@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <ranges>
 
 #include "detail/detail.hpp"
@@ -137,6 +138,15 @@ public:
     {
         return std::ranges::begin(derived())[index];
     }
+
+/*    template <class D2 = Derived>
+    constexpr friend bool operator==(D2 const & lhs, D2 const & rhs)
+        requires std::equality_comparable<std::ranges::range_reference_t<D2>>
+    {
+        return std::ranges::equal(lhs, rhs);
+    }
+*/
+    // TODO lexicographical_compare_threeway
 };
 
 } // namespace radr

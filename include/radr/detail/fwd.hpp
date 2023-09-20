@@ -23,11 +23,11 @@ enum class borrowing_rad_kind : bool
     sized
 };
 
-template <std::input_or_output_iterator Iter,
-          std::sentinel_for<Iter>       Sent,
-          typename CIter,
-          typename CSent,
-          borrowing_rad_kind Kind>
+template <std::forward_iterator    Iter,
+          std::sentinel_for<Iter>  Sent,
+          std::forward_iterator    CIter,
+          std::sentinel_for<CIter> CSent,
+          borrowing_rad_kind       Kind>
     requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
 class borrowing_rad;
 
