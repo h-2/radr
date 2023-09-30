@@ -82,12 +82,15 @@ TODO
 
 ## Implementation status
 
-We aim to replicate all standard library range adaptors and not much else.
+**THIS LIBRARY IS CURRENTLY A PROOF-OF-CONCEPT.** Everything needs better testing, and nothing is stable.
+
+We aim to replicate all standard library range adaptors, as well as most "range factories".
 
 **Range adaptor objects:**
 
 |  Standard library             |   radr                                            | Remarks                          |
 |-------------------------------|---------------------------------------------------|----------------------------------|
+| `std::views::as_const`        | `radr::pipe::as_const`                            |                                  |
 | `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                  |
 | `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                  |
 | `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                  |
@@ -103,17 +106,17 @@ Our adaptor objects automatically dispatch to one of three classes, see below. L
 ² These adaptors cache the begin iterator on construction (for some inputs) whereas the standard library equivalents
 cache it on the first call of `begin()`. This makes the returned ranges in RADR const-iterable.
 
-**Class types:**
+**Range adaptor classes:**
 
 |  Standard library             |  radr                   |  Remarks                 |
 |-------------------------------|-------------------------|--------------------------|
 | `std::ranges::subrange`       | `radr::borrowing_rad`   | deep const               |
 | `std::ranges::owning_view`    | `radr::owning_rad`      |                          |
 
-Range adaptors in this library return a specialisation of one of the following types:
+Range adaptors in this library return a specialisation of one ofClass types the following types:
   * `std::generator` if the underlying range is single-pass
-  * `radr::borrowing_rad` if the underlying range is borrowed and const-iterable,
-  * `radr::owning_rad` if the underlying range is const-iterable, 
+  * `radr::borrowing_rad` if the underlying range is multi-pass, const-iterable and borrowed,
+  * `radr::owning_rad` if the underlying range is multi-pass and const-iterable, 
   * otherwise the call is ill-formed
 
 There are no distinct type templates per adaptor (like e.g. `transform_view` for `views::transform` in the standard library).

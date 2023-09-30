@@ -18,8 +18,7 @@
 #include "concepts.hpp"
 #include "detail/detail.hpp"
 #include "detail/pipe.hpp"
-#include "generator.hpp"
-#include "subborrow.hpp"
+#include "borrowing_rad.hpp"
 
 namespace radr
 {

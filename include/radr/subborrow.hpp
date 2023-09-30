@@ -15,6 +15,7 @@
 #include <functional>
 #include <ranges>
 
+#include "borrowing_rad.hpp"
 #include "concepts.hpp"
 #include "detail/detail.hpp"
 #include "detail/pipe.hpp"
