@@ -91,6 +91,7 @@ We aim to replicate all standard library range adaptors and not much else.
 | `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                  |
 | `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                  |
 | `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                  |
+| `std::views::reverse`         | `radr::pipe::reverse` ²                           |                                  |
 | *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n     |
 | `std::views::take`            | `radr::pipe::take(n)`                             |                                  |
 | *not yet available*           | `radr::pipe::take_exactly(n)`                     | turns unsized into sized         |
@@ -111,8 +112,9 @@ cache it on the first call of `begin()`. This makes the returned ranges in RADR 
 
 Range adaptors in this library return a specialisation of one of the following types:
   * `std::generator` if the underlying range is single-pass
-  * `radr::borrowing_rad` if the underlying range is borrowed
-  * `radr::owning_rad` else (e.g. the underlying range is a container)
+  * `radr::borrowing_rad` if the underlying range is borrowed and const-iterable,
+  * `radr::owning_rad` if the underlying range is const-iterable, 
+  * otherwise the call is ill-formed
 
 There are no distinct type templates per adaptor (like e.g. `transform_view` for `views::transform` in the standard library).
 
