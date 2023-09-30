@@ -88,18 +88,19 @@ We aim to replicate all standard library range adaptors, as well as most "range 
 
 **Range adaptor objects:**
 
-|  Standard library             |   radr                                            | Remarks                          |
-|-------------------------------|---------------------------------------------------|----------------------------------|
-| `std::views::as_const`        | `radr::pipe::as_const`                            |                                  |
-| `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                  |
-| `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                  |
-| `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                  |
-| `std::views::reverse`         | `radr::pipe::reverse` ²                           |                                  |
-| *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n     |
-| `std::views::take`            | `radr::pipe::take(n)`                             |                                  |
-| *not yet available*           | `radr::pipe::take_exactly(n)`                     | turns unsized into sized         |
-| `std::views::transform`       | `radr::pipe::transform(fn)`                       |                                  |
-| *not yet available*           | `radr::pipe::make_single_pass`                    | reduces range category to input  |
+|  Standard library             |   radr                                            | Remarks                                  |
+|-------------------------------|---------------------------------------------------|------------------------------------------|
+| `std::views::as_const`        | `radr::pipe::as_const`                            | potentially different behaviour in C++23 |
+| `std::views::as_rvalue`       | `radr::pipe::as_rvalue`                           | requires C++23 for some inputs           |
+| `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                          |
+| `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                          |
+| `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                          |
+| `std::views::reverse`         | `radr::pipe::reverse` ²                           |                                          |
+| *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n             |
+| `std::views::take`            | `radr::pipe::take(n)`                             |                                          |
+| *not yet available*           | `radr::pipe::take_exactly(n)`                     | turns unsized into sized                 |
+| `std::views::transform`       | `radr::pipe::transform(fn)`                       |                                          |
+| *not yet available*           | `radr::pipe::make_single_pass`                    | demotes range category to input          |
 
 Our adaptor objects automatically dispatch to one of three classes, see below. Like in the standard library, some of them contain additional logic.
 
@@ -113,13 +114,15 @@ cache it on the first call of `begin()`. This makes the returned ranges in RADR 
 | `std::ranges::subrange`       | `radr::borrowing_rad`   | deep const               |
 | `std::ranges::owning_view`    | `radr::owning_rad`      |                          |
 
-Range adaptors in this library return a specialisation of one ofClass types the following types:
+Range adaptors in this library return a specialisation of one of the following types:
   * `std::generator` if the underlying range is single-pass
   * `radr::borrowing_rad` if the underlying range is multi-pass, const-iterable and borrowed,
   * `radr::owning_rad` if the underlying range is multi-pass and const-iterable, 
   * otherwise the call is ill-formed
 
 There are no distinct type templates per adaptor (like e.g. `transform_view` for `views::transform` in the standard library).
+If you absoutley need to operate on a multi-pass range that is not const-iterable, demote it to a single-pass range via
+`radr::make_single_pass`.
 
 ## Credits
 

@@ -174,6 +174,32 @@ inline constexpr auto subborrow = detail::overloaded{
   }
 };
 
+inline constexpr auto borrow = detail::overloaded{
+  [] <const_borrowable_range URange> (URange && urange)
+  {
+      if constexpr (std::ranges::sized_range<URange>)
+      {
+          return tag_invoke(custom::subborrow_tag{},
+                            std::forward<URange>(urange),
+                            std::ranges::begin(urange),
+                            std::ranges::end(urange),
+                            std::ranges::size(urange));
+      }
+      else
+      {
+          return tag_invoke(custom::subborrow_tag{},
+                            std::forward<URange>(urange),
+                            std::ranges::begin(urange),
+                            std::ranges::end(urange));
+      }
+  },
+  [] <const_borrowable_range URange> (URange && urange)
+    requires (std::ranges::borrowed_range<std::remove_cvref_t<URange>> && std::copyable<std::remove_cvref_t<URange>>)
+  {
+      return std::forward<URange>(urange);
+  }
+};
+
 // clang-format on
 
 } // namespace radr
