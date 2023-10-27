@@ -22,8 +22,9 @@
 namespace radr::detail
 {
 
-struct empty_t {};
-    
+struct empty_t
+{};
+
 template <bool nonzero, typename... Args>
 concept arg_count = (bool(sizeof...(Args)) == nonzero);
 
@@ -32,20 +33,21 @@ struct pipe_input_base
 {
     //!\brief Forward into Coroutine-Functor.
     template <movable_range Range, class... Args>
-        requires (arg_count<non_empty_args, Args...>)
+        requires(arg_count<non_empty_args, Args...>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
 
         return CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
-    }   
+    }
 };
 
 template <bool non_empty_args>
 struct pipe_input_base<void, non_empty_args>
 {
-    struct noop_ {};
+    struct noop_
+    {};
     void operator()(noop_) {}
 };
 
@@ -66,25 +68,26 @@ struct pipe_fwd_base
 
     //!\brief Forward into Borrowing Range Adaptor.
     template <movable_range Range, class... Args>
-        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> && std::ranges::borrowed_range<Range> &&
-                 std::semiregular<std::remove_cvref_t<Range>>)
+        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
+                 std::ranges::borrowed_range<Range> && std::semiregular<std::remove_cvref_t<Range>>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
         static_assert(const_iterable_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
-        
+
         return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
     }
-    
+
     //!\brief Forward into Borrowing Range Adaptor. Borrowed Ranges that are not semiregular and made semiregular.
     template <movable_range Range, class... Args>
-        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> && std::ranges::borrowed_range<Range>)
+        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
+                 std::ranges::borrowed_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
-        
+
         // we convert the range into a borrowing_rad which is always semiregular
         return operator()(subborrow(range), std::forward<Args>(args)...);
     }
@@ -105,15 +108,14 @@ template <bool non_empty_args>
 struct pipe_fwd_base<void, non_empty_args>
 {};
 
-
 template <typename CoroFn, typename BorrowFn, bool closure = false>
 struct pipe_with_args_fn : pipe_input_base<CoroFn, true>, pipe_fwd_base<BorrowFn, true>
-{    
+{
     constexpr pipe_with_args_fn(auto &&...) noexcept {}
-    
+
     using pipe_input_base<CoroFn, true>::operator();
     using pipe_fwd_base<BorrowFn, true>::operator();
-    
+
     template <class... Args>
         requires(arg_count<true, Args...> && closure == false)
     [[nodiscard]] constexpr auto operator()(Args &&... args) const
@@ -130,12 +132,14 @@ template <typename CoroFn, typename BorrowFn>
 pipe_with_args_fn(CoroFn, BorrowFn) -> pipe_with_args_fn<CoroFn, BorrowFn>;
 
 template <typename CoroFn, typename BorrowFn>
-struct pipe_without_args_fn : pipe_input_base<CoroFn, false>, pipe_fwd_base<BorrowFn, false>,
-                              range_adaptor_closure<pipe_without_args_fn<CoroFn, BorrowFn>>
-{    
+struct pipe_without_args_fn :
+  pipe_input_base<CoroFn, false>,
+  pipe_fwd_base<BorrowFn, false>,
+  range_adaptor_closure<pipe_without_args_fn<CoroFn, BorrowFn>>
+{
     constexpr pipe_without_args_fn() = default;
     constexpr pipe_without_args_fn(auto &&...) noexcept {}
-    
+
     using pipe_input_base<CoroFn, false>::operator();
     using pipe_fwd_base<BorrowFn, false>::operator();
 };

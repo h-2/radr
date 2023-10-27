@@ -46,10 +46,10 @@ public:
     {}
 
     constexpr copyable_box() noexcept
-        requires (!std::default_initializable<Tp>)
+        requires(!std::default_initializable<Tp>)
       : val_{}
     {}
-    
+
     copyable_box(copyable_box const &) = default;
     copyable_box(copyable_box &&)      = default;
 
@@ -110,7 +110,8 @@ template <class Tp>
 concept doesnt_need_empty_state_for_move = std::movable<Tp> || std::is_nothrow_move_constructible_v<Tp>;
 
 template <copy_constructible_object Tp>
-    requires std::default_initializable<Tp> && doesnt_need_empty_state_for_copy<Tp> && doesnt_need_empty_state_for_move<Tp>
+    requires std::default_initializable<Tp> && doesnt_need_empty_state_for_copy<Tp> &&
+             doesnt_need_empty_state_for_move<Tp>
 class copyable_box<Tp>
 {
     [[no_unique_address]] Tp val_;
@@ -123,9 +124,7 @@ public:
       val_(std::forward<Args>(args)...)
     {}
 
-    constexpr copyable_box() noexcept(std::is_nothrow_default_constructible_v<Tp>)
-      : val_()
-    {}
+    constexpr copyable_box() noexcept(std::is_nothrow_default_constructible_v<Tp>) : val_() {}
 
     copyable_box(copyable_box const &) = default;
     copyable_box(copyable_box &&)      = default;

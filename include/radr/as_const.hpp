@@ -24,19 +24,19 @@ namespace radr
 {
 
 inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange && urange)
-  {
-      if constexpr (std::same_as<std::ranges::range_reference_t<URange>, decltype(*std::ranges::cbegin(urange))>)
-      {
-          return borrow(std::forward<URange>(urange));
-      }
-      else
-      {
+{
+    if constexpr (std::same_as<std::ranges::range_reference_t<URange>, decltype(*std::ranges::cbegin(urange))>)
+    {
+        return borrow(std::forward<URange>(urange));
+    }
+    else
+    {
         auto b = std::ranges::cbegin(urange);
         auto e = std::ranges::cend(urange);
-        
+
         using It   = decltype(b);
         using Sent = decltype(e);
-            
+
         if constexpr (std::ranges::sized_range<URange>)
         {
             using BorrowingRad = borrowing_rad<It, Sent, It, Sent, borrowing_rad_kind::sized>;
@@ -47,9 +47,9 @@ inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange
             using BorrowingRad = borrowing_rad<It, Sent, It, Sent, borrowing_rad_kind::unsized>;
             return BorrowingRad{std::move(b), std::move(e)};
         }
-      }
-  };
- 
+    }
+};
+
 } // namespace radr
 
 namespace radr::pipe

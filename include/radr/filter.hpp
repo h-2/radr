@@ -58,7 +58,6 @@ class filter_iterator : public detail::filter_iterator_category<URange>
 {
     using URangeC = detail::maybe_const<Const, URange>;
 
-
     template <unqualified_forward_range                                             URange_,
               bool                                                                  Const_,
               detail::filter_pred_constraints<detail::maybe_const<Const_, URange_>> Pred_>
@@ -66,7 +65,7 @@ class filter_iterator : public detail::filter_iterator_category<URange>
 
     [[no_unique_address]] std::ranges::iterator_t<URangeC> current_{};
     [[no_unique_address]] std::ranges::sentinel_t<URangeC> end_{};
-    [[no_unique_address]] detail::copyable_box<Pred> pred_;
+    [[no_unique_address]] detail::copyable_box<Pred>       pred_;
 
 public:
     // clang-format off
@@ -113,7 +112,7 @@ public:
         current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*pred_));
         return *this;
     }
-    
+
     constexpr filter_iterator operator++(int)
     {
         auto tmp = *this;
@@ -145,7 +144,7 @@ public:
     }
 
     friend constexpr bool operator==(filter_iterator const & x, std::default_sentinel_t const &)
-        requires (!std::ranges::common_range<URangeC>)
+        requires(!std::ranges::common_range<URangeC>)
     {
         return x.current_ == x.end_;
     }

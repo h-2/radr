@@ -47,7 +47,6 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 BreakBeforeBinaryOperators: None
-BreakBeforeConceptDeclarations: true
 BreakBeforeInheritanceComma: true
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
@@ -76,18 +75,10 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex:           '^".*\.hpp"'
     Priority:        20
-  - Regex:           '^<bio/io'
+  - Regex:           '^<radr/test'
+    Priority:        2
+  - Regex:           '^<radr'
     Priority:        10
-  - Regex:           '^<bio/'
-    Priority:        9
-  - Regex:           '^<fmt'
-    Priority:        7
-  - Regex:           '^<cereal'
-    Priority:        6
-  - Regex:           '^<seqan3/'
-    Priority:        4
-  - Regex:           '^<seqan2/'
-    Priority:        3
   - Regex:           '^<gtest/'
     Priority:        2
   - Regex:           '.*'
@@ -138,7 +129,6 @@ RequiresClausePosition: OwnLine
 RequiresExpressionIndentation: OuterScope
 SeparateDefinitionBlocks: Leave
 SortIncludes:    CaseInsensitive
-SortIncludes: true
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false

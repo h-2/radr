@@ -33,7 +33,7 @@ template <const_borrowable_range URange, typename Sen>
 auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const b, Sen const e)
 {
     // contiguous to pointer
-    if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>> && 
+    if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>> &&
                   std::sized_sentinel_for<Sen, std::ranges::iterator_t<URange>>)
     {
         using It      = decltype(std::to_address(b));
@@ -41,17 +41,18 @@ auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const 
         return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
     }
     // RA+sized to common
-    else if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>> && 
+    else if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>> &&
                        std::sized_sentinel_for<Sen, std::ranges::iterator_t<URange>>)
     {
-        using It       = std::ranges::iterator_t<URange>;
-        using ConstIt  = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
+        using It      = std::ranges::iterator_t<URange>;
+        using ConstIt = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
         return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
-    } 
+    }
     else
     {
-        static_assert(std::same_as<Sen, std::ranges::sentinel_t<URange>> || 
-                      std::same_as<Sen, std::ranges::iterator_t<URange>>, "TODO");
+        static_assert(std::same_as<Sen, std::ranges::sentinel_t<URange>> ||
+                        std::same_as<Sen, std::ranges::iterator_t<URange>>,
+                      "TODO");
         using It       = std::ranges::iterator_t<URange>;
         using ConstIt  = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
         using ConstSen = std::conditional_t<std::same_as<Sen, std::ranges::iterator_t<URange>>,
@@ -76,15 +77,16 @@ auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const 
     // RA+sized to common
     else if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>>)
     {
-        using It       = std::ranges::iterator_t<URange>;
-        using ConstIt  = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
+        using It      = std::ranges::iterator_t<URange>;
+        using ConstIt = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
         (void)e;
         return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + s};
-    } 
+    }
     else
     {
-        static_assert(std::same_as<Sen, std::ranges::sentinel_t<URange>> || 
-                      std::same_as<Sen, std::ranges::iterator_t<URange>>, "TODO");
+        static_assert(std::same_as<Sen, std::ranges::sentinel_t<URange>> ||
+                        std::same_as<Sen, std::ranges::iterator_t<URange>>,
+                      "TODO");
         using It       = std::ranges::iterator_t<URange>;
         using ConstIt  = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
         using ConstSen = std::conditional_t<std::same_as<Sen, std::ranges::iterator_t<URange>>,

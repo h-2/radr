@@ -25,13 +25,13 @@
 
 #define RADR_ASSERTSTRING_CONST_ITERABLE                                                                               \
     "RADR adaptors created on forward ranges require those ranges to be radr::const_iterable, i.e. they need to "      \
-    "provide ´.begin() const`.\n"                                                                                        \
+    "provide ´.begin() const`.\n"                                                                                     \
     "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
     "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
     "auto a = your_range | std::views::filter(/**/) | radr::make_single_pass | radr::take(3);\n "                      \
     "Here, std::views::filter is non-conforming because not const-iterable, so radr's multi-pass take doesn't "        \
     "accept it, but radr's single-pass take does."
-    
+
 #define RADR_ASSERTSTRING_COPYABLE                                                                                     \
     "RADR adaptors created on rvalues of forward ranges require those ranges to be std::copyable.\n"                   \
     "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
@@ -39,7 +39,7 @@
     "auto a = std::vector{1,2,3} | std::views::transform(/**/) | radr::make_single_pass | radr::take(3);\n "           \
     "Here, std::views::transform is non-conforming because not copyable, so radr's multi-pass take doesn't "           \
     "accept it, but radr's single-pass take does."
-    
+
 #define RADR_ASSERTSTRING_NOBORROW_SINGLEPASS                                                                          \
     "RADR adaptors only borrow from (complete) forward ranges. Single-pass input ranges can only be adapted "          \
     "by moving them into the adaptor, e.g.\nauto a = std::move(streamrange) | radr::take(3);"
@@ -192,9 +192,10 @@ concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>
 //=============================================================================
 
 template <typename T>
-using add_const_t = 
-    std::conditional_t<std::is_same_v<std::remove_cvref_t<T> &, T>, std::remove_cvref_t<T> const &,
-    std::conditional_t<std::is_same_v<std::remove_cvref_t<T> &&, T>, std::remove_cvref_t<T> const &&, T const>>;
+using add_const_t = std::conditional_t<
+  std::is_same_v<std::remove_cvref_t<T> &, T>,
+  std::remove_cvref_t<T> const &,
+  std::conditional_t<std::is_same_v<std::remove_cvref_t<T> &&, T>, std::remove_cvref_t<T> const &&, T const>>;
 
 static_assert(std::same_as<add_const_t<int>, int const>);
 static_assert(std::same_as<add_const_t<int &>, int const &>);

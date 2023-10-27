@@ -319,8 +319,9 @@ inline constexpr auto transform_borrow =
       conditional_t<std::ranges::common_range<URange>, iterator_t, transform_sentinel<URangeNoCVRef, Fn, const_sym>>;
 
     using const_iterator_t = transform_iterator<URangeNoCVRef, Fn, true>;
-    using const_sentinel_t =
-      std::conditional_t<std::ranges::common_range<URange const>, const_iterator_t, transform_sentinel<URangeNoCVRef, Fn, true>>;
+    using const_sentinel_t = std::conditional_t<std::ranges::common_range<URange const>,
+                                                const_iterator_t,
+                                                transform_sentinel<URangeNoCVRef, Fn, true>>;
 
     if constexpr (std::ranges::sized_range<URange>)
     {
