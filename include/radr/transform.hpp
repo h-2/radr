@@ -87,10 +87,10 @@ class transform_iterator : public detail::transform::iterator_category_base<URan
     [[no_unique_address]] detail::copyable_box<Fn> func_;
 
     template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const_, URange_>, Fn_>
     friend class transform_iterator;
     template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<detail::maybe_const<Const, URange>, Fn>
+        requires detail::transform::fn_constraints<detail::maybe_const<Const_, URange_>, Fn_>
     friend class transform_sentinel;
 
 public:
@@ -320,7 +320,7 @@ inline constexpr auto transform_borrow =
 
     using const_iterator_t = transform_iterator<URangeNoCVRef, Fn, true>;
     using const_sentinel_t =
-      std::conditional_t<std::ranges::common_range<URange>, iterator_t, transform_sentinel<URangeNoCVRef, Fn, true>>;
+      std::conditional_t<std::ranges::common_range<URange const>, const_iterator_t, transform_sentinel<URangeNoCVRef, Fn, true>>;
 
     if constexpr (std::ranges::sized_range<URange>)
     {
