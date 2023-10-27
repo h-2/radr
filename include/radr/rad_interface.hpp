@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <ranges>
 
+#include "concepts.hpp"
 #include "detail/detail.hpp"
 
 namespace radr
@@ -139,13 +140,13 @@ public:
         return std::ranges::begin(derived())[index];
     }
 
-/*    template <class D2 = Derived>
-    constexpr friend bool operator==(D2 const & lhs, D2 const & rhs)
-        requires std::equality_comparable<std::ranges::range_reference_t<D2>>
-    {
-        return std::ranges::equal(lhs, rhs);
-    }
-*/
+    // template <class D2 = Derived>
+    // constexpr friend bool operator==(D2 const & lhs, D2 const & rhs)
+    //     requires requires { { *std::ranges::begin(lhs) == *std::ranges::begin(rhs) } -> detail::boolean_testable; }
+    // {
+    //     return std::ranges::equal(lhs, rhs);
+    // }
+
     // TODO lexicographical_compare_threeway
 };
 

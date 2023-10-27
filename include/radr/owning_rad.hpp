@@ -141,6 +141,12 @@ public:
     {
         return std::ranges::size(bounds);
     }
+
+    constexpr friend bool operator==(owning_rad const & lhs, owning_rad const & rhs)
+        requires detail::weakly_equality_comparable<BorrowedRange>
+    {
+        return lhs.bounds == rhs.bounds;
+    }
 };
 
 template <class Range>

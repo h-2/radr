@@ -54,4 +54,25 @@ namespace radr::detail
 template <typename Range>
 concept const_borrowable_unqual = const_borrowable_range<Range> && unqualified_forward_range<Range>;
 
+
+template< class B >
+concept boolean_testable =
+    std::convertible_to<B, bool> &&
+    requires (B&& b) {
+        { !std::forward<B>(b) } -> std::convertible_to<bool>;
+    };
+
+template< class T, class U >
+concept weakly_equality_comparable_with =
+  requires(std::remove_reference_t<T> const & t,
+          std::remove_reference_t<U> const & u)
+{
+    { t == u } -> boolean_testable;
+    { t != u } -> boolean_testable;
+    { u == t } -> boolean_testable;
+    { u != t } -> boolean_testable;
+};
+
+template<class T>
+concept weakly_equality_comparable = weakly_equality_comparable_with<T,T>;
 } // namespace radr::detail

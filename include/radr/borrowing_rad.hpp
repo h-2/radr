@@ -13,6 +13,7 @@
 #pragma once
 
 #include <cassert>
+#include <iterator>
 
 #include "concepts.hpp"
 #include "detail/detail.hpp"
@@ -240,6 +241,12 @@ public:
         if constexpr (StoreSize)
             size_ -= detail::to_unsigned_like(d);
         return *this;
+    }
+
+    constexpr friend bool operator==(borrowing_rad const & lhs, borrowing_rad const & rhs)
+        requires detail::weakly_equality_comparable<std::iter_reference_t<Iter>>
+    {
+        return std::ranges::equal(lhs, rhs);
     }
 };
 
