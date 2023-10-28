@@ -16,10 +16,10 @@
 #include <functional>
 #include <ranges>
 
-#include "borrow.hpp"
 #include "concepts.hpp"
 #include "detail/copyable_box.hpp"
 #include "detail/detail.hpp"
+#include "detail/pipe.hpp"
 #include "generator.hpp"
 #include "rad_interface.hpp"
 
@@ -63,9 +63,9 @@ class filter_iterator : public detail::filter_iterator_category<URange>
               detail::filter_pred_constraints<detail::maybe_const<Const_, URange_>> Pred_>
     friend class filter_iterator;
 
+    [[no_unique_address]] detail::copyable_box<Pred>       pred_;
     [[no_unique_address]] std::ranges::iterator_t<URangeC> current_{};
     [[no_unique_address]] std::ranges::sentinel_t<URangeC> end_{};
-    [[no_unique_address]] detail::copyable_box<Pred>       pred_;
 
 public:
     // clang-format off
@@ -179,7 +179,7 @@ inline constexpr auto filter_borrow =
       borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
 
     // eagerly search for begin
-    auto begin = std::ranges::find_if(std::ranges::begin(urange), std::ranges::end(urange), std::ref(*fn));
+    auto begin = std::ranges::find_if(std::ranges::begin(urange), std::ranges::end(urange), std::ref(fn));
 
     if constexpr (std::ranges::common_range<URange>)
     {

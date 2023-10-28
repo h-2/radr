@@ -111,7 +111,10 @@ struct range_adaptor_closure_t : Fn, range_adaptor_closure<range_adaptor_closure
 //=============================================================================
 
 template <typename T, typename T2>
-concept different_from = !std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<T2>>;
+concept decays_to = std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<T2>>;
+
+template <typename T, typename T2>
+concept different_from = !decays_to<T, T2>;
 
 /*
 template <typename T>

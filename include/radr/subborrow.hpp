@@ -145,24 +145,6 @@ inline constexpr auto subborrow = detail::overloaded{
   {
       return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s);
   },
-  [] <const_borrowable_range URange> (URange && urange)
-  {
-      if constexpr (std::ranges::sized_range<URange>)
-      {
-          return tag_invoke(custom::subborrow_tag{},
-                            std::forward<URange>(urange),
-                            std::ranges::begin(urange),
-                            std::ranges::end(urange),
-                            std::ranges::size(urange));
-      }
-      else
-      {
-          return tag_invoke(custom::subborrow_tag{},
-                            std::forward<URange>(urange),
-                            std::ranges::begin(urange),
-                            std::ranges::end(urange));
-      }
-  },
   [] <const_borrowable_range URange> (URange && urange, size_t const start, size_t const end)
      requires (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
   {
@@ -201,7 +183,19 @@ inline constexpr auto borrow = detail::overloaded{
       return std::forward<URange>(urange);
   }
 };
-
 // clang-format on
 
+//TODO nothing uses this at the moment
+
+inline constexpr auto range_fwd = []<std::ranges::range Range>(Range && range) -> decltype(auto)
+    requires const_borrowable_range<Range> || movable_range<Range>
+{
+    if constexpr (const_borrowable_range<Range>)
+        return borrow(std::forward<Range>(range));
+    else
+        return std::forward<Range>(range);
+};
+
 } // namespace radr
+
+#define RADR_FWD(R) radr::range_fwd(std::forward<decltype(R)>(R))
