@@ -15,7 +15,6 @@
 #include <cassert>
 #include <iterator>
 
-#include "concepts.hpp"
 #include "detail/detail.hpp"
 #include "detail/fwd.hpp"
 #include "rad_interface.hpp"

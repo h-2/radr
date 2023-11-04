@@ -19,6 +19,7 @@
 #include "concepts.hpp"
 #include "detail/detail.hpp"
 #include "detail/pipe.hpp"
+#include "radr/generator.hpp"
 
 namespace radr
 {
@@ -82,8 +83,16 @@ inline constexpr auto as_rvalue_coro = []<movable_range URange>(URange && urange
     return [](auto urange_)
              -> radr::generator<std::ranges::range_rvalue_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
-        for (auto && elem : urange_)
-            co_yield std::move(std::forward<decltype(elem)>(elem));
+        if constexpr (
+          std::same_as<std::ranges::range_reference_t<URange>, std::ranges::range_rvalue_reference_t<URange>>)
+        {
+            co_yield elements_of(urange_);
+        }
+        else
+        {
+            for (auto && elem : urange_)
+                co_yield std::move(elem);
+        }
     }(std::move(urange));
 };
 

@@ -89,13 +89,13 @@ struct pipe_fwd_base
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
 
         // we convert the range into a borrowing_rad which is always semiregular
-        return operator()(borrow(range), std::forward<Args>(args)...);
+        return operator()(radr::borrow(range), std::forward<Args>(args)...);
     }
 
     template <std::ranges::input_range Range, class... Args>
         requires arg_count<non_empty_args, Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> const & range, Args &&... args) const
-      noexcept(noexcept(operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))
+      noexcept(noexcept(operator()(radr::borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))
     {
         static_assert(std::ranges::forward_range<Range>, RADR_ASSERTSTRING_NOBORROW_SINGLEPASS);
 
@@ -105,7 +105,7 @@ struct pipe_fwd_base
     template <std::ranges::input_range Range, class... Args>
         requires arg_count<non_empty_args, Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> && range, Args &&... args) const
-      noexcept(noexcept(operator()(borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))
+      noexcept(noexcept(operator()(radr::borrow(static_cast<Range &>(range)), std::forward<Args>(args)...)))
     {
         static_assert(std::ranges::forward_range<Range>, RADR_ASSERTSTRING_NOBORROW_SINGLEPASS);
 

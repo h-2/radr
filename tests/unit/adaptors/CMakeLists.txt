@@ -1,4 +1,6 @@
 radr_unit_test(as_const)
+radr_unit_test(as_rvalue)
 radr_unit_test(filter)
+radr_unit_test(make_single_pass)
 radr_unit_test(reverse)
 radr_unit_test(transform)
