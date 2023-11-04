@@ -15,11 +15,11 @@
 #include <functional>
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/detail.hpp"
-#include "detail/pipe.hpp"
+#include "../concepts.hpp"
+#include "../detail/detail.hpp"
+#include "../detail/pipe.hpp"
+#include "../generator.hpp"
 #include "drop.hpp"
-#include "generator.hpp"
 #include "tags.hpp"
 #include "take.hpp"
 

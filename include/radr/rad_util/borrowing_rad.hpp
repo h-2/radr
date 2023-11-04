@@ -15,8 +15,8 @@
 #include <cassert>
 #include <iterator>
 
-#include "detail/detail.hpp"
-#include "detail/fwd.hpp"
+#include "../detail/detail.hpp"
+#include "../detail/fwd.hpp"
 #include "rad_interface.hpp"
 
 namespace radr::detail

@@ -16,12 +16,11 @@
 #include <functional>
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/copyable_box.hpp"
-#include "detail/detail.hpp"
-#include "detail/pipe.hpp"
-#include "generator.hpp"
-#include "rad_interface.hpp"
+#include "../concepts.hpp"
+#include "../detail/copyable_box.hpp"
+#include "../detail/detail.hpp"
+#include "../detail/pipe.hpp"
+#include "../generator.hpp"
 
 namespace radr::detail
 {

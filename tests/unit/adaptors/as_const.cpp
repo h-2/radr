@@ -9,8 +9,8 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
-#include <radr/as_const.hpp>
 #include <radr/concepts.hpp>
+#include <radr/rad/as_const.hpp>
 
 // --------------------------------------------------------------------------
 // test data

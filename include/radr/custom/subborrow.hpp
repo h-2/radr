@@ -14,8 +14,8 @@
 
 #include <ranges>
 
-#include "borrowing_rad.hpp"
-#include "detail/detail.hpp"
+#include "../detail/detail.hpp"
+#include "../rad_util/borrowing_rad.hpp"
 #include "tags.hpp"
 
 namespace radr::custom

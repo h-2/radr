@@ -15,11 +15,11 @@
 #include <memory>
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/detail.hpp"
-#include "generator.hpp"
+#include "../concepts.hpp"
+#include "../custom/tags.hpp"
+#include "../detail/detail.hpp"
+#include "../generator.hpp"
 #include "rad_interface.hpp"
-#include "tags.hpp"
 
 /* TODO add version that stores offsets for RA+sized uranges
  * this avoids unique_ptr and BorrowedRange

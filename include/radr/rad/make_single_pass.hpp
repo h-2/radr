@@ -14,10 +14,10 @@
 
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/detail.hpp"
-#include "generator.hpp"
-#include "subborrow.hpp"
+#include "../concepts.hpp"
+#include "../custom/subborrow.hpp"
+#include "../detail/detail.hpp"
+#include "../generator.hpp"
 
 namespace radr
 {

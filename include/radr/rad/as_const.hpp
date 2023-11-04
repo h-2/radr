@@ -12,13 +12,12 @@
 
 #pragma once
 
-#include <functional>
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/detail.hpp"
-#include "detail/pipe.hpp"
-#include "subborrow.hpp"
+#include "../concepts.hpp"
+#include "../custom/subborrow.hpp"
+#include "../detail/detail.hpp"
+#include "../detail/pipe.hpp"
 
 namespace radr
 {

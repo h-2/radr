@@ -8,7 +8,7 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
-#include <radr/reverse.hpp>
+#include <radr/rad/reverse.hpp>
 
 // --------------------------------------------------------------------------
 // test data

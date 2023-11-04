@@ -9,9 +9,9 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
-#include <radr/as_rvalue.hpp>
 #include <radr/concepts.hpp>
-#include <radr/make_single_pass.hpp>
+#include <radr/rad/as_rvalue.hpp>
+#include <radr/rad/make_single_pass.hpp>
 
 // --------------------------------------------------------------------------
 // test data

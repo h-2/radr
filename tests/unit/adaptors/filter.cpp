@@ -9,7 +9,7 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
-#include <radr/filter.hpp>
+#include <radr/rad/filter.hpp>
 
 // --------------------------------------------------------------------------
 // test data

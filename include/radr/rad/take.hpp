@@ -14,8 +14,8 @@
 
 #include <iterator>
 
-#include "borrowing_rad.hpp"
-#include "generator.hpp"
+#include "../generator.hpp"
+#include "../rad_util/borrowing_rad.hpp"
 
 namespace radr
 {

@@ -15,8 +15,8 @@
 #include <algorithm>
 #include <ranges>
 
-#include "concepts.hpp"
-#include "detail/detail.hpp"
+#include "../concepts.hpp"
+#include "../detail/detail.hpp"
 
 namespace radr
 {
