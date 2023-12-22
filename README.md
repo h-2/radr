@@ -3,129 +3,96 @@
 This library explores a different design for C++ Range Adaptors, commonly referred to as "Views". It tries to reduce complexity in the conceptual space and provide a better, more consistent user experience.
 The library only replaces certain components from the Standard's Ranges library, and aims to maintain a sufficient level of compatibility with existing code.
 
-## Important differences from std::ranges
+## Difference and similarities to std ranges
 
-The following is a short overview of the main differences. See the Wiki for in-depth reasoning.
 
-**Terminology, names and namespaces**
+### Summary for the casual C++ programmer
 
-* We call the class (template) that adapts another range a *range adaptor* (short "rad"); in contrast to the standard
-library, there are only two main type templates (`radr::borrowing_rad` and `radr::owning_rad`).
-* Each range adaptor is defined by an object in the `radr::pipe::` namespace that dispatches to the right class template and enables composing in pipelines (via the `|`-operator); `std::views::transform` → `radr::pipe::transform`.
+* Same features as the standard library,[^1] just use `expr | radr::foo(bar)` instead of `expr | std::views::foo(bar)`.
+* Fewer surprises: range adaptors on containers (probably most that you use) behave a lot more like containers, e.g. you can default-construct them, compare them, copy them and pass them by `const &` (this is not true for many standard library adaptors).
+* Fewer footguns: you are less likely to return dangling references, because references to existing ranges need to be created explicitly.
+* Less confusion: you don't need to understand what a "view" is, because it is irrevelant for this library.
 
-**Range capture**
+[^1]: See IMPLEMENTATION STATUS for which range adaptors have been implemented already.
+
+### Summary for the Ranges nerd
+
+This library fundamentally differentiates between multi-pass and single-pass ranges.
+
+1. multi-pass ranges:
+  * Adaptors return exactly one of two class templates: `radr::owning_rad` or `radr::borrowing_rad` for owning/borrowing ranges respectively.
+  * The semantics are implemented completely in terms of an iterator-sentinel pair which is always stored/cached.
+  * This means adaptors on borrowed ranges are also borrowed ranges, and no "view" concept is required.
+  * Adaptors never contain mutable state, are always const-iterable and calling `.begin()` (non-const) has no side effects.
+2. single-pass ranges:
+  * Adaptors on single-pass ranges always return a `std::generator`.
+  * This results in simpler types, fewer nested template instantiations, and potential optimisations through recursive yielding of elements.
+
+
+<details>
+<summary>Click here for even more details</summary>
+
+| Properties  |  multi-pass ranges <br> *owning* | multi-pass ranges <br> *borrowed*    |single-pass ranges <br> &nbsp; |
+|-----------------------------|:-------------------------:|:---------------------------:|:----------------------:|
+| example                     | `std::vector<int>`        | `std::string_view`          | `std::generator<int>`  |
+| category                    | `forward_range` or better | `forward_range` or better   |  `input_range` only    |
+| `borrowed_range`            | no                        | yes                         | no ❘ *irrelevant*      |
+| iterating¹ w/o side-effects | yes                       | yes                         | no                     |
+| const-iterable              | yes                       | yes                         | no                     |
+| default-constructible       | yes                       | yes                         | no                     |
+| copyable                    | yes ❘ `O(n)`              | yes ❘ `O(1)`                | no                     |
+| equality-comparable²        | yes ❘ `O(n)`              | yes ❘ `O(n)`                | no                     |
+|                             | ↓                         | ↓                           | ↓                      |
+| radr adaptor returns        | `radr::owning_rad</**/>`  | `radr::borrowing_rad</**/>` | `std::generator</**/>` |
+
+<sup><sub>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it</sup></sub><br>
+<sup><sub>² This property is not required by adaptors, but it is preserved if present.</sup></sub>
+
+**The listed properties are both requirements on the underlying range and guarantees given by the range adaptors, i.e. ranges and their adaptations stay within a given domain.**
+This consistency is a core feature of the library which makes reasoning about it easier, but it also makes the code
+more maintainable by reducing special cases.
+
+Caveat: Forward ranges that do not meet the listed requirements are rejected by our library. Such types typically
+only exist as the result of applying standard library views—which can easily be replaced by ours.
+As a workaround, you can also demote a non-compliant forward range to a single-pass range via `radr::as_single_pass`,
+in which case our adaptor accepts it and returns a generator.
+
+</details>
+
+### Simple usage
 
 Range adaptors can capture ranges from *rvalues* and *lvalues*. Capturing **rvalues** works the same as in the standard library:
 
 ```cpp
 /* temporaries */
-auto vue0 = std::vector{1, 2, 3} | std::views::take(2);  // standard library
-auto rad0 = std::vector{1, 2, 3} | radr::pipe::take(2);  // this library
+auto vue0 = std::vector{1, 2, 3} | std::views::take(2); // standard library
+auto rad0 = std::vector{1, 2, 3} | radr::take(2);       // this library
 
 /* move existing */
 std::vector vec{1, 2, 3};
-auto vue1 = std::move(vec) | std::views::take(2);  // standard library
-auto rad1 = std::move(vec) | radr::pipe::take(2);  // this library
+auto vue1 = std::move(vec) | std::views::take(2);       // standard library
+auto rad1 = std::move(vec) | radr::take(2);             // this library
 ```
 
 But capturing **lvalues** is *explicit* in this library:
 
 ```cpp
 std::vector vec{1, 2, 3};
-auto vue =          vec  | std::views::take(2);  // standard library
-auto rad = std::ref(vec) | radr::pipe::take(2);  // this library
+auto vue =          vec  | std::views::take(2);         // standard library
+auto rad = std::ref(vec) | radr::take(2);               // this library
 ```
 
-This is a bit more verbose, but allows a cleaner design and avoids unintended dangling references. See the [wiki-article on range capture](TODO) for more details.
+This is a bit more verbose, but allows a cleaner design and avoids unintended dangling references. See the [this example](./comparison_tables.md#Safety) for more details.
 
-**Range properties**
+### Further reading
 
-A major problem of standard library range adaptors is that it is difficult for users to predict which of a range's properties are preserved by the adaptor and which aren't.
-This library divides ranges into two major domains and ties certain properties to these domains:
-
-
-|                             |  single-pass ranges    | multi-pass ranges         |
-|-----------------------------|:----------------------:|:-------------------------:|
-| category                    |  `input_range` only    | `forward_range` or better |
-| example                     | `std::generator<int>`  | `std::vector<int>`        |
-| copyable                    | no                     | yes                       |
-| iterating¹ w/o side-effects | no                     | yes                       |
-| const-iterable              | no                     | yes                       |
-
-<sup><sub>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it<sup><sub>
-
-A **single-pass range** is typically a generator or range that creates elements from a resource like a stream.
-Iterating over the range changes it.
-This library: range adaptors on single-pass ranges are always implemented as coroutines and are never copyable, const-iterable etc.
-
-**Multi-pass ranges** are containers and similar ranges.
-They can be copied, iterating over them does not change them, and it is thus also possible to iterate over a `const` container.
-Standard library views do not promise to preserve any of these properties, e.g. `std::vector{1, 2, 3} | std::views::filter(/**/)` is not copyable, calling `.begin()` has side-effects, and it is not const-iterable.
-This library: all properties are preserved, e.g. `std::vector{1, 2, 3} | radr::filter(/**/)` is copyable, const-iterable and iterating over it has no side-effects.
-
-See the [wiki-article on range properties](TODO) to learn the trade-offs required for this design.
-
-
-**Const-ness**
-
-There are various peculiarities in the standard library regarding `const` and range adaptors.
-These also have implications for thread-safety.
-
-1. For several standard library views `foo_view<T> const` isn't a range (independent of `T`). In this library, `foo_rad<T> const` is a range iff `forward_range<T const>`. See also the previous section.
-2. If a standard library `foo_view<T> const` is a range, it is inconsistent what the implications are. For some views, the underlying range is accessed as const ("deep const"), but for other views the const-ness does not propagate ("shallow const"), potentially allowing a call of the adaptor's `.begin() const` to have side effects. In this library, range adaptors are always deep const.
-
-See the [wiki-article on const](TODO) for more surprising examples from the standard library and an in-depth explanation of our design.
-
-## Compatibility
-
-TODO
-
-## Implementation status
-
-**THIS LIBRARY IS CURRENTLY A PROOF-OF-CONCEPT.** Everything needs better testing, and nothing is stable.
-
-We aim to replicate all standard library range adaptors, as well as most "range factories".
-
-**Range adaptor objects:**
-
-|  Standard library             |   radr                                            | Remarks                                  |
-|-------------------------------|---------------------------------------------------|------------------------------------------|
-| `std::views::as_const`        | `radr::pipe::as_const`                            | potentially different behaviour in C++23 |
-| `std::views::as_rvalue`       | `radr::pipe::as_rvalue`                           | requires C++23 for some inputs           |
-| `std::views::drop`            | `radr::pipe::drop(n)` ²                           |                                          |
-| `std::views::drop_while`      | `radr::pipe::drop_while(fn)` ²                    |                                          |
-| `std::views::filter`          | `radr::pipe::filter(fn)` ²                        |                                          |
-| `std::views::reverse`         | `radr::pipe::reverse` ²                           |                                          |
-| *not yet available*           | `radr::pipe::slice(m, n)`                         | get subrange between m and n             |
-| `std::views::take`            | `radr::pipe::take(n)`                             |                                          |
-| *not yet available*           | `radr::pipe::take_exactly(n)`                     | turns unsized into sized                 |
-| `std::views::transform`       | `radr::pipe::transform(fn)`                       |                                          |
-| *not yet available*           | `radr::pipe::make_single_pass`                    | demotes range category to input          |
-
-Our adaptor objects automatically dispatch to one of three classes, see below. Like in the standard library, some of them contain additional logic.
-
-² These adaptors cache the begin iterator on construction (for some inputs) whereas the standard library equivalents
-cache it on the first call of `begin()`. This makes the returned ranges in RADR const-iterable.
-
-**Range adaptor classes:**
-
-|  Standard library             |  radr                   |  Remarks                 |
-|-------------------------------|-------------------------|--------------------------|
-| `std::ranges::subrange`       | `radr::borrowing_rad`   | deep const               |
-| `std::ranges::owning_view`    | `radr::owning_rad`      |                          |
-
-Range adaptors in this library return a specialisation of one of the following types:
-  * `std::generator` if the underlying range is single-pass
-  * `radr::borrowing_rad` if the underlying range is multi-pass, const-iterable and borrowed,
-  * `radr::owning_rad` if the underlying range is multi-pass and const-iterable, 
-  * otherwise the call is ill-formed
-
-There are no distinct type templates per adaptor (like e.g. `transform_view` for `views::transform` in the standard library).
-If you absoutley need to operate on a multi-pass range that is not const-iterable, demote it to a single-pass range via
-`radr::make_single_pass`.
+* [Implementation status and feature table](./implementation_status_and_features.md): overview of which adaptors are available in the library.
+* [Comparison tables](./comparison_tables.md): examples that illustrate standard library usage vs radr usage ("tony tables").
 
 ## Credits
 
 This library relies heavily on the standard library implementation of the LLVM project. It also uses a draft implementation of std::generator from https://github.com/lewissbaker/generator.
 
 I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.
+
+
