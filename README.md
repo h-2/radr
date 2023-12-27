@@ -30,7 +30,11 @@ This library fundamentally differentiates between multi-pass and single-pass ran
 
 
 <details>
-<summary>Click here for even more details</summary>
+<summary>
+
+**Click here for more details**
+
+</summary>
 
 | Properties  |  multi-pass ranges <br> *owning* | multi-pass ranges <br> *borrowed*    |single-pass ranges <br> &nbsp; |
 |-----------------------------|:-------------------------:|:---------------------------:|:----------------------:|
