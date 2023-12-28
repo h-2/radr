@@ -370,8 +370,7 @@ struct generator_promise_base
     yield_sequence_awaiter<generator<Ref, std::remove_cvref_t<Ref>, Allocator>> yield_value(
       radr::elements_of<Rng, Allocator> && x)
     {
-        return
-          [](std::allocator_arg_t, Allocator alloc, auto && rng) -> generator<Ref, std::remove_cvref_t<Ref>, Allocator>
+        return [](std::allocator_arg_t, Allocator, auto && rng) -> generator<Ref, std::remove_cvref_t<Ref>, Allocator>
         {
             for (auto && e : rng)
                 co_yield static_cast<decltype(e)>(e);
