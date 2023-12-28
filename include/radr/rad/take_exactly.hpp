@@ -21,7 +21,7 @@
 #include "../generator.hpp"
 #include "take.hpp"
 
-namespace radr
+namespace radr::detail
 {
 // clang-format off
 inline constexpr auto take_exactly_borrow = detail::overloaded{
@@ -46,13 +46,13 @@ inline constexpr auto take_exactly_borrow = detail::overloaded{
   }};
 // clang-format on
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto take_exactly = detail::pipe_with_args_fn{take_coro, take_exactly_borrow};
+inline constexpr auto take_exactly = detail::pipe_with_args_fn{detail::take_coro, detail::take_exactly_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

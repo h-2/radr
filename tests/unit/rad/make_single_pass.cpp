@@ -24,7 +24,7 @@ inline std::vector<size_t> const comp{1, 2, 3, 4, 5, 6};
 
 TEST(transform, input)
 {
-    auto ra = radr::test::iota_input_range(1, 7) | radr::pipe::make_single_pass; // NOOP
+    auto ra = radr::test::iota_input_range(1, 7) | radr::make_single_pass; // NOOP
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), radr::generator<size_t>);
@@ -32,7 +32,7 @@ TEST(transform, input)
 
 TEST(transform, std_views_istream)
 {
-    auto ra = std::ranges::istream_view<char>(std::cin) | radr::pipe::make_single_pass; // NOOP
+    auto ra = std::ranges::istream_view<char>(std::cin) | radr::make_single_pass; // NOOP
 
     EXPECT_SAME_TYPE(decltype(ra), (std::ranges::basic_istream_view<char, char>));
 }
@@ -58,7 +58,7 @@ TYPED_TEST_SUITE(make_single_pass_forward, container_types);
 
 TYPED_TEST(make_single_pass_forward, rvalue)
 {
-    auto ra = std::move(this->in) | radr::pipe::make_single_pass;
+    auto ra = std::move(this->in) | radr::make_single_pass;
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t &, size_t>));
@@ -66,7 +66,7 @@ TYPED_TEST(make_single_pass_forward, rvalue)
 
 TYPED_TEST(make_single_pass_forward, lvalue)
 {
-    auto ra = std::ref(this->in) | radr::pipe::make_single_pass;
+    auto ra = std::ref(this->in) | radr::make_single_pass;
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t &, size_t>));

@@ -21,7 +21,7 @@
 #include "../generator.hpp"
 #include "../rad_util/borrowing_rad.hpp"
 
-namespace radr
+namespace radr::detail
 {
 // clang-format off
 inline constexpr auto as_rvalue_borrow = []<const_borrowable_range URange>(URange && urange)
@@ -96,13 +96,13 @@ inline constexpr auto as_rvalue_coro = []<movable_range URange>(URange && urange
     }(std::move(urange));
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto as_rvalue = detail::pipe_without_args_fn{as_rvalue_coro, as_rvalue_borrow};
+inline constexpr auto as_rvalue = detail::pipe_without_args_fn{detail::as_rvalue_coro, detail::as_rvalue_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

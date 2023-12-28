@@ -21,7 +21,7 @@
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
 
-namespace radr
+namespace radr::detail
 {
 // clang-format off
 inline constexpr auto drop_while_borrow =
@@ -68,13 +68,13 @@ inline constexpr auto drop_while_coro =
     }(std::move(urange), fn);
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto drop_while = detail::pipe_with_args_fn{drop_while_coro, drop_while_borrow};
+inline constexpr auto drop_while = detail::pipe_with_args_fn{detail::drop_while_coro, detail::drop_while_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

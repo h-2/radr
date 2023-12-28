@@ -21,7 +21,7 @@
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
 
-namespace radr
+namespace radr::detail
 {
 // clang-format off
 inline constexpr auto drop_borrow = detail::overloaded{
@@ -66,13 +66,13 @@ inline constexpr auto drop_coro = []<movable_range URange>(URange && urange, siz
     }(std::move(urange), n);
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto drop = detail::pipe_with_args_fn{drop_coro, drop_borrow};
+inline constexpr auto drop = detail::pipe_with_args_fn{detail::drop_coro, detail::drop_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr
