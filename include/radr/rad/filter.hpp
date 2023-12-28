@@ -45,24 +45,17 @@ template <typename Pred, typename URange>
 concept filter_pred_constraints = std::is_object_v<Pred> && std::copy_constructible<Pred> &&
                                   std::indirect_unary_predicate<Pred const, std::ranges::iterator_t<URange>>;
 
-} // namespace radr::detail
-
-namespace radr
+template <unqualified_forward_range URange, bool Const, filter_pred_constraints<maybe_const<Const, URange>> Pred>
+class filter_iterator : public filter_iterator_category<URange>
 {
+    using URangeC = maybe_const<Const, URange>;
 
-template <unqualified_forward_range                                           URange,
-          bool                                                                Const,
-          detail::filter_pred_constraints<detail::maybe_const<Const, URange>> Pred>
-class filter_iterator : public detail::filter_iterator_category<URange>
-{
-    using URangeC = detail::maybe_const<Const, URange>;
-
-    template <unqualified_forward_range                                             URange_,
-              bool                                                                  Const_,
-              detail::filter_pred_constraints<detail::maybe_const<Const_, URange_>> Pred_>
+    template <unqualified_forward_range                             URange_,
+              bool                                                  Const_,
+              filter_pred_constraints<maybe_const<Const_, URange_>> Pred_>
     friend class filter_iterator;
 
-    [[no_unique_address]] detail::copyable_box<Pred>       pred_;
+    [[no_unique_address]] copyable_box<Pred>               pred_;
     [[no_unique_address]] std::ranges::iterator_t<URangeC> current_{};
     [[no_unique_address]] std::ranges::sentinel_t<URangeC> end_{};
 
@@ -101,7 +94,7 @@ public:
 
     constexpr std::ranges::range_reference_t<URangeC> operator*() const { return *current_; }
     constexpr std::ranges::iterator_t<URangeC>        operator->() const
-        requires detail::has_arrow<std::ranges::iterator_t<URangeC>>
+        requires has_arrow<std::ranges::iterator_t<URangeC>>
     {
         return current_;
     }
@@ -165,7 +158,7 @@ public:
 };
 
 inline constexpr auto filter_borrow =
-  []<const_borrowable_range URange, detail::filter_pred_constraints<URange> Fn>(URange && urange, Fn fn)
+  []<const_borrowable_range URange, filter_pred_constraints<URange> Fn>(URange && urange, Fn fn)
 {
     using iterator_t = filter_iterator<std::remove_cvref_t<URange>, const_symmetric_range<URange>, Fn>;
     using sentinel_t = std::conditional_t<std::ranges::common_range<URange>, iterator_t, std::default_sentinel_t>;
@@ -211,12 +204,12 @@ inline constexpr auto filter_coro =
     }(std::move(urange), std::move(fn));
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 inline namespace cpo
 {
-inline constexpr auto filter = detail::pipe_with_args_fn{filter_coro, filter_borrow};
+inline constexpr auto filter = detail::pipe_with_args_fn{detail::filter_coro, detail::filter_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

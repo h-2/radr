@@ -20,7 +20,7 @@
 #include "../detail/pipe.hpp"
 #include "../rad_util/borrowing_rad.hpp"
 
-namespace radr
+namespace radr::detail
 {
 // clang-format off
 inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange && urange)
@@ -66,13 +66,13 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
   };
 // clang-format on
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto reverse = detail::pipe_without_args_fn<void, decltype(reverse_borrow)>{};
+inline constexpr auto reverse = detail::pipe_without_args_fn<void, decltype(detail::reverse_borrow)>{};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

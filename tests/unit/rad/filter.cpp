@@ -24,7 +24,7 @@ inline std::vector<size_t> const comp{2, 4, 6};
 
 TEST(filter, input)
 {
-    auto ra = radr::test::iota_input_range(1, 7) | radr::pipe::filter(fn);
+    auto ra = radr::test::iota_input_range(1, 7) | radr::filter(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), radr::generator<size_t>);
@@ -43,9 +43,9 @@ struct filter_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t   = radr::filter_iterator<container_t, false, std::remove_cvref_t<decltype(fn)>>;
+    using it_t   = radr::detail::filter_iterator<container_t, false, std::remove_cvref_t<decltype(fn)>>;
     using sen_t  = it_t;
-    using cit_t  = radr::filter_iterator<container_t, true, std::remove_cvref_t<decltype(fn)>>;
+    using cit_t  = radr::detail::filter_iterator<container_t, true, std::remove_cvref_t<decltype(fn)>>;
     using csen_t = cit_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
@@ -90,7 +90,7 @@ TYPED_TEST(filter_forward, rvalue)
     using container_t = TestFixture::container_t;
     using borrow_t    = TestFixture::borrow_t;
 
-    auto ra = std::move(this->in) | radr::pipe::filter(fn);
+    auto ra = std::move(this->in) | radr::filter(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
@@ -101,7 +101,7 @@ TYPED_TEST(filter_forward, rvalue)
 TYPED_TEST(filter_forward, lvalue)
 {
     // using borrow_t    = TestFixture::borrow_t;
-    auto ra = radr::pipe::filter(std::ref(this->in), fn);
+    auto ra = radr::filter(std::ref(this->in), fn);
 
     static_assert(std::ranges::input_range<decltype(ra)>);
 

@@ -19,7 +19,7 @@
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
 
-namespace radr
+namespace radr::detail
 {
 
 inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange && urange)
@@ -49,13 +49,13 @@ inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange
     }
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto as_const = detail::pipe_without_args_fn<void, decltype(as_const_borrow)>{};
+inline constexpr auto as_const = detail::pipe_without_args_fn<void, decltype(detail::as_const_borrow)>{};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

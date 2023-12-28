@@ -23,7 +23,7 @@
 #include "tags.hpp"
 #include "take.hpp"
 
-namespace radr
+namespace radr::detail
 {
 
 inline constexpr auto slice_borrow =
@@ -47,13 +47,13 @@ inline constexpr auto slice_coro = []<movable_range URange>(URange && urange, si
     return take_coro(drop_coro(std::forward<URange>(urange), start), t);
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto slice = detail::pipe_with_args_fn{slice_coro, slice_borrow};
+inline constexpr auto slice = detail::pipe_with_args_fn{detail::slice_coro, detail::slice_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr

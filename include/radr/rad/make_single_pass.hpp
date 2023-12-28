@@ -19,7 +19,7 @@
 #include "../detail/detail.hpp"
 #include "../generator.hpp"
 
-namespace radr
+namespace radr::detail
 {
 
 inline constexpr auto make_single_pass_coro = detail::overloaded{
@@ -39,14 +39,19 @@ inline constexpr auto make_single_pass_coro = detail::overloaded{
       return std::move(urange);
   }};
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
+inline namespace cpo
+{
 inline constexpr auto make_single_pass = detail::range_adaptor_closure_t{
-  detail::overloaded{make_single_pass_coro,
+  detail::overloaded{detail::make_single_pass_coro,
                      []<std::ranges::input_range URange>(std::reference_wrapper<URange> const & range)
-                     { return make_single_pass_coro(borrow(static_cast<URange &>(range))); }}
+                     { return detail::make_single_pass_coro(borrow(static_cast<URange &>(range))); }}
 };
-} // namespace radr::pipe
+
+}
+
+} // namespace radr

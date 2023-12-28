@@ -14,19 +14,20 @@
 
 #include <iterator>
 
+#include "../detail/pipe.hpp"
 #include "../generator.hpp"
 #include "../rad_util/borrowing_rad.hpp"
 
-namespace radr
+namespace radr::detail
 {
 
 template <unqualified_forward_range URange, bool Const>
 class take_sentinel
 {
-    using Base = detail::maybe_const<Const, URange>;
+    using Base = maybe_const<Const, URange>;
 
     template <bool Const_>
-    using Iter = std::counted_iterator<std::ranges::iterator_t<detail::maybe_const<Const_, URange>>>;
+    using Iter = std::counted_iterator<std::ranges::iterator_t<maybe_const<Const_, URange>>>;
 
     [[no_unique_address]] std::ranges::sentinel_t<Base> end_ = std::ranges::sentinel_t<Base>();
 
@@ -52,14 +53,14 @@ public:
 
     template <bool OtherConst = !Const>
         requires std::sentinel_for<std::ranges::sentinel_t<Base>,
-                                   std::ranges::iterator_t<detail::maybe_const<OtherConst, URange>>>
+                                   std::ranges::iterator_t<maybe_const<OtherConst, URange>>>
     friend constexpr bool operator==(Iter<Const> const & lhs, take_sentinel const & rhs)
     {
         return lhs.count() == 0 || lhs.base() == rhs.end_;
     }
 };
 
-inline constexpr auto take_borrow = detail::overloaded{
+inline constexpr auto take_borrow = overloaded{
   []<const_borrowable_range URange>(URange && urange, std::ranges::range_size_t<URange> const n)
   {
       using sz_t = std::ranges::range_size_t<URange>;
@@ -113,13 +114,13 @@ inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std
     }(std::move(urange), n);
 };
 
-} // namespace radr
+} // namespace radr::detail
 
-namespace radr::pipe
+namespace radr
 {
 
 inline namespace cpo
 {
-inline constexpr auto take = detail::pipe_with_args_fn{take_coro, take_borrow};
+inline constexpr auto take = detail::pipe_with_args_fn{detail::take_coro, detail::take_borrow};
 } // namespace cpo
-} // namespace radr::pipe
+} // namespace radr
