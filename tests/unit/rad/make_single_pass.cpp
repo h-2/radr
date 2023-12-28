@@ -32,7 +32,7 @@ TEST(transform, input)
 
 TEST(transform, std_views_istream)
 {
-    auto ra = std::views::istream<char>(std::cin) | radr::pipe::make_single_pass; // NOOP
+    auto ra = std::ranges::istream_view<char>(std::cin) | radr::pipe::make_single_pass; // NOOP
 
     EXPECT_SAME_TYPE(decltype(ra), (std::ranges::basic_istream_view<char, char>));
 }
