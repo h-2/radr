@@ -13,6 +13,7 @@
 #pragma once
 
 #include <concepts>
+#include <functional>
 #include <iterator>
 #include <ranges>
 
@@ -79,14 +80,16 @@ overloaded(Fn...) -> overloaded<Fn...>;
 // Range adaptor closure
 //=============================================================================
 
-#if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202202L
+#if defined(__GLIBCXX__)
+#    if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202202L
 template <typename T>
 using range_adaptor_closure = std::ranges::range_adaptor_closure<T>;
-#elif defined(__GLIBCXX__)
+#    else
 template <typename T>
     requires(std::is_class_v<T> && std::same_as<T, std::remove_cv_t<T>>)
 struct range_adaptor_closure : std::ranges::views::__adaptor::_RangeAdaptorClosure
 {};
+#    endif
 #elif defined(_LIBCPP_VERSION)
 template <typename T>
 using range_adaptor_closure = std::__range_adaptor_closure<T>;
@@ -102,9 +105,16 @@ template <class Fn>
 struct range_adaptor_closure_t : Fn, range_adaptor_closure<range_adaptor_closure_t<Fn>>
 {
     constexpr explicit range_adaptor_closure_t(Fn && f) : Fn(std::move(f)) {}
-};
 
-// #define RADR_SIMPLE_CLOSURE
+    template <std::ranges::input_range WrappedRange>
+        requires std::invocable<Fn const &, std::reference_wrapper<WrappedRange> &>
+    [[nodiscard]] friend constexpr decltype(auto)
+    operator|(std::reference_wrapper<WrappedRange> const & lhs, range_adaptor_closure_t const & closure) noexcept(
+      std::is_nothrow_invocable_v<Fn const &, std::reference_wrapper<WrappedRange> &>)
+    {
+        return std::invoke(static_cast<Fn const &>(closure), lhs);
+    }
+};
 
 //=============================================================================
 // concepts
