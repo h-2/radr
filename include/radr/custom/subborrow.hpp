@@ -16,6 +16,7 @@
 
 #include "../detail/detail.hpp"
 #include "../rad_util/borrowing_rad.hpp"
+#include "../range_access.hpp"
 #include "tags.hpp"
 
 namespace radr::custom
@@ -28,21 +29,16 @@ namespace radr::custom
 template <const_borrowable_range URange, typename Sen>
 auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const b, Sen const e)
 {
-    // contiguous to pointer
-    if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>> &&
+    // RA+sized to common; contiguous to pointer
+    if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>> &&
                   std::sized_sentinel_for<Sen, std::ranges::iterator_t<URange>>)
     {
-        using It      = decltype(std::to_address(b));
-        using ConstIt = std::remove_pointer_t<It> const *;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
-    }
-    // RA+sized to common
-    else if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>> &&
-                       std::sized_sentinel_for<Sen, std::ranges::iterator_t<URange>>)
-    {
-        using It      = std::ranges::iterator_t<URange>;
-        using ConstIt = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
+        using It      = iterator_t<URange>;
+        using ConstIt = iterator_t<std::remove_reference_t<URange> const>;
+        if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>>)
+            return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
+        else
+            return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
     }
     else
     {
@@ -62,21 +58,16 @@ auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const 
 template <const_borrowable_range URange, typename Sen>
 auto tag_invoke(subborrow_tag, URange &&, std::ranges::iterator_t<URange> const b, Sen const e, size_t const s)
 {
-    // contiguous to pointer
-    if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>>)
+    // RA+sized to common; contiguous to pointer
+    if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>>)
     {
-        using It      = decltype(std::to_address(b));
-        using ConstIt = std::remove_pointer_t<It> const *;
+        using It      = iterator_t<URange>;
+        using ConstIt = iterator_t<std::remove_reference_t<URange> const>;
         (void)e;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + s};
-    }
-    // RA+sized to common
-    else if constexpr (std::random_access_iterator<std::ranges::iterator_t<URange>>)
-    {
-        using It      = std::ranges::iterator_t<URange>;
-        using ConstIt = std::ranges::iterator_t<std::remove_reference_t<URange> const>;
-        (void)e;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + s};
+        if constexpr (std::contiguous_iterator<std::ranges::iterator_t<URange>>)
+            return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + s};
+        else
+            return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + s};
     }
     else
     {

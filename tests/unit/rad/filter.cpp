@@ -9,6 +9,7 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
+#include <radr/detail/detail.hpp>
 #include <radr/rad/filter.hpp>
 
 // --------------------------------------------------------------------------
@@ -43,9 +44,12 @@ struct filter_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t   = radr::detail::filter_iterator<container_t, false, std::remove_cvref_t<decltype(fn)>>;
+    using it_t = radr::detail::
+      filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
     using sen_t  = it_t;
-    using cit_t  = radr::detail::filter_iterator<container_t, true, std::remove_cvref_t<decltype(fn)>>;
+    using cit_t  = radr::detail::filter_iterator<radr::iterator_t<container_t const>,
+                                                radr::iterator_t<container_t const>,
+                                                std::remove_cvref_t<decltype(fn)>>;
     using csen_t = cit_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
@@ -100,13 +104,12 @@ TYPED_TEST(filter_forward, rvalue)
 
 TYPED_TEST(filter_forward, lvalue)
 {
-    // using borrow_t    = TestFixture::borrow_t;
-    auto ra = radr::filter(std::ref(this->in), fn);
+    using borrow_t = TestFixture::borrow_t;
 
-    static_assert(std::ranges::input_range<decltype(ra)>);
+    auto ra = std::ref(this->in) | radr::filter(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
 
     TestFixture::template type_checks<decltype(ra)>();
 }
