@@ -13,6 +13,7 @@
 #pragma once
 
 #include <functional>
+#include <iterator>
 #include <ranges>
 
 #include "../concepts.hpp"
@@ -24,31 +25,31 @@
 namespace radr::detail::transform
 {
 
-template <class URange, class Fn>
+template <class Iter, class Fn>
 concept fn_constraints = std::is_object_v<Fn> && std::copy_constructible<Fn> &&
-                         std::regular_invocable<Fn const &, std::ranges::range_reference_t<URange>> &&
-                         can_reference<std::invoke_result_t<Fn const &, std::ranges::range_reference_t<URange>>>;
+                         std::regular_invocable<Fn const &, std::iter_reference_t<Iter>> &&
+                         can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
 
-template <class URange>
+template <class Iter>
 struct iterator_concept
 {
     using type = std::input_iterator_tag;
 };
 
-template <std::ranges::random_access_range URange>
-struct iterator_concept<URange>
+template <std::random_access_iterator Iter>
+struct iterator_concept<Iter>
 {
     using type = std::random_access_iterator_tag;
 };
 
-template <std::ranges::bidirectional_range URange>
-struct iterator_concept<URange>
+template <std::bidirectional_iterator Iter>
+struct iterator_concept<Iter>
 {
     using type = std::bidirectional_iterator_tag;
 };
 
-template <std::ranges::forward_range URange>
-struct iterator_concept<URange>
+template <std::forward_iterator Iter>
+struct iterator_concept<Iter>
 {
     using type = std::forward_iterator_tag;
 };
@@ -57,13 +58,13 @@ template <class, class>
 struct iterator_category_base
 {};
 
-template <std::ranges::forward_range URange, class Fn>
-struct iterator_category_base<URange, Fn>
+template <std::forward_iterator Iter, class Fn>
+struct iterator_category_base<Iter, Fn>
 {
-    using Cat = typename std::iterator_traits<std::ranges::iterator_t<URange>>::iterator_category;
+    using Cat = typename std::iterator_traits<Iter>::iterator_category;
 
     using iterator_category = std::conditional_t<
-      std::is_reference_v<std::invoke_result_t<Fn const &, std::ranges::range_reference_t<URange>>>,
+      std::is_reference_v<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>,
       std::conditional_t<std::derived_from<Cat, std::contiguous_iterator_tag>, std::random_access_iterator_tag, Cat>,
       std::input_iterator_tag>;
 };
@@ -73,52 +74,47 @@ struct iterator_category_base<URange, Fn>
 namespace radr::detail
 {
 
-template <unqualified_forward_range URange, typename Fn, bool Const>
-    requires detail::transform::fn_constraints<maybe_const<Const, URange>, Fn>
+template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, typename Fn>
+    requires detail::transform::fn_constraints<Iter, Fn>
 class transform_sentinel;
 
-template <unqualified_forward_range URange, typename Fn, bool Const>
-    requires detail::transform::fn_constraints<maybe_const<Const, URange>, Fn>
-class transform_iterator : public detail::transform::iterator_category_base<URange, Fn>
+template <std::forward_iterator Iter, typename Fn>
+    requires detail::transform::fn_constraints<Iter, Fn>
+class transform_iterator : public detail::transform::iterator_category_base<Iter, Fn>
 {
-    using Base = maybe_const<Const, URange>;
-
     [[no_unique_address]] copyable_box<Fn> func_;
 
-    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<maybe_const<Const_, URange_>, Fn_>
+    template <std::forward_iterator Iter_, typename Fn_>
+        requires detail::transform::fn_constraints<Iter_, Fn_>
     friend class transform_iterator;
-    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<maybe_const<Const_, URange_>, Fn_>
+    template <std::forward_iterator Iter_, std::sentinel_for<Iter_> Sent_, typename Fn_>
+        requires detail::transform::fn_constraints<Iter_, Fn_>
     friend class transform_sentinel;
 
 public:
-    std::ranges::iterator_t<Base> current_ = std::ranges::iterator_t<Base>();
+    Iter current_ = Iter();
 
-    using iterator_concept = typename detail::transform::iterator_concept<URange>::type;
-    using value_type      = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::ranges::range_reference_t<Base>>>;
-    using difference_type = std::ranges::range_difference_t<Base>;
+    using iterator_concept = typename detail::transform::iterator_concept<Iter>::type;
+    using value_type       = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
+    using difference_type  = std::iter_difference_t<Iter>;
 
     transform_iterator()
-        requires(std::default_initializable<copyable_box<Fn>> &&
-                 std::default_initializable<std::ranges::iterator_t<Base>>)
+        requires(std::default_initializable<copyable_box<Fn>> && std::default_initializable<Iter>)
     = default;
 
-    constexpr transform_iterator(Fn fn, std::ranges::iterator_t<Base> current) :
+    constexpr transform_iterator(Fn fn, Iter current) :
       func_(std::in_place, std::move(fn)), current_(std::move(current))
     {}
 
-    // Note: `i` should always be `transform_iterator<false>`, but directly using
-    // `transform_iterator<false>` is ill-formed when `Const` is false
-    // (see http://wg21.link/class.copy.ctor#5).
-    constexpr transform_iterator(transform_iterator<URange, Fn, !Const> i)
-        requires Const && std::convertible_to<std::ranges::iterator_t<URange>, std::ranges::iterator_t<Base>>
+    template <detail::different_from<Iter> OtherIter>
+    constexpr transform_iterator(transform_iterator<OtherIter, Fn> i)
+        requires std::convertible_to<OtherIter, Iter>
       : func_(std::move(i.func_)), current_(std::move(i.current_))
     {}
 
-    constexpr std::ranges::iterator_t<Base> const & base() const & noexcept { return current_; }
+    constexpr Iter const & base() const & noexcept { return current_; }
 
-    constexpr std::ranges::iterator_t<Base> base() && { return std::move(current_); }
+    constexpr Iter base() && { return std::move(current_); }
 
     constexpr decltype(auto) operator*() const noexcept(noexcept(std::invoke(*func_, *current_)))
     {
@@ -134,7 +130,7 @@ public:
     constexpr void operator++(int) { ++current_; }
 
     constexpr transform_iterator operator++(int)
-        requires std::ranges::forward_range<Base>
+        requires std::forward_iterator<Iter>
     {
         auto tmp = *this;
         ++*this;
@@ -142,14 +138,14 @@ public:
     }
 
     constexpr transform_iterator & operator--()
-        requires std::ranges::bidirectional_range<Base>
+        requires std::bidirectional_iterator<Iter>
     {
         --current_;
         return *this;
     }
 
     constexpr transform_iterator operator--(int)
-        requires std::ranges::bidirectional_range<Base>
+        requires std::bidirectional_iterator<Iter>
     {
         auto tmp = *this;
         --*this;
@@ -157,81 +153,81 @@ public:
     }
 
     constexpr transform_iterator & operator+=(difference_type n)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         current_ += n;
         return *this;
     }
 
     constexpr transform_iterator & operator-=(difference_type n)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         current_ -= n;
         return *this;
     }
 
     constexpr decltype(auto) operator[](difference_type n) const noexcept(noexcept(std::invoke(*func_, current_[n])))
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return std::invoke(*func_, current_[n]);
     }
 
     friend constexpr bool operator==(transform_iterator const & x, transform_iterator const & y)
-        requires std::equality_comparable<std::ranges::iterator_t<Base>>
+        requires std::equality_comparable<Iter>
     {
         return x.current_ == y.current_;
     }
 
     friend constexpr bool operator<(transform_iterator const & x, transform_iterator const & y)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return x.current_ < y.current_;
     }
 
     friend constexpr bool operator>(transform_iterator const & x, transform_iterator const & y)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return x.current_ > y.current_;
     }
 
     friend constexpr bool operator<=(transform_iterator const & x, transform_iterator const & y)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return x.current_ <= y.current_;
     }
 
     friend constexpr bool operator>=(transform_iterator const & x, transform_iterator const & y)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return x.current_ >= y.current_;
     }
 
     friend constexpr auto operator<=>(transform_iterator const & x, transform_iterator const & y)
-        requires std::ranges::random_access_range<Base> && std::three_way_comparable<std::ranges::iterator_t<Base>>
+        requires std::random_access_iterator<Iter> && std::three_way_comparable<Iter>
     {
         return x.current_ <=> y.current_;
     }
 
     friend constexpr transform_iterator operator+(transform_iterator i, difference_type n)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return transform_iterator{*i.func_, i.current_ + n};
     }
 
     friend constexpr transform_iterator operator+(difference_type n, transform_iterator i)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return transform_iterator{*i.func_, i.current_ + n};
     }
 
     friend constexpr transform_iterator operator-(transform_iterator i, difference_type n)
-        requires std::ranges::random_access_range<Base>
+        requires std::random_access_iterator<Iter>
     {
         return transform_iterator{*i.func_, i.current_ - n};
     }
 
     friend constexpr difference_type operator-(transform_iterator const & x, transform_iterator const & y)
-        requires std::sized_sentinel_for<std::ranges::iterator_t<Base>, std::ranges::iterator_t<Base>>
+        requires std::sized_sentinel_for<Iter, Iter>
     {
         return x.current_ - y.current_;
     }
@@ -245,62 +241,49 @@ public:
     }
 };
 
-template <unqualified_forward_range URange, typename Fn, bool Const>
-    requires detail::transform::fn_constraints<maybe_const<Const, URange>, Fn>
+template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, typename Fn>
+    requires detail::transform::fn_constraints<Iter, Fn>
 class transform_sentinel
 {
-    using Base = maybe_const<Const, URange>;
+    Sent end_{};
 
-    std::ranges::sentinel_t<Base> end_ = std::ranges::sentinel_t<Base>();
-
-    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<maybe_const<Const, URange>, Fn>
-    friend class transform_iterator;
-    template <unqualified_forward_range URange_, typename Fn_, bool Const_>
-        requires detail::transform::fn_constraints<maybe_const<Const, URange>, Fn>
+    // template <std::forward_iterator Iter_, typename Fn_>
+    //     requires detail::transform::fn_constraints<Iter_, Fn_>
+    // friend class transform_iterator;
+    template <std::forward_iterator Iter_, std::sentinel_for<Iter_> Sent_, typename Fn_>
+        requires detail::transform::fn_constraints<Iter_, Fn_>
     friend class transform_sentinel;
 
 public:
     transform_sentinel() = default;
 
-    constexpr explicit transform_sentinel(std::ranges::sentinel_t<Base> end) : end_(end) {}
+    constexpr explicit transform_sentinel(Sent end) : end_(end) {}
 
-    constexpr transform_sentinel(Fn, std::ranges::sentinel_t<Base> end) : end_(end) {}
+    constexpr transform_sentinel(Fn, Sent end) : end_(end) {}
 
-    // Note: `i` should always be `transform_sentinel<false>`, but directly using
-    // `transform_sentinel<false>` is ill-formed when `Const` is false
-    // (see http://wg21.link/class.copy.ctor#5).
-    constexpr transform_sentinel(transform_sentinel<URange, Fn, !Const> i)
-        requires Const && std::convertible_to<std::ranges::sentinel_t<URange>, std::ranges::sentinel_t<Base>>
+    template <std::forward_iterator OtherIter, detail::different_from<Sent> OtherSent>
+    constexpr transform_sentinel(transform_sentinel<OtherIter, OtherSent, Fn> i)
+        requires std::convertible_to<OtherSent, Sent>
       : end_(std::move(i.end_))
     {}
 
-    constexpr std::ranges::sentinel_t<Base> base() const { return end_; }
+    constexpr Sent base() const { return end_; }
 
-    template <bool OtherConst>
-        requires std::sentinel_for<std::ranges::sentinel_t<Base>,
-                                   std::ranges::iterator_t<maybe_const<OtherConst, URange>>>
-    friend constexpr bool operator==(transform_iterator<URange, Fn, OtherConst> const & x, transform_sentinel const & y)
+    friend constexpr bool operator==(transform_iterator<Iter, Fn> const & x, transform_sentinel const & y)
     {
         return x.current_ == y.end_;
     }
 
-    template <bool OtherConst>
-        requires std::sized_sentinel_for<std::ranges::sentinel_t<Base>,
-                                         std::ranges::iterator_t<maybe_const<OtherConst, URange>>>
-    friend constexpr std::ranges::range_difference_t<maybe_const<OtherConst, URange>> operator-(
-      transform_iterator<URange, Fn, OtherConst> const & x,
-      transform_sentinel const &                         y)
+    friend constexpr std::ranges::range_difference_t<transform_iterator<Iter, Fn>> operator-(
+      transform_iterator<Iter, Fn> const & x,
+      transform_sentinel const &           y)
     {
         return x.current_ - y.end_;
     }
 
-    template <bool OtherConst>
-        requires std::sized_sentinel_for<std::ranges::sentinel_t<Base>,
-                                         std::ranges::iterator_t<maybe_const<OtherConst, URange>>>
-    friend constexpr std::ranges::range_difference_t<maybe_const<OtherConst, URange>> operator-(
-      transform_sentinel const &                         x,
-      transform_iterator<URange, Fn, OtherConst> const & y)
+    friend constexpr std::ranges::range_difference_t<transform_iterator<Iter, Fn>> operator-(
+      transform_sentinel const &           x,
+      transform_iterator<Iter, Fn> const & y)
     {
         return x.end_ - y.current_;
     }
@@ -308,19 +291,19 @@ public:
 
 inline constexpr auto transform_borrow =
   []<const_borrowable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(detail::transform::fn_constraints<URange, Fn>)
+    requires(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn>)
 {
-    using URangeNoCVRef             = std::remove_cvref_t<URange>;
-    static constexpr bool const_sym = const_symmetric_range<URange>;
+    using iterator_t = transform_iterator<radr::iterator_t<URange>, Fn>;
+    using sentinel_t = std::conditional_t<std::ranges::common_range<URange>,
+                                          iterator_t,
+                                          transform_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>, Fn>>;
 
-    using iterator_t = transform_iterator<URangeNoCVRef, Fn, const_sym>;
-    using sentinel_t = std::
-      conditional_t<std::ranges::common_range<URange>, iterator_t, transform_sentinel<URangeNoCVRef, Fn, const_sym>>;
-
-    using const_iterator_t = transform_iterator<URangeNoCVRef, Fn, true>;
-    using const_sentinel_t = std::conditional_t<std::ranges::common_range<URange const>,
-                                                const_iterator_t,
-                                                transform_sentinel<URangeNoCVRef, Fn, true>>;
+    using URangeC          = std::remove_cvref_t<URange> const;
+    using const_iterator_t = transform_iterator<radr::iterator_t<URangeC>, Fn>;
+    using const_sentinel_t =
+      std::conditional_t<std::ranges::common_range<URange const>,
+                         const_iterator_t,
+                         transform_sentinel<radr::iterator_t<URangeC>, radr::sentinel_t<URangeC>, Fn>>;
 
     if constexpr (std::ranges::sized_range<URange>)
     {
@@ -328,8 +311,8 @@ inline constexpr auto transform_borrow =
           borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::sized>;
 
         return BorrowingRad{
-          iterator_t{fn, std::ranges::begin(urange)},
-          sentinel_t{fn,   std::ranges::end(urange)},
+          iterator_t{fn, radr::begin(urange)},
+          sentinel_t{fn,   radr::end(urange)},
           std::ranges::size(urange)
         };
     }
@@ -339,8 +322,8 @@ inline constexpr auto transform_borrow =
           borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
 
         return BorrowingRad{
-          iterator_t{fn, std::ranges::begin(urange)},
-          sentinel_t{fn,   std::ranges::end(urange)}
+          iterator_t{fn, radr::begin(urange)},
+          sentinel_t{fn,   radr::end(urange)}
         };
     }
 };

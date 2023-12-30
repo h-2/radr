@@ -75,9 +75,7 @@ public:
       pred_(std::in_place, std::move(pred)), current_(std::move(current)), end_(std::move(end))
     {}
 
-    // Note: `i` should always be `iterator<false>`, but directly using
-    // `iterator<false>` is ill-formed when `Const` is false
-    // (see http://wg21.link/class.copy.ctor#5).
+    //!\brief Convert from non-const.
     template <detail::different_from<Iter> OtherIter, typename OtherSent>
     constexpr filter_iterator(filter_iterator<OtherIter, OtherSent, Pred> i)
         requires(std::convertible_to<OtherIter, Iter>)
