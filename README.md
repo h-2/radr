@@ -93,9 +93,19 @@ This is a bit more verbose, but allows a cleaner design and avoids unintended da
 * [Implementation status and feature table](./implementation_status_and_features.md): overview of which adaptors are available in the library.
 * [Comparison tables](./comparison_tables.md): examples that illustrate standard library usage vs radr usage ("tony tables").
 
+
+## Library facts
+
+* Easy to use: header-only and no dependencies
+* License: Apache with LLVM exception[^2]
+* Compilers: GCC≥11 or Clang≥17
+* Standard libraries: both libstdc++ and libc++ are tested.
+
+[^2]: The file `generator.hpp` is licensed under the Boost Software license. It is used only if your standard library does not provide `std::generator`.
+
 ## Credits
 
-This library relies heavily on the standard library implementation of the LLVM project. It also uses a draft implementation of std::generator from https://github.com/lewissbaker/generator.
+This library relies heavily on the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
 
 I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.
 

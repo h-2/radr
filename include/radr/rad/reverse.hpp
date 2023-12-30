@@ -26,7 +26,7 @@ namespace radr::detail
 inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange && urange)
     requires std::ranges::bidirectional_range<URange>
   {
-      
+
       auto get_rbeg = [] (auto && rng)
       {
           if constexpr (requires { std::ranges::rbegin(rng); })
@@ -34,7 +34,7 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
           else
               return std::make_reverse_iterator(std::ranges::next(std::ranges::begin(rng), std::ranges::end(rng)));
       };
-      
+
       auto get_rend = [] (auto && rng)
       {
           if constexpr (requires { std::ranges::rend(rng); })
@@ -42,17 +42,17 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
           else
               return std::make_reverse_iterator(std::ranges::begin(rng));
       };
-      
+
       static_assert(std::same_as<decltype(get_rbeg(urange)), decltype(get_rend(urange))>);
-      
+
       using It      = decltype(get_rbeg(urange));
       using ConstIt = decltype(get_rbeg(std::as_const(urange)));
-    
+
       static_assert(std::convertible_to<It, ConstIt>);
-      
-      It beg = get_rbeg(urange);        
+
+      It beg = get_rbeg(urange);
       It e   = get_rend(urange);
-        
+
       if constexpr (std::ranges::sized_range<URange>)
       {
           using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, borrowing_rad_kind::sized>;

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <radr/concepts.hpp>
+#include <radr/range_access.hpp>
 
 namespace radr::test
 {
@@ -22,6 +23,9 @@ inline void generic_adaptor_checks()
     EXPECT_TRUE(std::default_initializable<crad_t>);
     EXPECT_TRUE(std::equality_comparable<crad_t>);
     // not copyable because const is not assignable
+
+    EXPECT_TRUE((std::convertible_to<radr::iterator_t<rad_t>, radr::iterator_t<crad_t>>));
+    EXPECT_TRUE((std::convertible_to<radr::sentinel_t<rad_t>, radr::sentinel_t<crad_t>>));
 }
 
 } // namespace radr::test
