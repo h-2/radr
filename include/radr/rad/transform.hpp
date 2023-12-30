@@ -241,11 +241,11 @@ public:
     }
 };
 
-template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, typename Fn>
+template <std::forward_iterator Iter, std::sentinel_for<Iter> Sen, typename Fn>
     requires detail::transform::fn_constraints<Iter, Fn>
 class transform_sentinel
 {
-    Sent end_{};
+    Sen end_{};
 
     // template <std::forward_iterator Iter_, typename Fn_>
     //     requires detail::transform::fn_constraints<Iter_, Fn_>
@@ -257,17 +257,17 @@ class transform_sentinel
 public:
     transform_sentinel() = default;
 
-    constexpr explicit transform_sentinel(Sent end) : end_(end) {}
+    constexpr explicit transform_sentinel(Sen end) : end_(end) {}
 
-    constexpr transform_sentinel(Fn, Sent end) : end_(end) {}
+    constexpr transform_sentinel(Fn, Sen end) : end_(end) {}
 
-    template <std::forward_iterator OtherIter, detail::different_from<Sent> OtherSent>
+    template <std::forward_iterator OtherIter, detail::different_from<Sen> OtherSent>
     constexpr transform_sentinel(transform_sentinel<OtherIter, OtherSent, Fn> i)
-        requires std::convertible_to<OtherSent, Sent>
+        requires std::convertible_to<OtherSent, Sen>
       : end_(std::move(i.end_))
     {}
 
-    constexpr Sent base() const { return end_; }
+    constexpr Sen base() const { return end_; }
 
     friend constexpr bool operator==(transform_iterator<Iter, Fn> const & x, transform_sentinel const & y)
     {
@@ -298,12 +298,11 @@ inline constexpr auto transform_borrow =
                                           iterator_t,
                                           transform_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>, Fn>>;
 
-    using URangeC          = std::remove_cvref_t<URange> const;
-    using const_iterator_t = transform_iterator<radr::iterator_t<URangeC>, Fn>;
+    using const_iterator_t = transform_iterator<radr::const_iterator_t<URange>, Fn>;
     using const_sentinel_t =
       std::conditional_t<std::ranges::common_range<URange const>,
                          const_iterator_t,
-                         transform_sentinel<radr::iterator_t<URangeC>, radr::sentinel_t<URangeC>, Fn>>;
+                         transform_sentinel<radr::const_iterator_t<URange>, radr::const_sentinel_t<URange>, Fn>>;
 
     if constexpr (std::ranges::sized_range<URange>)
     {

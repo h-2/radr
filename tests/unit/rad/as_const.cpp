@@ -63,7 +63,7 @@ struct as_const_forward : public testing::Test
     template <typename in_t>
     static void type_checks()
     {
-        radr::test::generic_adaptor_checks<in_t, in_t const, container_t>();
+        radr::test::generic_adaptor_checks<in_t, container_t>();
 
         type_checks_impl<in_t>();
         type_checks_impl<in_t const>();

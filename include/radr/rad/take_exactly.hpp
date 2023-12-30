@@ -18,7 +18,6 @@
 #include "../concepts.hpp"
 #include "../custom/subborrow.hpp"
 #include "../detail/detail.hpp"
-#include "../generator.hpp"
 #include "take.hpp"
 
 namespace radr::detail
@@ -27,14 +26,13 @@ namespace radr::detail
 inline constexpr auto take_exactly_borrow = detail::overloaded{
   []<const_borrowable_range URange>(URange && urange, size_t const n)
   {
-      using URangeNoRef = std::remove_reference_t<URange>;
-      using BorrowingRad = borrowing_rad<std::counted_iterator<std::ranges::iterator_t<URangeNoRef>>,
+      using BorrowingRad = borrowing_rad<std::counted_iterator<radr::iterator_t<URange>>,
                                          std::default_sentinel_t,
-                                         std::counted_iterator<std::ranges::iterator_t<URangeNoRef const>>,
+                                         std::counted_iterator<radr::const_iterator_t<URange>>,
                                          std::default_sentinel_t,
                                          borrowing_rad_kind::sized>;
 
-      return BorrowingRad{std::counted_iterator<std::ranges::iterator_t<URange>>(std::ranges::begin(urange), n),
+      return BorrowingRad{std::counted_iterator<radr::iterator_t<URange>>(radr::begin(urange), n),
                           std::default_sentinel,
                           n};
 
