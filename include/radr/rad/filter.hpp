@@ -75,9 +75,7 @@ public:
       pred_(std::in_place, std::move(pred)), current_(std::move(current)), end_(std::move(end))
     {}
 
-    // Note: `i` should always be `iterator<false>`, but directly using
-    // `iterator<false>` is ill-formed when `Const` is false
-    // (see http://wg21.link/class.copy.ctor#5).
+    //!\brief Convert from non-const.
     template <detail::different_from<Iter> OtherIter, typename OtherSent>
     constexpr filter_iterator(filter_iterator<OtherIter, OtherSent, Pred> i)
         requires(std::convertible_to<OtherIter, Iter>)
@@ -153,14 +151,12 @@ public:
 };
 
 inline constexpr auto filter_borrow =
-  []<const_borrowable_range URange, filter_pred_constraints<std::ranges::iterator_t<URange>> Fn>(URange && urange,
-                                                                                                 Fn        fn)
+  []<const_borrowable_range URange, filter_pred_constraints<radr::iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
     using iterator_t = filter_iterator<radr::iterator_t<URange>, radr::sentinel_t<URange>, Fn>;
     using sentinel_t = std::conditional_t<std::ranges::common_range<URange>, iterator_t, std::default_sentinel_t>;
 
-    using URangeC          = std::remove_cvref_t<URange> const;
-    using const_iterator_t = filter_iterator<radr::iterator_t<URangeC>, radr::sentinel_t<URangeC>, Fn>;
+    using const_iterator_t = filter_iterator<radr::const_iterator_t<URange>, radr::const_sentinel_t<URange>, Fn>;
     using const_sentinel_t =
       std::conditional_t<std::ranges::common_range<URange const>, const_iterator_t, std::default_sentinel_t>;
 

@@ -11,6 +11,7 @@
 
 #include <radr/concepts.hpp>
 #include <radr/rad/transform.hpp>
+#include <radr/range_access.hpp>
 
 // --------------------------------------------------------------------------
 // test data
@@ -44,9 +45,10 @@ struct transform_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t   = radr::detail::transform_iterator<container_t, std::remove_cvref_t<decltype(fn)>, false>;
-    using sen_t  = it_t;
-    using cit_t  = radr::detail::transform_iterator<container_t, std::remove_cvref_t<decltype(fn)>, true>;
+    using it_t  = radr::detail::transform_iterator<radr::iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
+    using sen_t = it_t;
+    using cit_t =
+      radr::detail::transform_iterator<radr::const_iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
     using csen_t = cit_t;
 
     static constexpr radr::borrowing_rad_kind bk =
@@ -69,7 +71,7 @@ struct transform_forward : public testing::Test
     template <typename in_t>
     static void type_checks()
     {
-        radr::test::generic_adaptor_checks<in_t, in_t const, container_t>();
+        radr::test::generic_adaptor_checks<in_t, container_t>();
 
         type_checks_impl<in_t>();
         type_checks_impl<in_t const>();
@@ -86,6 +88,42 @@ using container_types = ::testing::Types<std::forward_list<size_t>, // unsized
                                          std::vector<size_t>>;
 
 TYPED_TEST_SUITE(transform_forward, container_types);
+
+TYPED_TEST(transform_forward, lvalue)
+{
+    using borrow_t = TestFixture::borrow_t;
+
+    auto ra = std::ref(this->in) | radr::transform(fn);
+
+    EXPECT_RANGE_EQ(ra, comp);
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+
+    TestFixture::template type_checks<decltype(ra)>();
+}
+
+TYPED_TEST(transform_forward, lvalue_function_syntax)
+{
+    using borrow_t = TestFixture::borrow_t;
+
+    auto ra = radr::transform(fn)(std::ref(this->in));
+
+    EXPECT_RANGE_EQ(ra, comp);
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+
+    TestFixture::template type_checks<decltype(ra)>();
+}
+
+TYPED_TEST(transform_forward, lvalue_function_syntax2)
+{
+    using borrow_t = TestFixture::borrow_t;
+
+    auto ra = radr::transform(std::ref(this->in), fn);
+
+    EXPECT_RANGE_EQ(ra, comp);
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+
+    TestFixture::template type_checks<decltype(ra)>();
+}
 
 TYPED_TEST(transform_forward, rvalue)
 {
@@ -122,42 +160,6 @@ TYPED_TEST(transform_forward, rvalue_function_syntax2)
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
-
-    TestFixture::template type_checks<decltype(ra)>();
-}
-
-TYPED_TEST(transform_forward, lvalue)
-{
-    // using borrow_t    = TestFixture::borrow_t;
-
-    auto ra = std::ref(this->in) | radr::transform(fn);
-
-    EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
-
-    TestFixture::template type_checks<decltype(ra)>();
-}
-
-TYPED_TEST(transform_forward, lvalue_function_syntax)
-{
-    // using borrow_t    = TestFixture::borrow_t;
-
-    auto ra = radr::transform(fn)(std::ref(this->in));
-
-    EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
-
-    TestFixture::template type_checks<decltype(ra)>();
-}
-
-TYPED_TEST(transform_forward, lvalue_function_syntax2)
-{
-    // using borrow_t    = TestFixture::borrow_t;
-
-    auto ra = radr::transform(std::ref(this->in), fn);
-
-    EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
 
     TestFixture::template type_checks<decltype(ra)>();
 }

@@ -47,8 +47,8 @@ struct filter_forward : public testing::Test
     using it_t = radr::detail::
       filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
     using sen_t  = it_t;
-    using cit_t  = radr::detail::filter_iterator<radr::iterator_t<container_t const>,
-                                                radr::iterator_t<container_t const>,
+    using cit_t  = radr::detail::filter_iterator<radr::const_iterator_t<container_t>,
+                                                radr::const_iterator_t<container_t>,
                                                 std::remove_cvref_t<decltype(fn)>>;
     using csen_t = cit_t;
 
@@ -71,7 +71,7 @@ struct filter_forward : public testing::Test
     template <typename in_t>
     static void type_checks()
     {
-        radr::test::generic_adaptor_checks<in_t, in_t const, container_t>();
+        radr::test::generic_adaptor_checks<in_t, container_t>();
 
         type_checks_impl<in_t>();
         type_checks_impl<in_t const>();
