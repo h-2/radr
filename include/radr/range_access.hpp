@@ -68,3 +68,14 @@ template <typename T>
 using const_sentinel_t = decltype(radr::cend(std::declval<T &>()));
 
 } // namespace radr
+
+namespace radr::detail
+{
+
+template <typename It, typename Range>
+concept is_iterator_of = std::same_as<It, iterator_t<Range>> || std::same_as<It, std::ranges::iterator_t<Range>>;
+
+template <typename Sen, typename Range>
+concept is_sentinel_of = std::same_as<Sen, sentinel_t<Range>> || std::same_as<Sen, std::ranges::sentinel_t<Range>>;
+
+} // namespace radr::detail
