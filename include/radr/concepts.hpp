@@ -81,4 +81,8 @@ concept weakly_equality_comparable_with =
 
 template <class T>
 concept weakly_equality_comparable = weakly_equality_comparable_with<T, T>;
+
+template <class T, class... Us>
+concept one_of = (std::same_as<T, Us> || ...);
+
 } // namespace radr::detail
