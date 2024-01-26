@@ -12,6 +12,8 @@
 
 #include <ranges>
 
+#include "concepts.hpp"
+
 namespace radr
 {
 
@@ -37,7 +39,7 @@ inline constexpr auto end = []<std::ranges::range Rng>(Rng && rng)
 
 inline constexpr auto cbegin = []<std::ranges::range Rng>(Rng && rng)
 {
-    if constexpr (std::ranges::contiguous_range<Rng>)
+    if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
         return std::to_address(std::ranges::cbegin(std::forward<Rng>(rng)));
     else
         return std::ranges::cbegin(std::forward<Rng>(rng));
@@ -72,10 +74,19 @@ using const_sentinel_t = decltype(radr::cend(std::declval<T &>()));
 namespace radr::detail
 {
 
+template <typename T>
+using std_const_iterator_t = decltype(std::ranges::cbegin(std::declval<T &>()));
+
+template <typename T>
+using std_const_sentinel_t = decltype(std::ranges::cend(std::declval<T &>()));
+
 template <typename It, typename Range>
-concept is_iterator_of = std::same_as<It, iterator_t<Range>> || std::same_as<It, std::ranges::iterator_t<Range>>;
+concept is_iterator_of =
+  one_of<It, iterator_t<Range>, const_iterator_t<Range>, std::ranges::iterator_t<Range>, std_const_iterator_t<Range>>;
 
 template <typename Sen, typename Range>
-concept is_sentinel_of = std::same_as<Sen, sentinel_t<Range>> || std::same_as<Sen, std::ranges::sentinel_t<Range>>;
+concept is_sentinel_of =
+  one_of<Sen, sentinel_t<Range>, const_sentinel_t<Range>, std::ranges::sentinel_t<Range>, std_const_sentinel_t<Range>> ||
+  (std::ranges::forward_range<Range> && is_iterator_of<Sen, Range>);
 
 } // namespace radr::detail

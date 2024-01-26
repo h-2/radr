@@ -27,37 +27,39 @@ namespace radr::custom
 // tag_invoke overloads
 //=============================================================================
 
-template <const_borrowable_range URange, detail::is_iterator_of<URange> It_, typename Sen_>
-auto tag_invoke(subborrow_tag, URange &&, It_ const b, Sen_ const e)
+template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e)
 {
-    static_assert(detail::one_of<Sen_,
-                                 // all of the following can be different,
-                                 // e.g. URange is contiguous non-common with non-pointer iterator but Sen_ == It_
-                                 It_,
-                                 std::ranges::iterator_t<URange>,
-                                 std::ranges::sentinel_t<URange>,
-                                 iterator_t<URange>,
-                                 sentinel_t<URange>>,
-                  "The sentinel's type must be the same as the range's sentinel or iterator type.");
-
-    using It       = iterator_t<URange>; // != Iter iff URange is contiguous and Iter is not pointer
-    using ConstIt  = const_iterator_t<URange>;
-    using Sen      = std::conditional_t<std::same_as<It_, Sen_>, It, sentinel_t<URange>>;
-    using ConstSen = std::conditional_t<std::same_as<It_, Sen_>, ConstIt, const_sentinel_t<URange>>;
-
     // contiguous to pointer
     if constexpr (std::contiguous_iterator<It> && std::sized_sentinel_for<Sen, It>)
     {
-        return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
-    }
-    // RA+sized to common
-    else if constexpr (std::random_access_iterator<It> && std::sized_sentinel_for<Sen, It>)
-    {
-        return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
+        using It_     = decltype(std::to_address(b));
+        using ConstIt = detail::ptr_to_const_ptr<It_>;
+        return borrowing_rad<It_, It_, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
     }
     else
     {
-        return borrowing_rad<It, Sen, ConstIt, ConstSen>{b, e};
+        using ConstIt = std::conditional_t<constant_iterator<It>, It, detail::std_const_iterator_t<URange>>;
+        static_assert(std::convertible_to<It, ConstIt>, RADR_BUG(__FILE__, __LINE__));
+        static_assert(constant_iterator<ConstIt>,
+                      "No usable constant iterator could be deduced for your range. "
+                      "Building in C++23 (or later) mode might fix this.");
+
+        // RA+sized to common
+        if constexpr (std::random_access_iterator<It> && std::sized_sentinel_for<Sen, It>)
+        {
+            return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
+        }
+        else
+        {
+            static_assert(detail::is_sentinel_of<Sen, URange>,
+                          "The sentinel's type must be the same as the range's sentinel or iterator type.");
+
+            using ConstSen = std::conditional_t<std::same_as<It, Sen>, ConstIt, detail::std_const_sentinel_t<URange>>;
+            static_assert(std::convertible_to<Sen, ConstSen>, RADR_BUG(__FILE__, __LINE__));
+            static_assert(std::sentinel_for<ConstSen, ConstIt>, RADR_BUG(__FILE__, __LINE__));
+            return borrowing_rad<It, Sen, ConstIt, ConstSen>{b, e};
+        }
     }
 }
 
@@ -65,25 +67,10 @@ auto tag_invoke(subborrow_tag, URange &&, It_ const b, Sen_ const e)
  *
  * \attention If s is not the actual size of (b, e) the behaviour is undefined.
  */
-template <const_borrowable_range URange, detail::is_iterator_of<URange> It_, typename Sen_>
-auto tag_invoke(subborrow_tag, URange &&, It_ const b, Sen_ const e, size_t const s)
+template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e, size_t const s)
 {
-    static_assert(detail::one_of<Sen_,
-                                 // all of the following can be different,
-                                 // e.g. URange is contiguous non-common with non-pointer iterator but Sen_ == It_
-                                 It_,
-                                 std::ranges::iterator_t<URange>,
-                                 std::ranges::sentinel_t<URange>,
-                                 iterator_t<URange>,
-                                 sentinel_t<URange>>,
-                  "The sentinel's type must be the same as the range's sentinel or iterator type.");
-
-    using It       = iterator_t<URange>; // != Iter iff URange is contiguous and Iter is not pointer
-    using ConstIt  = const_iterator_t<URange>;
-    using Sen      = std::conditional_t<std::same_as<It_, Sen_>, It, sentinel_t<URange>>;
-    using ConstSen = std::conditional_t<std::same_as<It_, Sen_>, ConstIt, const_sentinel_t<URange>>;
-
-    if constexpr (std::sized_sentinel_for<Sen_, It_>)
+    if constexpr (std::sized_sentinel_for<Sen, It>)
     {
         assert(int64_t(e - b) == int64_t(s));
     }
@@ -92,17 +79,34 @@ auto tag_invoke(subborrow_tag, URange &&, It_ const b, Sen_ const e, size_t cons
     if constexpr (std::contiguous_iterator<It>)
     {
         (void)e;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + s};
-    }
-    // RA to common
-    else if constexpr (std::random_access_iterator<It>)
-    {
-        (void)e;
-        return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + s};
+        using It_     = decltype(std::to_address(b));
+        using ConstIt = detail::ptr_to_const_ptr<It_>;
+        return borrowing_rad<It_, It_, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + s};
     }
     else
     {
-        return borrowing_rad<It, Sen, ConstIt, ConstSen, borrowing_rad_kind::sized>{b, e, s};
+        using ConstIt = std::conditional_t<constant_iterator<It>, It, detail::std_const_iterator_t<URange>>;
+        static_assert(std::convertible_to<It, ConstIt>, RADR_BUG(__FILE__, __LINE__));
+        static_assert(constant_iterator<ConstIt>,
+                      "No usable constant iterator could be deduced for your range. "
+                      "Building in C++23 (or later) mode might fix this.");
+
+        // RA+sized to common
+        if constexpr (std::random_access_iterator<It>)
+        {
+            (void)e;
+            return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + s};
+        }
+        else
+        {
+            static_assert(detail::is_sentinel_of<Sen, URange>,
+                          "The sentinel's type must be the same as the range's sentinel or iterator type.");
+
+            using ConstSen = std::conditional_t<std::same_as<It, Sen>, ConstIt, detail::std_const_sentinel_t<URange>>;
+            static_assert(std::convertible_to<Sen, ConstSen>, RADR_BUG(__FILE__, __LINE__));
+            static_assert(std::sentinel_for<ConstSen, ConstIt>, RADR_BUG(__FILE__, __LINE__));
+            return borrowing_rad<It, Sen, ConstIt, ConstSen, borrowing_rad_kind::sized>{b, e, s};
+        }
     }
 }
 

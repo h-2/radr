@@ -218,4 +218,15 @@ static_assert(std::same_as<add_const_t<int const &>, int const &>);
 static_assert(std::same_as<add_const_t<int const &&>, int const &&>);
 static_assert(std::same_as<add_const_t<int *>, int * const>);
 
+//=============================================================================
+// ptr_to_const_ptr
+//=============================================================================
+
+template <typename T>
+    requires std::is_pointer_v<T>
+using ptr_to_const_ptr = std::remove_pointer_t<T> const *;
+
 } // namespace radr::detail
+
+#define RADR_STR(s)          #s
+#define RADR_BUG(file, line) "RADR library BUG in " RADR_STR(file) ":" RADR_STR(line) "; PLEASE REPORT THIS!"
