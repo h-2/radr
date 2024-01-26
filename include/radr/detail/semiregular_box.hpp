@@ -12,13 +12,13 @@
 #include <concepts>
 #include <optional>
 
-// copyable_box allows turning a type that is copy-constructible (but maybe not copy-assignable) into
+// semiregular_box allows turning a type that is copy-constructible (but maybe not copy-assignable) into
 // a type that is both copy-constructible and copy-assignable. It does that by introducing an empty state
 // and basically doing destroy-then-copy-construct in the assignment operator. The empty state is necessary
 // to handle the case where the copy construction fails after destroying the object.
 //
 // In some cases, we can completely avoid the use of an empty state; we provide a specialization of
-// copyable_box that does this, see below for the details.
+// semiregular_box that does this, see below for the details.
 
 namespace radr::detail
 {
@@ -28,32 +28,33 @@ concept copy_constructible_object = std::copy_constructible<Tp> && std::is_objec
 
 // Primary template - uses std::optional and introduces an empty state in case assignment fails.
 template <copy_constructible_object Tp>
-class copyable_box
+class semiregular_box
 {
     [[no_unique_address]] std::optional<Tp> val_;
 
 public:
     template <class... Args>
         requires std::is_constructible_v<Tp, Args...>
-    constexpr explicit copyable_box(std::in_place_t,
-                                    Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
+    constexpr explicit semiregular_box(std::in_place_t,
+                                       Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
       val_(std::in_place, std::forward<Args>(args)...)
     {}
 
-    constexpr copyable_box() noexcept(std::is_nothrow_default_constructible_v<Tp>)
+    constexpr semiregular_box() noexcept(std::is_nothrow_default_constructible_v<Tp>)
         requires std::default_initializable<Tp>
       : val_(std::in_place)
     {}
 
-    constexpr copyable_box() noexcept
+    constexpr semiregular_box() noexcept
         requires(!std::default_initializable<Tp>)
       : val_{}
     {}
 
-    copyable_box(copyable_box const &) = default;
-    copyable_box(copyable_box &&)      = default;
+    semiregular_box(semiregular_box const &) = default;
+    semiregular_box(semiregular_box &&)      = default;
 
-    constexpr copyable_box & operator=(copyable_box const & other) noexcept(std::is_nothrow_copy_constructible_v<Tp>)
+    constexpr semiregular_box & operator=(semiregular_box const & other) noexcept(
+      std::is_nothrow_copy_constructible_v<Tp>)
     {
         if (this != std::addressof(other))
         {
@@ -65,11 +66,11 @@ public:
         return *this;
     }
 
-    copyable_box & operator=(copyable_box &&)
+    semiregular_box & operator=(semiregular_box &&)
         requires std::movable<Tp>
     = default;
 
-    constexpr copyable_box & operator=(copyable_box && other) noexcept(std::is_nothrow_move_constructible_v<Tp>)
+    constexpr semiregular_box & operator=(semiregular_box && other) noexcept(std::is_nothrow_move_constructible_v<Tp>)
     {
         if (this != std::addressof(other))
         {
@@ -112,33 +113,33 @@ concept doesnt_need_empty_state_for_move = std::movable<Tp> || std::is_nothrow_m
 template <copy_constructible_object Tp>
     requires std::default_initializable<Tp> && doesnt_need_empty_state_for_copy<Tp> &&
              doesnt_need_empty_state_for_move<Tp>
-class copyable_box<Tp>
+class semiregular_box<Tp>
 {
     [[no_unique_address]] Tp val_;
 
 public:
     template <class... Args>
         requires std::is_constructible_v<Tp, Args...>
-    constexpr explicit copyable_box(std::in_place_t,
-                                    Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
+    constexpr explicit semiregular_box(std::in_place_t,
+                                       Args &&... args) noexcept(std::is_nothrow_constructible_v<Tp, Args...>) :
       val_(std::forward<Args>(args)...)
     {}
 
-    constexpr copyable_box() noexcept(std::is_nothrow_default_constructible_v<Tp>) : val_() {}
+    constexpr semiregular_box() noexcept(std::is_nothrow_default_constructible_v<Tp>) : val_() {}
 
-    copyable_box(copyable_box const &) = default;
-    copyable_box(copyable_box &&)      = default;
+    semiregular_box(semiregular_box const &) = default;
+    semiregular_box(semiregular_box &&)      = default;
 
     // Implementation of assignment operators in case we perform optimization (1)
-    copyable_box & operator=(copyable_box const &)
+    semiregular_box & operator=(semiregular_box const &)
         requires std::copyable<Tp>
     = default;
-    copyable_box & operator=(copyable_box &&)
+    semiregular_box & operator=(semiregular_box &&)
         requires std::movable<Tp>
     = default;
 
     // Implementation of assignment operators in case we perform optimization (2)
-    constexpr copyable_box & operator=(copyable_box const & other) noexcept
+    constexpr semiregular_box & operator=(semiregular_box const & other) noexcept
     {
         static_assert(std::is_nothrow_copy_constructible_v<Tp>);
         if (this != std::addressof(other))
@@ -149,7 +150,7 @@ public:
         return *this;
     }
 
-    constexpr copyable_box & operator=(copyable_box && other) noexcept
+    constexpr semiregular_box & operator=(semiregular_box && other) noexcept
     {
         static_assert(std::is_nothrow_move_constructible_v<Tp>);
         if (this != std::addressof(other))

@@ -17,7 +17,7 @@ namespace radr
 
 inline constexpr auto begin = []<std::ranges::range Rng>(Rng && rng)
 {
-    if constexpr (std::ranges::contiguous_range<Rng>)
+    if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
         return std::to_address(std::ranges::begin(std::forward<Rng>(rng)));
     else
         return std::ranges::begin(std::forward<Rng>(rng));
