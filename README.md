@@ -11,7 +11,7 @@ The library only replaces certain components from the Standard's Ranges library,
 * Same features as the standard library,[^1] just use `expr | radr::foo(bar)` instead of `expr | std::views::foo(bar)`.
 * Fewer surprises: range adaptors on containers (probably most that you use) behave a lot more like containers, e.g. you can default-construct them, compare them, copy them and pass them by `const &` (this is not true for many standard library adaptors).
 * Fewer footguns: you are less likely to return dangling references, because references to existing ranges need to be created explicitly.
-* Less confusion: you don't need to understand what a "view" is, because it is irrevelant for this library.
+* Less confusion: you don't need to understand what a "view" is, because it is irrelevant for this library.
 
 [^1]: See IMPLEMENTATION STATUS for which range adaptors have been implemented already.
 

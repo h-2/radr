@@ -25,6 +25,13 @@ standard.
 
 Note that most of our standalone ranges are not implemented as "factory" objects, but just as plain types.
 
+
+| Customisation points               | tag                            | Remarks                                         |
+|------------------------------------|:------------------------------:|-------------------------------------------------|
+| `radr::subborrow(r, it, sen[, s])` | `radr::custom::subborrow_tag`  | Used when creating subranges from other ranges  |
+
+
+
 ## Feature table
 
 **Range adaptor objects:**
