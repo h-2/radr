@@ -34,7 +34,7 @@ auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e)
     if constexpr (std::contiguous_iterator<It> && std::sized_sentinel_for<Sen, It>)
     {
         using It_     = decltype(std::to_address(b));
-        using ConstIt = detail::ptr_to_const_ptr<It_>;
+        using ConstIt = detail::ptr_to_const_ptr_t<It_>;
         return borrowing_rad<It_, It_, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + (e - b)};
     }
     else
@@ -80,7 +80,7 @@ auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e, size_t const 
     {
         (void)e;
         using It_     = decltype(std::to_address(b));
-        using ConstIt = detail::ptr_to_const_ptr<It_>;
+        using ConstIt = detail::ptr_to_const_ptr_t<It_>;
         return borrowing_rad<It_, It_, ConstIt, ConstIt>{std::to_address(b), std::to_address(b) + s};
     }
     else
@@ -111,14 +111,14 @@ auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e, size_t const 
 }
 
 template <const_borrowable_range URange, detail::is_iterator_of<URange> It, std::sized_sentinel_for<It> Sen>
-    requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<URange>, char const &>)
+    requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<It>, char const &>)
 auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const e)
 {
     return std::string_view{b, e};
 }
 
 template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
-    requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<URange>, char const &>)
+    requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<It>, char const &>)
 auto tag_invoke(subborrow_tag, URange &&, It const b, Sen const, size_t const s)
 {
     return std::string_view{b, s};
@@ -182,8 +182,10 @@ inline constexpr auto borrow = detail::overloaded{
       }
   },
   [] <const_borrowable_range URange> (URange && urange)
-    requires (std::ranges::borrowed_range<std::remove_cvref_t<URange>> && std::copyable<std::remove_cvref_t<URange>>)
+    requires (std::ranges::borrowed_range<std::remove_cvref_t<URange>> && std::copyable<std::remove_cvref_t<URange>> &&
+        std::same_as<std::ranges::range_reference_t<URange>, std::ranges::range_reference_t<std::remove_cvref_t<URange>>>)
   {
+      // the last check is important, because we don't want to return URange for `URange const &` input
       return std::forward<URange>(urange);
   }
 };
