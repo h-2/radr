@@ -47,9 +47,9 @@ namespace radr
 {
 
 template <std::forward_iterator    Iter,
-          std::sentinel_for<Iter>  Sent,
-          std::forward_iterator    CIter,
-          std::sentinel_for<CIter> CSent,
+          std::sentinel_for<Iter>  Sent  = Iter,
+          std::forward_iterator    CIter = detail::ptr_to_const_ptr_t<Iter>,
+          std::sentinel_for<CIter> CSent = detail::ptr_to_const_ptr_t<Iter>,
           borrowing_rad_kind       Kind =
             std::sized_sentinel_for<Sent, Iter> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized>
     requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)

@@ -24,28 +24,13 @@ namespace radr::detail
 
 inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange && urange)
 {
-    if constexpr (std::same_as<std::ranges::range_reference_t<URange>, decltype(*std::ranges::cbegin(urange))>)
+    if constexpr (std::ranges::sized_range<URange>)
     {
-        return borrow(std::forward<URange>(urange));
+        return radr::subborrow(urange, radr::cbegin(urange), radr::cend(urange), std::ranges::size(urange));
     }
     else
     {
-        auto b = std::ranges::cbegin(urange);
-        auto e = std::ranges::cend(urange);
-
-        using It   = decltype(b);
-        using Sent = decltype(e);
-
-        if constexpr (std::ranges::sized_range<URange>)
-        {
-            using BorrowingRad = borrowing_rad<It, Sent, It, Sent, borrowing_rad_kind::sized>;
-            return BorrowingRad{std::move(b), std::move(e), std::ranges::size(urange)};
-        }
-        else
-        {
-            using BorrowingRad = borrowing_rad<It, Sent, It, Sent, borrowing_rad_kind::unsized>;
-            return BorrowingRad{std::move(b), std::move(e)};
-        }
+        return radr::subborrow(urange, radr::cbegin(urange), radr::cend(urange));
     }
 };
 

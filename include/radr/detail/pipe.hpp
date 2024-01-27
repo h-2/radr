@@ -153,11 +153,12 @@ struct pipe_without_args_fn :
     using pipe_fwd_base<BorrowFn, false>::operator();
 
     template <std::ranges::input_range WrappedRange>
-        requires std::invocable<pipe_without_args_fn const &, WrappedRange>
+        requires std::invocable<pipe_without_args_fn const &, std::reference_wrapper<WrappedRange> const &>
     [[nodiscard]] friend constexpr decltype(auto)
     operator|(std::reference_wrapper<WrappedRange> const & lhs, pipe_without_args_fn const & closure) noexcept(
-      std::is_nothrow_invocable_v<pipe_without_args_fn const &, WrappedRange>)
+      std::is_nothrow_invocable_v<pipe_without_args_fn const &, std::reference_wrapper<WrappedRange> const &>)
     {
+        // this does not unpack the reference_wrapper, it just forwards to another overload that does
         return std::invoke(closure, lhs);
     }
 };

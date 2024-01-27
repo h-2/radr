@@ -18,9 +18,9 @@
 #include <ranges>
 
 #include "../concepts.hpp"
-#include "../detail/copyable_box.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
+#include "../detail/semiregular_box.hpp"
 #include "../generator.hpp"
 #include "../range_access.hpp"
 
@@ -53,9 +53,9 @@ class filter_iterator : public filter_iterator_category<Iter>
     template <std::forward_iterator Iter2, std::sentinel_for<Iter2> Sent2, filter_pred_constraints<Iter2> Pred2>
     friend class filter_iterator;
 
-    [[no_unique_address]] copyable_box<Pred> pred_;
-    [[no_unique_address]] Iter               current_{};
-    [[no_unique_address]] Sent               end_{};
+    [[no_unique_address]] semiregular_box<Pred> pred_;
+    [[no_unique_address]] Iter                  current_{};
+    [[no_unique_address]] Sent                  end_{};
 
 public:
     // clang-format off

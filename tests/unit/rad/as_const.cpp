@@ -2,6 +2,7 @@
 #include <forward_list>
 #include <list>
 #include <ranges>
+#include <span>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -11,6 +12,9 @@
 
 #include <radr/concepts.hpp>
 #include <radr/rad/as_const.hpp>
+
+#include "radr/rad_util/borrowing_rad.hpp"
+#include "radr/range_access.hpp"
 
 // --------------------------------------------------------------------------
 // test data
@@ -37,10 +41,10 @@ struct as_const_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t   = decltype(std::ranges::cbegin(std::declval<container_t &>()));
-    using sen_t  = decltype(std::ranges::cend(std::declval<container_t &>()));
-    using cit_t  = decltype(std::ranges::cbegin(std::declval<container_t const &>()));
-    using csen_t = decltype(std::ranges::cend(std::declval<container_t const &>()));
+    using it_t   = decltype(radr::cbegin(std::declval<container_t &>()));
+    using sen_t  = decltype(radr::cend(std::declval<container_t &>()));
+    using cit_t  = decltype(radr::cbegin(std::declval<container_t const &>()));
+    using csen_t = decltype(radr::cend(std::declval<container_t const &>()));
 
     static constexpr radr::borrowing_rad_kind bk =
       std::ranges::sized_range<container_t> ? radr::borrowing_rad_kind::sized : radr::borrowing_rad_kind::unsized;
@@ -96,12 +100,86 @@ TYPED_TEST(as_const_forward, rvalue)
 
 TYPED_TEST(as_const_forward, lvalue)
 {
-    // using borrow_t    = TestFixture::borrow_t;
+    using borrow_t = TestFixture::borrow_t;
 
+    static_assert(!radr::constant_range<typename TestFixture::container_t &>);
+    static_assert(radr::constant_range<typename TestFixture::container_t const &>);
     auto ra = std::ref(this->in) | radr::as_const;
 
     EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
 
     TestFixture::template type_checks<decltype(ra)>();
+}
+
+// this tests radr::cbegin 's first case (Urange const != constant_range but range is contiguous_range)
+TEST(as_const_forward2, span)
+{
+    std::vector<size_t> vec = comp;
+    EXPECT_FALSE(radr::constant_range<decltype(vec)>);
+    EXPECT_TRUE(radr::constant_range<decltype(std::as_const(vec))>);
+
+    auto span = std::span{vec};
+    EXPECT_FALSE(radr::constant_range<decltype(span)>);
+    EXPECT_FALSE(radr::constant_range<decltype(std::as_const(span))>);
+
+    auto ra1 = std::ref(span) | radr::as_const;
+    EXPECT_TRUE(radr::constant_range<decltype(ra1)>);
+    EXPECT_TRUE(radr::constant_range<decltype(std::as_const(ra1))>);
+    EXPECT_SAME_TYPE(decltype(ra1), radr::borrowing_rad<size_t const *>);
+    EXPECT_RANGE_EQ(ra1, comp);
+
+    auto ra2 = std::move(span) | radr::as_const;
+    EXPECT_TRUE(radr::constant_range<decltype(ra2)>);
+    EXPECT_TRUE(radr::constant_range<decltype(std::as_const(ra2))>);
+    EXPECT_SAME_TYPE(decltype(ra2), radr::borrowing_rad<size_t const *>);
+    EXPECT_RANGE_EQ(ra2, comp);
+}
+
+// this tests radr::cbegin 's second case that uses basic_constant_iterator
+TEST(as_const_forward2, subrange)
+{
+    using DIt = std::deque<size_t>::iterator;
+    std::deque<size_t> vec;
+    std::ranges::copy(comp, std::back_inserter(vec));
+    EXPECT_FALSE(radr::constant_range<decltype(vec)>);
+    EXPECT_TRUE(radr::constant_range<decltype(std::as_const(vec))>);
+
+    /* subrange exposes deque::iterator also as its const_iterator and prevents access to deque::const_iterator */
+    auto span = std::ranges::subrange{vec};
+    EXPECT_FALSE(radr::constant_range<decltype(span)>);
+    EXPECT_FALSE(radr::constant_range<decltype(std::as_const(span))>);
+    EXPECT_SAME_TYPE(decltype(span), (std::ranges::subrange<DIt, DIt>));
+
+    /* because we don't know about deque::const_iterator we create the const_iterator via basic_const_iterator */
+    auto ra = std::move(span) | radr::as_const;
+    EXPECT_FALSE(radr::constant_range<decltype(vec)>);
+    EXPECT_TRUE(radr::constant_range<decltype(std::as_const(vec))>);
+    using RaDit = radr::detail::basic_const_iterator<DIt>;
+    EXPECT_SAME_TYPE(decltype(ra), (radr::borrowing_rad<RaDit, RaDit, RaDit, RaDit>));
+    EXPECT_RANGE_EQ(ra, comp);
+}
+
+TEST(as_const_forward2, cref_ours)
+{
+    std::vector<size_t> vec = comp;
+
+    radr::borrowing_rad ra0{vec};
+
+    auto ra1 = std::cref(ra0) | radr::as_const;
+    EXPECT_SAME_TYPE(decltype(ra1), radr::borrowing_rad<size_t const *>);
+    EXPECT_RANGE_EQ(ra1, comp);
+}
+
+TEST(as_const_forward2, string)
+{
+    std::string str = "foobar";
+
+    auto ra0 = std::ref(str) | radr::as_const;
+    EXPECT_SAME_TYPE(decltype(ra0), std::string_view);
+    EXPECT_RANGE_EQ(ra0, str);
+
+    auto ra1 = std::cref(str) | radr::as_const;
+    EXPECT_SAME_TYPE(decltype(ra1), std::string_view);
+    EXPECT_RANGE_EQ(ra1, str);
 }

@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.10)
 
 project(radr_clang_format NONE)
 
-find_program(CLANG_FORMAT NAMES clang-format-17 clang-format)
+find_program(CLANG_FORMAT NAMES clang-format-17 clang-format17 clang-format)
 
 if(CLANG_FORMAT)
     message(STATUS "Found clang-format: ${CLANG_FORMAT}")

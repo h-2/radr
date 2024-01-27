@@ -17,9 +17,9 @@
 #include <ranges>
 
 #include "../concepts.hpp"
-#include "../detail/copyable_box.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
+#include "../detail/semiregular_box.hpp"
 #include "../generator.hpp"
 
 namespace radr::detail::transform
@@ -82,7 +82,7 @@ template <std::forward_iterator Iter, typename Fn>
     requires detail::transform::fn_constraints<Iter, Fn>
 class transform_iterator : public detail::transform::iterator_category_base<Iter, Fn>
 {
-    [[no_unique_address]] copyable_box<Fn> func_;
+    [[no_unique_address]] semiregular_box<Fn> func_;
 
     template <std::forward_iterator Iter_, typename Fn_>
         requires detail::transform::fn_constraints<Iter_, Fn_>
@@ -98,9 +98,7 @@ public:
     using value_type       = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
     using difference_type  = std::iter_difference_t<Iter>;
 
-    transform_iterator()
-        requires(std::default_initializable<copyable_box<Fn>> && std::default_initializable<Iter>)
-    = default;
+    transform_iterator() = default;
 
     constexpr transform_iterator(Fn fn, Iter current) :
       func_(std::in_place, std::move(fn)), current_(std::move(current))

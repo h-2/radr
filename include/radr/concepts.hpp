@@ -30,6 +30,13 @@ template <typename Range>
 concept unqualified_forward_range =
   std::ranges::forward_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>>;
 
+template <std::indirectly_readable T>
+using iter_const_reference_t = std::common_reference_t<std::iter_value_t<T> const &&, std::iter_reference_t<T>>;
+
+template <class It>
+concept constant_iterator =
+  std::forward_iterator<It> && std::same_as<iter_const_reference_t<It>, std::iter_reference_t<It>>;
+
 template <typename Range>
 concept const_iterable_range =
   std::ranges::forward_range<Range> && std::ranges::forward_range<detail::add_const_t<Range>>;
@@ -39,6 +46,9 @@ concept const_symmetric_range =
   const_iterable_range<Range> &&
   std::same_as<std::ranges::iterator_t<Range>, std::ranges::iterator_t<detail::add_const_t<Range>>> &&
   std::same_as<std::ranges::sentinel_t<Range>, std::ranges::sentinel_t<detail::add_const_t<Range>>>;
+
+template <class Range>
+concept constant_range = const_symmetric_range<Range> && constant_iterator<std::ranges::iterator_t<Range>>;
 
 /*
 template <typename Range>
