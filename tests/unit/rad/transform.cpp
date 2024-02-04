@@ -163,3 +163,27 @@ TYPED_TEST(transform_forward, rvalue_function_syntax2)
 
     TestFixture::template type_checks<decltype(ra)>();
 }
+
+TYPED_TEST(transform_forward, chained_adaptor)
+{
+    auto minus1          = [](size_t i) { return i - 1; };
+    using chained_pred_t = radr::detail::transform::nest_fn<std::remove_cvref_t<decltype(fn)>, decltype(minus1)>;
+
+    using container_t = TestFixture::container_t;
+    using it_t        = radr::detail::transform_iterator<radr::iterator_t<container_t>, chained_pred_t>;
+    using sen_t       = it_t;
+    using cit_t       = radr::detail::transform_iterator<radr::const_iterator_t<container_t>, chained_pred_t>;
+    using csen_t      = cit_t;
+
+    static constexpr radr::borrowing_rad_kind bk =
+      std::ranges::sized_range<container_t> ? radr::borrowing_rad_kind::sized : radr::borrowing_rad_kind::unsized;
+    using borrow_t = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
+
+    auto ra = std::ref(this->in) | radr::transform(fn) | radr::transform(minus1);
+
+    EXPECT_RANGE_EQ(ra, this->in);
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+    TestFixture::template type_checks<decltype(ra)>();
+}
+
+//TODO chained test for non-common

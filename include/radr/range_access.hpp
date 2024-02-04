@@ -111,4 +111,19 @@ concept is_sentinel_of =
   one_of<Sen, sentinel_t<Range>, const_sentinel_t<Range>, std::ranges::sentinel_t<Range>, std_const_sentinel_t<Range>> ||
   (std::ranges::forward_range<Range> && is_iterator_of<Sen, Range>);
 
+// --------------------------------------------------------------------------
+// size_or_not
+// --------------------------------------------------------------------------
+
+struct not_size
+{};
+
+inline constexpr auto size_or_not = []<const_borrowable_range Rng>(Rng && rng)
+{
+    if constexpr (std::ranges::sized_range<Rng>)
+        return std::ranges::size(rng);
+    else
+        return not_size{};
+};
+
 } // namespace radr::detail

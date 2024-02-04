@@ -21,9 +21,23 @@
 #include "../detail/pipe.hpp"
 #include "../detail/semiregular_box.hpp"
 #include "../generator.hpp"
+#include "radr/range_access.hpp"
 
 namespace radr::detail::transform
 {
+
+template <typename Invoc1, typename Invoc2>
+struct nest_fn
+{
+    [[no_unique_address]] Invoc1 in1;
+    [[no_unique_address]] Invoc2 in2;
+
+    template <typename Val>
+    constexpr decltype(auto) operator()(Val && val) const noexcept(noexcept(in2(in1(std::forward<Val>(val)))))
+    {
+        return in2(in1(std::forward<Val>(val)));
+    }
+};
 
 template <class Iter, class Fn>
 concept fn_constraints = std::is_object_v<Fn> && std::copy_constructible<Fn> &&
@@ -83,6 +97,7 @@ template <std::forward_iterator Iter, typename Fn>
 class transform_iterator : public detail::transform::iterator_category_base<Iter, Fn>
 {
     [[no_unique_address]] semiregular_box<Fn> func_;
+    [[no_unique_address]] Iter                current_ = Iter();
 
     template <std::forward_iterator Iter_, typename Fn_>
         requires detail::transform::fn_constraints<Iter_, Fn_>
@@ -92,16 +107,14 @@ class transform_iterator : public detail::transform::iterator_category_base<Iter
     friend class transform_sentinel;
 
 public:
-    Iter current_ = Iter();
-
     using iterator_concept = typename detail::transform::iterator_concept<Iter>::type;
     using value_type       = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
     using difference_type  = std::iter_difference_t<Iter>;
 
     transform_iterator() = default;
 
-    constexpr transform_iterator(Fn fn, Iter current) :
-      func_(std::in_place, std::move(fn)), current_(std::move(current))
+    constexpr transform_iterator(Fn func, Iter current) :
+      func_(std::in_place, std::move(func)), current_(std::move(current))
     {}
 
     template <detail::different_from<Iter> OtherIter>
@@ -111,8 +124,10 @@ public:
     {}
 
     constexpr Iter const & base() const & noexcept { return current_; }
+    constexpr Iter         base() && { return std::move(current_); }
 
-    constexpr Iter base() && { return std::move(current_); }
+    constexpr Fn const & func() const & noexcept { return *func_; }
+    constexpr Fn         func() && { return std::move(*func_); }
 
     constexpr decltype(auto) operator*() const noexcept(noexcept(std::invoke(*func_, *current_)))
     {
@@ -245,9 +260,6 @@ class transform_sentinel
 {
     Sen end_{};
 
-    // template <std::forward_iterator Iter_, typename Fn_>
-    //     requires detail::transform::fn_constraints<Iter_, Fn_>
-    // friend class transform_iterator;
     template <std::forward_iterator Iter_, std::sentinel_for<Iter_> Sent_, typename Fn_>
         requires detail::transform::fn_constraints<Iter_, Fn_>
     friend class transform_sentinel;
@@ -287,30 +299,30 @@ public:
     }
 };
 
-inline constexpr auto transform_borrow =
-  []<const_borrowable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn>)
+inline constexpr auto transform_borrow_impl =
+  []<typename UIt, typename USen, typename UCIt, typename UCSen, typename Fn, typename Size>(UIt  it,
+                                                                                             USen sen,
+                                                                                             UCIt,
+                                                                                             UCSen,
+                                                                                             Size size,
+                                                                                             Fn   fn)
 {
-    using iterator_t = transform_iterator<radr::iterator_t<URange>, Fn>;
-    using sentinel_t = std::conditional_t<std::ranges::common_range<URange>,
-                                          iterator_t,
-                                          transform_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>, Fn>>;
+    using iterator_t = transform_iterator<UIt, Fn>;
+    using sentinel_t = std::conditional_t<std::same_as<UIt, USen>, iterator_t, transform_sentinel<UIt, USen, Fn>>;
 
-    using const_iterator_t = transform_iterator<radr::const_iterator_t<URange>, Fn>;
+    using const_iterator_t = transform_iterator<UCIt, Fn>;
     using const_sentinel_t =
-      std::conditional_t<std::ranges::common_range<URange const>,
-                         const_iterator_t,
-                         transform_sentinel<radr::const_iterator_t<URange>, radr::const_sentinel_t<URange>, Fn>>;
+      std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, transform_sentinel<UCIt, UCSen, Fn>>;
 
-    if constexpr (std::ranges::sized_range<URange>)
+    if constexpr (!decays_to<Size, not_size>)
     {
         using BorrowingRad =
           borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::sized>;
 
         return BorrowingRad{
-          iterator_t{fn, radr::begin(urange)},
-          sentinel_t{fn,   radr::end(urange)},
-          std::ranges::size(urange)
+          iterator_t{fn,  it},
+          sentinel_t{fn, sen},
+          size
         };
     }
     else
@@ -319,10 +331,53 @@ inline constexpr auto transform_borrow =
           borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
 
         return BorrowingRad{
-          iterator_t{fn, radr::begin(urange)},
-          sentinel_t{fn,   radr::end(urange)}
+          iterator_t{fn,  it},
+          sentinel_t{fn, sen}
         };
     }
+};
+
+inline constexpr auto transform_borrow =
+  []<const_borrowable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
+    requires(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn>)
+{
+    // dispatch between generic case and chained case(s)
+    return overloaded{
+      transform_borrow_impl,
+      []<typename UIt, typename UCIt, typename UFn, typename Size, typename Fn_>(transform_iterator<UIt, UFn>  iter,
+                                                                                 transform_iterator<UIt, UFn>  sen,
+                                                                                 transform_iterator<UCIt, UFn> citer,
+                                                                                 transform_iterator<UCIt, UFn> csen,
+                                                                                 Size                          size,
+                                                                                 Fn_                           new_fn)
+      {
+          return transform_borrow_impl(std::move(iter).base(),
+                                       std::move(sen).base(),
+                                       std::move(citer).base(),
+                                       std::move(csen).base(),
+                                       size,
+                                       transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+      },
+      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Size, typename Fn_>(
+        transform_iterator<UIt, UFn>         iter,
+        transform_sentinel<UIt, USen, UFn>   sen,
+        transform_iterator<UCIt, UFn>        citer,
+        transform_sentinel<UCIt, UCSen, UFn> csen,
+        Size                                 size,
+        Fn_                                  new_fn)
+      {
+          return transform_borrow_impl(std::move(iter).base(),
+                                       std::move(sen).base(),
+                                       std::move(citer).base(),
+                                       std::move(csen).base(),
+                                       size,
+                                       transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+      }}(radr::begin(urange),
+         radr::end(urange),
+         radr::cbegin(urange),
+         radr::cend(urange),
+         detail::size_or_not(urange),
+         std::move(fn));
 };
 
 inline constexpr auto transform_coro = []<movable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
