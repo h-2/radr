@@ -49,11 +49,11 @@ struct filter_forward : public testing::Test
 
     using it_t = radr::detail::
       filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
-    using sen_t  = it_t;
+    using sen_t  = std::default_sentinel_t;
     using cit_t  = radr::detail::filter_iterator<radr::const_iterator_t<container_t>,
                                                 radr::const_iterator_t<container_t>,
                                                 std::remove_cvref_t<decltype(fn)>>;
-    using csen_t = cit_t;
+    using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
     using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
@@ -62,10 +62,10 @@ struct filter_forward : public testing::Test
     static void type_checks_impl()
     {
         /* preserved for all filter adaptors */
-        EXPECT_EQ(std::ranges::common_range<in_t>, std::ranges::common_range<container_t>);
         EXPECT_EQ(std::ranges::bidirectional_range<in_t>, std::ranges::bidirectional_range<container_t>);
 
         /* never preserved for filter adaptors */
+        EXPECT_FALSE(std::ranges::common_range<in_t>);
         EXPECT_FALSE(std::ranges::sized_range<in_t>);
         EXPECT_FALSE(std::ranges::random_access_range<in_t>);
         EXPECT_FALSE(std::ranges::contiguous_range<in_t>);
@@ -125,10 +125,10 @@ TYPED_TEST(filter_forward, chained_adaptor)
     using container_t = TestFixture::container_t;
     using it_t =
       radr::detail::filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, chained_pred_t>;
-    using sen_t = it_t;
+    using sen_t = std::default_sentinel_t;
     using cit_t = radr::detail::
       filter_iterator<radr::const_iterator_t<container_t>, radr::const_iterator_t<container_t>, chained_pred_t>;
-    using csen_t = cit_t;
+    using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
     using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;

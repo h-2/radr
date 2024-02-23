@@ -4,14 +4,14 @@
 
 | Range adaptors             | Impl | C++XY | Tests | Equivalent in `std::`   | Remarks                                  |
 |----------------------------|:----:|:-----:|------:|-------------------------|------------------------------------------|
-| `radr::as_const`           |  ✔   | 20/23 | ✔     | `std::views::as_const`  | potentially different behaviour in C++23 |
+| `radr::as_const`           |  ✔   | 20    | ✔     | `std::views::as_const`  | make the range *and* its elements const  |
 | `radr::as_rvalue`          |  ✔   | 20/23 | ✔     | `std::views::as_rvalue` | returns only input ranges in C++20       |
 | `radr::drop(n)`            |  ✔   | 20    | TODO  | `std::views::drop`      |                                          |
 | `radr::drop_while(fn)`     |  ✔   | 20    | TODO  | `std::views::drop_while`|                                          |
 | `radr::filter(fn)`         |  ✔   | 20    | ✔     | `std::views::filter`    |                                          |
 | `radr::reverse`            |  ✔   | 20    | ✔     | `std::views::reverse`   |                                          |
 | `radr::slice(m, n)`        |  ✔   | 20    | TODO  | *not yet available*     | get subrange between m and n             |
-| `radr::take(n)`            |  ✔   | 20    | TODO  | `std::views::take`      |                                          |
+| `radr::take(n)`            |  ✔   | 20    | ✔     | `std::views::take`      |                                          |
 | `radr::take_exactly(n)`    |  ✔   | 20    | TODO  | *not yet available*     | turns unsized into sized                 |
 | `radr::transform(fn)`      |  ✔   | 20    | ✔     | `std::views::transform` |                                          |
 | `radr::make_single_pass`   |  ✔   | 20    | ✔     | *not yet available*     | demotes range category to input          |
@@ -38,11 +38,11 @@ Note that most of our standalone ranges are not implemented as "factory" objects
 
 | Range adaptor              | $O(n)$ constr | min cat | max cat  | sized | common    | Remarks                                  |
 |----------------------------|:-------------:|---------|----------|:-----:|:---------:|------------------------------------------|
-| `radr::as_const`           |               | input   | contig   |  =    |  =        | potentially different behaviour in C++23 |
+| `radr::as_const`           |               | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
 | `radr::as_rvalue`          |               | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
-| `radr::drop(n)`            |  yes          | input   | contig   |  =    |  🟰        |                                          |
-| `radr::drop_while(fn)`     |  yes          | input   | contig   |  🟰    |  🟰        |                                          |
-| `radr::filter(fn)`         |  yes          | input   | bidi     |  -    |  =        |                                          |
+| `radr::drop(n)`            |  yes          | input   | contig   |  =    |  ⊜        |                                          |
+| `radr::drop_while(fn)`     |  yes          | input   | contig   |  ⊜    |  ⊜        |                                          |
+| `radr::filter(fn)`         |  yes          | input   | bidi     |  -    |  ⊝        |                                          |
 | `radr::reverse`            | on non-common | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        |               | input   | contig   |  =    |  =        | get subrange between m and n             |
 | `radr::take(n)`            |               | input   | contig   |  =    |  ra+sized |                                          |
@@ -56,7 +56,7 @@ ra (`random_access_range`) or contig (`contiguous_range`)<br>
 `-` means property is lost<br>
 `=` means property is preserved<br>
 `+` means property is gained (this is rare)<br>
-fancy unicode symbols indicate differences from the standard library adaptors
+Encircled symbols indicate differences from the standard library adaptors
 
 Range adaptors in this library return a specialisation of one of the following types:
   * `std::generator` if the underlying range is single-pass

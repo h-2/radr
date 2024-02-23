@@ -8,7 +8,7 @@ The library only replaces certain components from the Standard's Ranges library,
 
 ### Summary for the casual C++ programmer
 
-* Same features as the standard library,[^1] just use `expr | radr::foo(bar)` instead of `expr | std::views::foo(bar)`.
+* Same usage patterns as the standard library,[^1] e.g. `std::vector{1,2,3} | radr::foo(bar)` instead of `std::vector{1,2,3} | std::views::foo(bar)`.
 * Fewer surprises: range adaptors on containers (probably most that you use) behave a lot more like containers, e.g. you can default-construct them, compare them, copy them and pass them by `const &` (this is not true for many standard library adaptors).
 * Fewer footguns: you are less likely to return dangling references, because references to existing ranges need to be created explicitly.
 * Less confusion: you don't need to understand what a "view" is, because it is irrelevant for this library.
@@ -47,10 +47,12 @@ This library fundamentally differentiates between multi-pass and single-pass ran
 | copyable                    | yes ❘ `O(n)`              | yes ❘ `O(1)`                | no                     |
 | equality-comparable²        | yes ❘ `O(n)`              | yes ❘ `O(n)`                | no                     |
 |                             | ↓                         | ↓                           | ↓                      |
-| radr adaptor returns        | `radr::owning_rad</**/>`  | `radr::borrowing_rad</**/>` | `std::generator</**/>` |
+| radr adaptor returns        | `radr::owning_rad</**/>`  | `radr::borrowing_rad</**/>`³| `std::generator</**/>` |
 
-<sup><sub>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it</sup></sub><br>
-<sup><sub>² This property is not required by adaptors, but it is preserved if present.</sup></sub>
+<sup><sub>¹ calling `begin()` (non-const), dereferencing the returned iterator, and/or incrementing it<br>
+² This property is not required by adaptors, but it is preserved if present.<br>
+³ For some ranges more specialised adaptors are returned; this can be customised.
+</sup></sub>
 
 **The listed properties are both requirements on the underlying range and guarantees given by the range adaptors, i.e. ranges and their adaptations stay within a given domain.**
 This consistency is a core feature of the library which makes reasoning about it easier, but it also makes the code
