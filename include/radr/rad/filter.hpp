@@ -24,8 +24,22 @@
 #include "../generator.hpp"
 #include "../range_access.hpp"
 
+// TODO think about making this always non-common
+
 namespace radr::detail
 {
+
+template <typename Func1, typename Func2>
+struct and_fn
+{
+    [[no_unique_address]] Func1 func1;
+    [[no_unique_address]] Func2 func2;
+
+    constexpr bool operator()(auto && val) const noexcept(noexcept(func1(val)) && noexcept(func2(val)))
+    {
+        return func1(val) && func2(val);
+    }
+};
 
 template <class Iter>
 struct filter_iterator_category
@@ -43,17 +57,17 @@ struct filter_iterator_category<Iter>
     // clang-format on
 };
 
-template <typename Pred, typename Iter>
-concept filter_pred_constraints =
-  std::is_object_v<Pred> && std::copy_constructible<Pred> && std::indirect_unary_predicate<Pred const, Iter>;
+template <typename Func, typename Iter>
+concept filter_func_constraints =
+  std::is_object_v<Func> && std::copy_constructible<Func> && std::indirect_unary_predicate<Func const, Iter>;
 
-template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_pred_constraints<Iter> Pred>
+template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
 class filter_iterator : public filter_iterator_category<Iter>
 {
-    template <std::forward_iterator Iter2, std::sentinel_for<Iter2> Sent2, filter_pred_constraints<Iter2> Pred2>
+    template <std::forward_iterator Iter2, std::sentinel_for<Iter2> Sent2, filter_func_constraints<Iter2> Func2>
     friend class filter_iterator;
 
-    [[no_unique_address]] semiregular_box<Pred> pred_;
+    [[no_unique_address]] semiregular_box<Func> func_;
     [[no_unique_address]] Iter                  current_{};
     [[no_unique_address]] Sent                  end_{};
 
@@ -71,19 +85,25 @@ public:
 
     filter_iterator() = default;
 
-    constexpr filter_iterator(Pred pred, Iter current, Sent end) :
-      pred_(std::in_place, std::move(pred)), current_(std::move(current)), end_(std::move(end))
+    constexpr filter_iterator(Func func, Iter current, Sent end) :
+      func_(std::in_place, std::move(func)), current_(std::move(current)), end_(std::move(end))
     {}
 
     //!\brief Convert from non-const.
     template <detail::different_from<Iter> OtherIter, typename OtherSent>
-    constexpr filter_iterator(filter_iterator<OtherIter, OtherSent, Pred> i)
-        requires(std::convertible_to<OtherIter, Iter>)
-      : pred_(std::move(i.pred_)), current_(std::move(i.current_)), end_(std::move(i.end_))
+    constexpr filter_iterator(filter_iterator<OtherIter, OtherSent, Func> i)
+        requires(std::convertible_to<OtherIter, Iter> && std::convertible_to<OtherSent, Sent>)
+      : func_(std::move(i.func_)), current_(std::move(i.current_)), end_(std::move(i.end_))
     {}
 
-    constexpr Iter const & base() const & noexcept { return current_; }
-    constexpr Iter         base() && { return std::move(current_); }
+    constexpr Iter const & base_iter() const & noexcept { return current_; }
+    constexpr Iter         base_iter() && { return std::move(current_); }
+
+    constexpr Sent const & base_sent() const & noexcept { return end_; }
+    constexpr Sent         base_sent() && { return std::move(end_); }
+
+    constexpr Func const & func() const & noexcept { return *func_; }
+    constexpr Func         func() && { return std::move(*func_); }
 
     constexpr std::iter_reference_t<Iter> operator*() const { return *current_; }
     constexpr Iter                        operator->() const
@@ -94,7 +114,7 @@ public:
 
     constexpr filter_iterator & operator++()
     {
-        current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*pred_));
+        current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*func_));
         return *this;
     }
 
@@ -112,7 +132,7 @@ public:
         {
             --current_;
         }
-        while (!std::invoke(*pred_, *current_));
+        while (!std::invoke(*func_, *current_));
         return *this;
     }
     constexpr filter_iterator operator--(int)
@@ -150,36 +170,79 @@ public:
     }
 };
 
-inline constexpr auto filter_borrow =
-  []<const_borrowable_range URange, filter_pred_constraints<radr::iterator_t<URange>> Fn>(URange && urange, Fn fn)
+// iterator-based borrow
+inline constexpr auto filter_borrow_impl =
+  []<typename UIt, typename USen, typename UCIt, typename UCSen, typename Fn_>(UIt  it,
+                                                                               USen sen,
+                                                                               UCIt,
+                                                                               UCSen,
+                                                                               Fn_ _fn) // generic case
 {
-    using iterator_t = filter_iterator<radr::iterator_t<URange>, radr::sentinel_t<URange>, Fn>;
-    using sentinel_t = std::conditional_t<std::ranges::common_range<URange>, iterator_t, std::default_sentinel_t>;
+    using iterator_t = filter_iterator<UIt, USen, Fn_>;
+    using sentinel_t = std::conditional_t<std::same_as<UIt, USen>, iterator_t, std::default_sentinel_t>;
 
-    using const_iterator_t = filter_iterator<radr::const_iterator_t<URange>, radr::const_sentinel_t<URange>, Fn>;
-    using const_sentinel_t =
-      std::conditional_t<std::ranges::common_range<URange const>, const_iterator_t, std::default_sentinel_t>;
+    using const_iterator_t = filter_iterator<UCIt, UCSen, Fn_>;
+    using const_sentinel_t = std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, std::default_sentinel_t>;
 
     using BorrowingRad =
       borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
 
     // eagerly search for begin
-    auto begin = std::ranges::find_if(radr::begin(urange), radr::end(urange), std::ref(fn));
+    auto begin = std::ranges::find_if(it, sen, std::ref(_fn));
 
-    if constexpr (std::ranges::common_range<URange>)
+    if constexpr (std::same_as<UIt, USen>)
     {
         return BorrowingRad{
-          iterator_t{fn,  std::move(begin), radr::end(urange)},
-          iterator_t{fn, radr::end(urange), radr::end(urange)}
+          iterator_t{_fn, std::move(begin), sen},
+          iterator_t{_fn,              sen, sen}
         };
     }
     else
     {
         return BorrowingRad{
-          iterator_t{fn, std::move(begin), radr::end(urange)},
+          iterator_t{_fn, std::move(begin), std::move(sen)},
           std::default_sentinel
         };
     }
+};
+
+inline constexpr auto filter_borrow =
+  []<const_borrowable_range URange, filter_func_constraints<radr::iterator_t<URange>> Fn>(URange && urange, Fn fn)
+{
+    // dispatch between generic case and chained case(s)
+    return overloaded{
+      filter_borrow_impl,
+      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
+        filter_iterator<UIt, USen, UFn>                    iter,
+        [[maybe_unused]] filter_iterator<UIt, USen, UFn>   sen,
+        filter_iterator<UCIt, UCSen, UFn>                  citer,
+        [[maybe_unused]] filter_iterator<UCIt, UCSen, UFn> csen,
+        Fn_                                                new_fn)
+      {
+          static_assert(std::same_as<UIt, USen>);
+          static_assert(std::same_as<UCIt, UCSen>);
+          assert(iter.base_sent() == sen.base_iter());
+          assert(citer.base_sent() == csen.base_iter());
+
+          return filter_borrow_impl(std::move(iter).base_iter(),
+                                    std::move(iter).base_sent(),
+                                    std::move(citer).base_iter(),
+                                    std::move(citer).base_sent(),
+                                    and_fn{std::move(iter).func(), std::move(new_fn)});
+      },
+      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
+        filter_iterator<UIt, USen, UFn> iter,
+        std::default_sentinel_t,
+        filter_iterator<UCIt, UCSen, UFn> citer,
+        std::default_sentinel_t,
+        Fn_ new_fn)
+      {
+          return filter_borrow_impl(std::move(iter).base_iter(),
+                                    std::move(iter).base_sent(),
+                                    std::move(citer).base_iter(),
+                                    std::move(citer).base_sent(),
+                                    and_fn{std::move(iter).func(), std::move(new_fn)});
+      }}(radr::begin(urange), radr::end(urange), radr::cbegin(urange), radr::cend(urange), std::move(fn));
 };
 
 inline constexpr auto filter_coro =
