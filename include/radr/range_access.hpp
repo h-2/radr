@@ -112,6 +112,25 @@ concept is_sentinel_of =
   (std::ranges::forward_range<Range> && is_iterator_of<Sen, Range>);
 
 // --------------------------------------------------------------------------
+// range_size_t_or_size_t
+// --------------------------------------------------------------------------
+
+template <std::ranges::range R>
+struct range_size_t_or_size
+{
+    using type = size_t;
+};
+
+template <std::ranges::sized_range R>
+struct range_size_t_or_size<R>
+{
+    using type = std::ranges::range_size_t<R>;
+};
+
+template <std::ranges::range R>
+using range_size_t_or_size_t = range_size_t_or_size<R>::type;
+
+// --------------------------------------------------------------------------
 // size_or_not
 // --------------------------------------------------------------------------
 

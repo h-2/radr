@@ -26,7 +26,7 @@ class take_sentinel
 {
     [[no_unique_address]] Sen end_{};
 
-    template <std::forward_iterator Iter_, std::sentinel_for<Iter> Sen_>
+    template <std::forward_iterator Iter_, std::sentinel_for<Iter_> Sen_>
     friend class take_sentinel;
 
 public:
@@ -41,21 +41,20 @@ public:
 
     constexpr Sen base() const { return end_; }
 
-    friend constexpr bool operator==(Iter const & lhs, take_sentinel const & rhs)
+    friend constexpr bool operator==(std::counted_iterator<Iter> const & lhs, take_sentinel const & rhs)
     {
         return lhs.count() == 0 || lhs.base() == rhs.end_;
     }
 };
 
 inline constexpr auto take_borrow = overloaded{
-  []<const_borrowable_range URange>(URange && urange, std::ranges::range_size_t<URange> const n)
+  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
   {
-      using sz_t = std::ranges::range_size_t<URange>;
+      using sz_t = range_size_t_or_size_t<URange>;
       sz_t sz    = n;
       if constexpr (std::ranges::sized_range<URange>)
           sz = std::min<sz_t>(n, std::ranges::size(urange));
 
-      //TODO double-check this special-casing
       if constexpr (std::ranges::sized_range<URange>)
       {
           using BorrowingRad = borrowing_rad<std::counted_iterator<radr::iterator_t<URange>>,
@@ -81,7 +80,7 @@ inline constexpr auto take_borrow = overloaded{
                               take_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>>{radr::end(urange)}};
       }
   },
-  []<const_borrowable_range URange>(URange && urange, std::ranges::range_size_t<URange> const n)
+  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
       requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
   { return subborrow(std::forward<URange>(urange), 0ull, n); } // namespace radr
   };
