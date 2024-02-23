@@ -40,9 +40,9 @@ Note that most of our standalone ranges are not implemented as "factory" objects
 |----------------------------|:-------------:|---------|----------|:-----:|:---------:|------------------------------------------|
 | `radr::as_const`           |               | input   | contig   |  =    |  =        | potentially different behaviour in C++23 |
 | `radr::as_rvalue`          |               | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
-| `radr::drop(n)`            |  yes          | input   | contig   |  =    |  🟰        |                                          |
-| `radr::drop_while(fn)`     |  yes          | input   | contig   |  🟰    |  🟰        |                                          |
-| `radr::filter(fn)`         |  yes          | input   | bidi     |  -    |  =        |                                          |
+| `radr::drop(n)`            |  yes          | input   | contig   |  =    |  ⊜        |                                          |
+| `radr::drop_while(fn)`     |  yes          | input   | contig   |  ⊜    |  ⊜        |                                          |
+| `radr::filter(fn)`         |  yes          | input   | bidi     |  -    |  ⊝        |                                          |
 | `radr::reverse`            | on non-common | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        |               | input   | contig   |  =    |  =        | get subrange between m and n             |
 | `radr::take(n)`            |               | input   | contig   |  =    |  ra+sized |                                          |
@@ -56,7 +56,7 @@ ra (`random_access_range`) or contig (`contiguous_range`)<br>
 `-` means property is lost<br>
 `=` means property is preserved<br>
 `+` means property is gained (this is rare)<br>
-fancy unicode symbols indicate differences from the standard library adaptors
+Encircled symbols indicate differences from the standard library adaptors
 
 Range adaptors in this library return a specialisation of one of the following types:
   * `std::generator` if the underlying range is single-pass

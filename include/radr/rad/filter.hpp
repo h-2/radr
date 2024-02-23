@@ -24,8 +24,6 @@
 #include "../generator.hpp"
 #include "../range_access.hpp"
 
-// TODO think about making this always non-common
-
 namespace radr::detail
 {
 
@@ -149,7 +147,6 @@ public:
     }
 
     friend constexpr bool operator==(filter_iterator const & x, std::default_sentinel_t const &)
-        requires(!std::same_as<Iter, Sent>)
     {
         return x.current_ == x.end_;
     }
@@ -178,11 +175,10 @@ inline constexpr auto filter_borrow_impl =
                                                                                UCSen,
                                                                                Fn_ _fn) // generic case
 {
-    using iterator_t = filter_iterator<UIt, USen, Fn_>;
-    using sentinel_t = std::conditional_t<std::same_as<UIt, USen>, iterator_t, std::default_sentinel_t>;
-
+    using iterator_t       = filter_iterator<UIt, USen, Fn_>;
+    using sentinel_t       = std::default_sentinel_t;
     using const_iterator_t = filter_iterator<UCIt, UCSen, Fn_>;
-    using const_sentinel_t = std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, std::default_sentinel_t>;
+    using const_sentinel_t = std::default_sentinel_t;
 
     using BorrowingRad =
       borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
@@ -190,20 +186,10 @@ inline constexpr auto filter_borrow_impl =
     // eagerly search for begin
     auto begin = std::ranges::find_if(it, sen, std::ref(_fn));
 
-    if constexpr (std::same_as<UIt, USen>)
-    {
-        return BorrowingRad{
-          iterator_t{_fn, std::move(begin), sen},
-          iterator_t{_fn,              sen, sen}
-        };
-    }
-    else
-    {
-        return BorrowingRad{
-          iterator_t{_fn, std::move(begin), std::move(sen)},
-          std::default_sentinel
-        };
-    }
+    return BorrowingRad{
+      iterator_t{_fn, std::move(begin), std::move(sen)},
+      std::default_sentinel
+    };
 };
 
 inline constexpr auto filter_borrow =
@@ -212,24 +198,6 @@ inline constexpr auto filter_borrow =
     // dispatch between generic case and chained case(s)
     return overloaded{
       filter_borrow_impl,
-      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
-        filter_iterator<UIt, USen, UFn>                    iter,
-        [[maybe_unused]] filter_iterator<UIt, USen, UFn>   sen,
-        filter_iterator<UCIt, UCSen, UFn>                  citer,
-        [[maybe_unused]] filter_iterator<UCIt, UCSen, UFn> csen,
-        Fn_                                                new_fn)
-      {
-          static_assert(std::same_as<UIt, USen>);
-          static_assert(std::same_as<UCIt, UCSen>);
-          assert(iter.base_sent() == sen.base_iter());
-          assert(citer.base_sent() == csen.base_iter());
-
-          return filter_borrow_impl(std::move(iter).base_iter(),
-                                    std::move(iter).base_sent(),
-                                    std::move(citer).base_iter(),
-                                    std::move(citer).base_sent(),
-                                    and_fn{std::move(iter).func(), std::move(new_fn)});
-      },
       []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
         filter_iterator<UIt, USen, UFn> iter,
         std::default_sentinel_t,
