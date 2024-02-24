@@ -28,8 +28,8 @@ inline constexpr auto drop_borrow = detail::overloaded{
   []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
     requires std::ranges::forward_range<URange>
   {
-      auto it  = std::ranges::begin(urange);
-      auto end = std::ranges::end(urange);
+      auto it  = radr::begin(urange);
+      auto end = radr::end(urange);
 
       std::ranges::advance(it, n, end);
 
@@ -57,8 +57,8 @@ inline constexpr auto drop_coro = []<movable_range URange>(URange && urange, siz
       [](auto         urange_,
          size_t const n) -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
-        auto it = std::ranges::begin(urange_);
-        auto e  = std::ranges::end(urange_);
+        auto it = radr::begin(urange_);
+        auto e  = radr::end(urange_);
 
         std::ranges::advance(it, n, e);
         for (; it != e; ++it)

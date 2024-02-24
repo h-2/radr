@@ -110,7 +110,7 @@ inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std
              -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
         std::size_t i = 0;
-        for (auto it = std::ranges::begin(urange_); it != std::ranges::end(urange_) && i < n; ++it, ++i)
+        for (auto it = radr::begin(urange_); it != radr::end(urange_) && i < n; ++it, ++i)
             co_yield *it;
     }(std::move(urange), n);
 };

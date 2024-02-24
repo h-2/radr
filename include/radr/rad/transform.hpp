@@ -314,27 +314,14 @@ inline constexpr auto transform_borrow_impl =
     using const_sentinel_t =
       std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, transform_sentinel<UCIt, UCSen, Fn>>;
 
-    if constexpr (!decays_to<Size, not_size>)
-    {
-        using BorrowingRad =
-          borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::sized>;
+    static constexpr auto kind = decays_to<Size, not_size> ? borrowing_rad_kind::unsized : borrowing_rad_kind::sized;
 
-        return BorrowingRad{
-          iterator_t{fn,  it},
-          sentinel_t{fn, sen},
-          size
-        };
-    }
-    else
-    {
-        using BorrowingRad =
-          borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
-
-        return BorrowingRad{
-          iterator_t{fn,  it},
-          sentinel_t{fn, sen}
-        };
-    }
+    using BorrowingRad = borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, kind>;
+    return BorrowingRad{
+      iterator_t{fn,  it},
+      sentinel_t{fn, sen},
+      size
+    };
 };
 
 inline constexpr auto transform_borrow =

@@ -27,12 +27,13 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
     requires std::ranges::bidirectional_range<URange>
   {
 
+      //TODO we need proper radr::rbegin, radr::rend, radr::crbegin and radr::crend
       auto get_rbeg = [] (auto && rng)
       {
           if constexpr (requires { std::ranges::rbegin(rng); })
               return std::ranges::rbegin(rng);
           else
-              return std::make_reverse_iterator(std::ranges::next(std::ranges::begin(rng), std::ranges::end(rng)));
+              return std::make_reverse_iterator(std::ranges::next(radr::begin(rng), radr::end(rng)));
       };
 
       auto get_rend = [] (auto && rng)
@@ -40,7 +41,7 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
           if constexpr (requires { std::ranges::rend(rng); })
               return std::ranges::rend(rng);
           else
-              return std::make_reverse_iterator(std::ranges::begin(rng));
+              return std::make_reverse_iterator(radr::begin(rng));
       };
 
       static_assert(std::same_as<decltype(get_rbeg(urange)), decltype(get_rend(urange))>);
@@ -53,16 +54,10 @@ inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange 
       It beg = get_rbeg(urange);
       It e   = get_rend(urange);
 
-      if constexpr (std::ranges::sized_range<URange>)
-      {
-          using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, borrowing_rad_kind::sized>;
-          return BorrowingRad{std::move(beg), std::move(e), std::ranges::size(urange)};
-      }
-      else
-      {
-          using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, borrowing_rad_kind::unsized>;
-          return BorrowingRad{std::move(beg), std::move(e)};
-      }
+      static constexpr auto kind =
+        std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
+      using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, kind>;
+      return BorrowingRad{std::move(beg), std::move(e), size_or_not(urange)};
   };
 // clang-format on
 

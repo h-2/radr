@@ -90,6 +90,9 @@ using sentinel_t = decltype(radr::end(std::declval<T &>()));
 template <typename T>
 using const_sentinel_t = decltype(radr::cend(std::declval<T &>()));
 
+template <typename R>
+concept common_range = std::same_as<iterator_t<R>, sentinel_t<R>>;
+
 } // namespace radr
 
 namespace radr::detail

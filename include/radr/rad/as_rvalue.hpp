@@ -32,41 +32,35 @@ inline constexpr auto as_rvalue_borrow = []<const_borrowable_range URange>(URang
     }
     else
     {
-#ifdef __cpp_lib_move_iterator_concept 
-        auto get_mbeg = [] (auto && rng)
+#ifdef __cpp_lib_move_iterator_concept
+        auto get_mbeg = [] (auto b)
         {
-            return std::move_iterator(std::ranges::begin(rng));
+            return std::move_iterator(std::move(b));
         };
-        
-        auto get_mend = [] (auto && rng)
+
+        auto get_mend = [] <typename B, typename E> (B, E e)
         {
-            if constexpr (std::ranges::common_range<decltype(rng)>)
-                return std::move_iterator(std::ranges::end(rng));
+            if constexpr (std::same_as<B, E>)
+                return std::move_iterator(std::move(e));
             else
-                return std::move_sentinel(std::ranges::end(rng));
+                return std::move_sentinel(std::move(e));
         };
-        
-        using It        = decltype(get_mbeg(urange));
-        using Sent      = decltype(get_mend(urange));
-        using ConstIt   = decltype(get_mbeg(std::as_const(urange)));
-        using ConstSent = decltype(get_mend(std::as_const(urange)));
-        
+
+        using It        = decltype(get_mbeg(radr::begin(urange)));
+        using Sent      = decltype(get_mend(radr::begin(urange), radr::end(urange)));
+        using ConstIt   = decltype(get_mbeg(radr::cbegin(urange)));
+        using ConstSent = decltype(get_mend(radr::cbegin(urange), radr::cend(urange)));
+
         static_assert(std::convertible_to<It, ConstIt>);
         static_assert(std::convertible_to<Sent, ConstSent>);
-        
-        It b = get_mbeg(urange);        
-        It e = get_mend(urange);
-            
-        if constexpr (std::ranges::sized_range<URange>)
-        {
-            using BorrowingRad = borrowing_rad<It, Sent, ConstIt, ConstSent, borrowing_rad_kind::sized>;
-            return BorrowingRad{std::move(b), std::move(e), std::ranges::size(urange)};
-        }
-        else
-        {
-            using BorrowingRad = borrowing_rad<It, Sent, ConstIt, ConstSent, borrowing_rad_kind::unsized>;
-            return BorrowingRad{std::move(b), std::move(e)};
-        }
+
+        It b = get_mbeg(radr::begin(urange));
+        It e = get_mend(radr::begin(urange), radr::end(urange));
+
+        static constexpr auto kind =
+        std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
+        using BorrowingRad = borrowing_rad<It, Sent, ConstIt, ConstSent, kind>;
+        return BorrowingRad{std::move(b), std::move(e), size_or_not(urange)};
 #else
     static_assert(!std::ranges::range<URange> /*always false*/,
                   "radr::as_rvalue on multi-pass ranges is only supported in C++23.");

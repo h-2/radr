@@ -28,8 +28,8 @@ inline constexpr auto drop_while_borrow =
   []<std::ranges::borrowed_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>
     (URange && urange, Fn fn)
   {
-      auto it  = std::ranges::begin(urange);
-      auto e   = std::ranges::end(urange);
+      auto it  = radr::begin(urange);
+      auto e   = radr::end(urange);
 
       size_t count = 0ull;
       for (; it != e && fn(*it); ++it, ++count)
@@ -56,8 +56,8 @@ inline constexpr auto drop_while_coro =
     return [](auto urange_,
               Fn   fn_) -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
-        auto it = std::ranges::begin(urange_);
-        auto e  = std::ranges::end(urange_);
+        auto it = radr::begin(urange_);
+        auto e  = radr::end(urange_);
 
         for (; it != e && fn_(*it); ++it)
         {
