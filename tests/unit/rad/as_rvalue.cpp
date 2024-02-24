@@ -52,10 +52,10 @@ struct as_rvalue_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t   = std::move_iterator<std::ranges::iterator_t<container_t>>;
-    using sen_t  = std::move_iterator<std::ranges::iterator_t<container_t>>; // TODO adapt for non-common
-    using cit_t  = std::move_iterator<std::ranges::iterator_t<container_t const>>;
-    using csen_t = std::move_iterator<std::ranges::iterator_t<container_t const>>; // TODO adapt for non-common
+    using it_t   = std::move_iterator<radr::iterator_t<container_t>>;
+    using sen_t  = std::move_iterator<radr::iterator_t<container_t>>;
+    using cit_t  = std::move_iterator<radr::const_iterator_t<container_t>>;
+    using csen_t = std::move_iterator<radr::const_iterator_t<container_t>>;
 
     static constexpr radr::borrowing_rad_kind bk =
       std::ranges::sized_range<container_t> ? radr::borrowing_rad_kind::sized : radr::borrowing_rad_kind::unsized;
@@ -115,12 +115,12 @@ TYPED_TEST(as_rvalue_forward, rvalue)
 
 TYPED_TEST(as_rvalue_forward, lvalue)
 {
-    // using borrow_t    = TestFixture::borrow_t;
+    using borrow_t = TestFixture::borrow_t;
 
     auto ra = std::ref(this->in) | radr::as_rvalue;
 
     EXPECT_RANGE_EQ(ra, comp);
-    // EXPECT_SAME_TYPE(decltype(ra), borrow_t); // see radr-internal#1
+    EXPECT_SAME_TYPE(decltype(ra), borrow_t);
 
     TestFixture::template type_checks<decltype(ra)>();
 }

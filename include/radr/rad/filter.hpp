@@ -196,21 +196,20 @@ inline constexpr auto filter_borrow =
   []<const_borrowable_range URange, filter_func_constraints<radr::iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
     // dispatch between generic case and chained case(s)
-    return overloaded{
-      filter_borrow_impl,
-      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
-        filter_iterator<UIt, USen, UFn> iter,
-        std::default_sentinel_t,
-        filter_iterator<UCIt, UCSen, UFn> citer,
-        std::default_sentinel_t,
-        Fn_ new_fn)
-      {
-          return filter_borrow_impl(std::move(iter).base_iter(),
-                                    std::move(iter).base_sent(),
-                                    std::move(citer).base_iter(),
-                                    std::move(citer).base_sent(),
-                                    and_fn{std::move(iter).func(), std::move(new_fn)});
-      }}(radr::begin(urange), radr::end(urange), radr::cbegin(urange), radr::cend(urange), std::move(fn));
+    return overloaded{filter_borrow_impl,
+                      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
+                        filter_iterator<UIt, USen, UFn> iter,
+                        std::default_sentinel_t,
+                        filter_iterator<UCIt, UCSen, UFn> citer,
+                        std::default_sentinel_t,
+                        Fn_ new_fn)
+    {
+        return filter_borrow_impl(std::move(iter).base_iter(),
+                                  std::move(iter).base_sent(),
+                                  std::move(citer).base_iter(),
+                                  std::move(citer).base_sent(),
+                                  and_fn{std::move(iter).func(), std::move(new_fn)});
+    }}(radr::begin(urange), radr::end(urange), radr::cbegin(urange), radr::cend(urange), std::move(fn));
 };
 
 inline constexpr auto filter_coro =

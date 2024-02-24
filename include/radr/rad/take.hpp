@@ -47,43 +47,59 @@ public:
     }
 };
 
-inline constexpr auto take_borrow = overloaded{
-  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
-  {
-      using sz_t = range_size_t_or_size_t<URange>;
-      sz_t sz    = n;
-      if constexpr (std::ranges::sized_range<URange>)
-          sz = std::min<sz_t>(n, std::ranges::size(urange));
+inline constexpr auto take_borrow =
+  overloaded{[]<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
+{
+    if constexpr (std::ranges::sized_range<URange>)
+        n = std::min(n, std::ranges::size(urange));
 
-      if constexpr (std::ranges::sized_range<URange>)
-      {
-          using BorrowingRad = borrowing_rad<std::counted_iterator<radr::iterator_t<URange>>,
-                                             std::default_sentinel_t,
-                                             std::counted_iterator<radr::const_iterator_t<URange>>,
-                                             std::default_sentinel_t,
-                                             borrowing_rad_kind::sized>;
+    using ssize_t     = std::make_signed_t<range_size_t_or_size_t<URange>>;
+    using ssize_t2    = std::conditional_t<(sizeof(ptrdiff_t) > sizeof(ssize_t)), ptrdiff_t, ssize_t>;
+    ssize_t2 signed_n = static_cast<ssize_t2>(n);
 
-          return BorrowingRad{std::counted_iterator<radr::iterator_t<URange>>(std::ranges::begin(urange), sz),
-                              std::default_sentinel,
-                              sz};
-      }
-      else
-      {
-          using BorrowingRad =
-            borrowing_rad<std::counted_iterator<radr::iterator_t<URange>>,
-                          take_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>>,
-                          std::counted_iterator<radr::const_iterator_t<URange>>,
-                          take_sentinel<radr::const_iterator_t<URange>, radr::const_sentinel_t<URange>>,
-                          borrowing_rad_kind::unsized>;
+    // this folds the type if the underlying iterator is already std::counted_iterator
+    auto make_counted_iterator = overloaded{[](auto uit, ssize_t2 s) {
+        return std::counted_iterator{std::move(uit), s};
+    },
+                                            []<typename UUIt>(std::counted_iterator<UUIt> uit, ssize_t2 s)
+    {
+        return std::counted_iterator{std::move(uit).base(), std::min(uit.count(), s)};
+    }};
 
-          return BorrowingRad{std::counted_iterator<radr::iterator_t<URange>>(radr::begin(urange), sz),
-                              take_sentinel<radr::iterator_t<URange>, radr::sentinel_t<URange>>{radr::end(urange)}};
-      }
-  },
-  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
-      requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
-  { return subborrow(std::forward<URange>(urange), 0ull, n); } // namespace radr
-  };
+    using it_t  = decltype(make_counted_iterator(radr::begin(urange), signed_n));
+    using cit_t = decltype(make_counted_iterator(radr::cbegin(urange), signed_n));
+
+    if constexpr (std::ranges::sized_range<URange>)
+    {
+        using BorrowingRad =
+          borrowing_rad<it_t, std::default_sentinel_t, cit_t, std::default_sentinel_t, borrowing_rad_kind::sized>;
+
+        return BorrowingRad{make_counted_iterator(radr::begin(urange), signed_n), std::default_sentinel, n};
+    }
+    else
+    {
+        // this folds the type if the underlying sentinel is already take_sentinel
+        auto make_sentinel =
+          overloaded{[]<typename UIt, typename USen>(UIt, USen usen) { return take_sentinel<UIt, USen>{usen}; },
+                     []<typename UIt, typename UUIt, typename UUSen>(UIt, take_sentinel<UUIt, UUSen> usen)
+        {
+            return take_sentinel<UUIt, UUSen>{std::move(usen).base()};
+        }};
+
+        using sen_t  = decltype(make_sentinel(radr::begin(urange), radr::end(urange)));
+        using csen_t = decltype(make_sentinel(radr::cbegin(urange), radr::cend(urange)));
+
+        using BorrowingRad = borrowing_rad<it_t, sen_t, cit_t, csen_t, borrowing_rad_kind::unsized>;
+
+        return BorrowingRad{make_counted_iterator(radr::begin(urange), signed_n),
+                            make_sentinel(radr::begin(urange), radr::end(urange))};
+    }
+},
+             []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
+                 requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+{
+    return subborrow(std::forward<URange>(urange), 0ull, n);
+}};
 
 inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std::size_t const n)
 {
@@ -94,7 +110,7 @@ inline constexpr auto take_coro = []<movable_range URange>(URange && urange, std
              -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
         std::size_t i = 0;
-        for (auto it = std::ranges::begin(urange_); it != std::ranges::end(urange_) && i < n; ++it, ++i)
+        for (auto it = radr::begin(urange_); it != radr::end(urange_) && i < n; ++it, ++i)
             co_yield *it;
     }(std::move(urange), n);
 };

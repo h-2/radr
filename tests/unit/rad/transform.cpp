@@ -17,7 +17,10 @@
 // test data
 // --------------------------------------------------------------------------
 
-inline constexpr auto            fn = [](size_t const i) { return i + 1; };
+inline constexpr auto fn = [](size_t const i)
+{
+    return i + 1;
+};
 inline std::vector<size_t> const comp{2, 3, 4, 5, 6, 7};
 
 // --------------------------------------------------------------------------
@@ -166,7 +169,10 @@ TYPED_TEST(transform_forward, rvalue_function_syntax2)
 
 TYPED_TEST(transform_forward, chained_adaptor)
 {
-    auto minus1          = [](size_t i) { return i - 1; };
+    auto minus1 = [](size_t i)
+    {
+        return i - 1;
+    };
     using chained_pred_t = radr::detail::transform::nest_fn<std::remove_cvref_t<decltype(fn)>, decltype(minus1)>;
 
     using container_t = TestFixture::container_t;

@@ -94,7 +94,10 @@ struct expect_same_type
 
             int        status{};
             safe_ptr_t demangled_name_ptr{abi::__cxa_demangle(typeid(type).name(), 0, 0, &status),
-                                          [](char * name_ptr) { free(name_ptr); }};
+                                          [](char * name_ptr)
+            {
+                free(name_ptr);
+            }};
             demangled_name = std::string{std::addressof(*demangled_name_ptr)};
 #else  // e.g. MSVC
             demangled_name = typeid(type).name();

@@ -19,7 +19,10 @@
 // test data
 // --------------------------------------------------------------------------
 
-constexpr auto                   fn = [](size_t const i) { return i % 2 == 0; };
+constexpr auto fn = [](size_t const i)
+{
+    return i % 2 == 0;
+};
 inline std::vector<size_t> const comp{2, 4, 6};
 
 // --------------------------------------------------------------------------
@@ -119,7 +122,10 @@ TYPED_TEST(filter_forward, lvalue)
 
 TYPED_TEST(filter_forward, chained_adaptor)
 {
-    auto tru             = [](auto) { return true; };
+    auto tru = [](auto)
+    {
+        return true;
+    };
     using chained_pred_t = radr::detail::and_fn<std::remove_cvref_t<decltype(fn)>, decltype(tru)>;
 
     using container_t = TestFixture::container_t;
@@ -175,7 +181,10 @@ TEST(filter_forward_, noncommon_chained)
     static_assert(!std::ranges::common_range<container_t>);
 
     /* alibi predicate */
-    auto tru = [](auto) { return true; };
+    auto tru = [](auto)
+    {
+        return true;
+    };
 
     /* expected type */
     using pred_t = radr::detail::and_fn<std::remove_cvref_t<decltype(fn)>, decltype(tru)>;

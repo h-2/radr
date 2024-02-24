@@ -12,11 +12,10 @@
 
 #pragma once
 
-#include <algorithm>
 #include <ranges>
 
-#include "../concepts.hpp"
 #include "../detail/detail.hpp"
+#include "../range_access.hpp"
 
 namespace radr
 {
@@ -42,14 +41,14 @@ public:
     [[nodiscard]] constexpr bool empty()
         requires std::ranges::forward_range<D2>
     {
-        return std::ranges::begin(derived()) == std::ranges::end(derived());
+        return radr::begin(derived()) == radr::end(derived());
     }
 
     template <class D2 = Derived>
     [[nodiscard]] constexpr bool empty() const
         requires std::ranges::forward_range<const D2>
     {
-        return std::ranges::begin(derived()) == std::ranges::end(derived());
+        return radr::begin(derived()) == radr::end(derived());
     }
 
     template <class D2 = Derived>
@@ -70,6 +69,8 @@ public:
     constexpr auto data()
         requires std::contiguous_iterator<std::ranges::iterator_t<D2>>
     {
+        // NOTE: using std::ranges::begin here explicitly because radr::begin requires type to be complete
+        // for .data() this doesn't make a difference
         return std::to_address(std::ranges::begin(derived()));
     }
 
@@ -77,6 +78,8 @@ public:
     constexpr auto data() const
         requires std::ranges::range<const D2> && std::contiguous_iterator<std::ranges::iterator_t<const D2>>
     {
+        // NOTE: using std::ranges::begin here explicitly because radr::begin requires type to be complete
+        // for .data() this doesn't make a difference
         return std::to_address(std::ranges::begin(derived()));
     }
 
@@ -85,7 +88,7 @@ public:
         requires std::ranges::forward_range<D2> &&
                  std::sized_sentinel_for<std::ranges::sentinel_t<D2>, std::ranges::iterator_t<D2>>
     {
-        return detail::to_unsigned_like(std::ranges::end(derived()) - std::ranges::begin(derived()));
+        return detail::to_unsigned_like(radr::end(derived()) - radr::begin(derived()));
     }
 
     template <class D2 = Derived>
@@ -93,7 +96,7 @@ public:
         requires std::ranges::forward_range<const D2> &&
                  std::sized_sentinel_for<std::ranges::sentinel_t<const D2>, std::ranges::iterator_t<const D2>>
     {
-        return detail::to_unsigned_like(std::ranges::end(derived()) - std::ranges::begin(derived()));
+        return detail::to_unsigned_like(radr::end(derived()) - radr::begin(derived()));
     }
 
     template <class D2 = Derived>
@@ -101,7 +104,7 @@ public:
         requires std::ranges::forward_range<D2>
     {
         assert(!empty());
-        return *std::ranges::begin(derived());
+        return *radr::begin(derived());
     }
 
     template <class D2 = Derived>
@@ -109,7 +112,7 @@ public:
         requires std::ranges::forward_range<const D2>
     {
         assert(!empty());
-        return *std::ranges::begin(derived());
+        return *radr::begin(derived());
     }
 
     template <class D2 = Derived>
@@ -117,7 +120,7 @@ public:
         requires std::ranges::bidirectional_range<D2> && std::ranges::common_range<D2>
     {
         assert(!empty());
-        return *std::ranges::prev(std::ranges::end(derived()));
+        return *std::ranges::prev(radr::end(derived()));
     }
 
     template <class D2 = Derived>
@@ -125,24 +128,24 @@ public:
         requires std::ranges::bidirectional_range<const D2> && std::ranges::common_range<const D2>
     {
         assert(!empty());
-        return *std::ranges::prev(std::ranges::end(derived()));
+        return *std::ranges::prev(radr::end(derived()));
     }
 
     template <std::ranges::random_access_range RARange = Derived>
     constexpr decltype(auto) operator[](std::ranges::range_difference_t<RARange> index)
     {
-        return std::ranges::begin(derived())[index];
+        return radr::begin(derived())[index];
     }
 
     template <std::ranges::random_access_range RARange = Derived const>
     constexpr decltype(auto) operator[](std::ranges::range_difference_t<RARange> index) const
     {
-        return std::ranges::begin(derived())[index];
+        return radr::begin(derived())[index];
     }
 
     // template <class D2 = Derived>
     // constexpr friend bool operator==(D2 const & lhs, D2 const & rhs)
-    //     requires requires { { *std::ranges::begin(lhs) == *std::ranges::begin(rhs) } -> detail::boolean_testable; }
+    //     requires requires { { *radr::begin(lhs) == *radr::begin(rhs) } -> detail::boolean_testable; }
     // {
     //     return std::ranges::equal(lhs, rhs);
     // }
