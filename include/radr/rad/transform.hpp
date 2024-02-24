@@ -350,14 +350,14 @@ inline constexpr auto transform_borrow =
                                                                                  transform_iterator<UCIt, UFn> csen,
                                                                                  Size                          size,
                                                                                  Fn_                           new_fn)
-      {
-          return transform_borrow_impl(std::move(iter).base(),
-                                       std::move(sen).base(),
-                                       std::move(citer).base(),
-                                       std::move(csen).base(),
-                                       size,
-                                       transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
-      },
+    {
+        return transform_borrow_impl(std::move(iter).base(),
+                                     std::move(sen).base(),
+                                     std::move(citer).base(),
+                                     std::move(csen).base(),
+                                     size,
+                                     transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+    },
       []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Size, typename Fn_>(
         transform_iterator<UIt, UFn>         iter,
         transform_sentinel<UIt, USen, UFn>   sen,
@@ -365,19 +365,19 @@ inline constexpr auto transform_borrow =
         transform_sentinel<UCIt, UCSen, UFn> csen,
         Size                                 size,
         Fn_                                  new_fn)
-      {
-          return transform_borrow_impl(std::move(iter).base(),
-                                       std::move(sen).base(),
-                                       std::move(citer).base(),
-                                       std::move(csen).base(),
-                                       size,
-                                       transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
-      }}(radr::begin(urange),
-         radr::end(urange),
-         radr::cbegin(urange),
-         radr::cend(urange),
-         detail::size_or_not(urange),
-         std::move(fn));
+    {
+        return transform_borrow_impl(std::move(iter).base(),
+                                     std::move(sen).base(),
+                                     std::move(citer).base(),
+                                     std::move(csen).base(),
+                                     size,
+                                     transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+    }}(radr::begin(urange),
+       radr::end(urange),
+       radr::cbegin(urange),
+       radr::cend(urange),
+       detail::size_or_not(urange),
+       std::move(fn));
 };
 
 inline constexpr auto transform_coro = []<movable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)

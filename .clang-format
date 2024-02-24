@@ -17,7 +17,7 @@ AllowShortCaseLabelsOnASingleLine: false
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLambdasOnASingleLine: All
+AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
@@ -25,8 +25,6 @@ AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: false
 BinPackParameters: false
 BitFieldColonSpacing: Both
-BreakBeforeBraces: Custom
-BreakBeforeConceptDeclarations: true
 BraceWrapping:
   AfterCaseLabel:  true
   AfterClass:      true
@@ -46,12 +44,18 @@ BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
+#BracedInitializerIndentWidth: 2
+BreakAfterAttributes: Leave
+#BreakAfterReturnType: Automatic
 BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Custom
+BreakBeforeConceptDeclarations: true
 BreakBeforeInheritanceComma: true
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BreakStringLiterals: true
+#BreakTemplateDeclarations: Yes
 ColumnLimit:     120
 #CommentPragmas:  'REQUIRES'
 CommentPragmas:  \/\/!
@@ -102,7 +106,7 @@ IntegerLiteralSeparator:
   Decimal: 0
   Hex: 0
 KeepEmptyLinesAtTheStartOfBlocks: false
-LambdaBodyIndentation: Signature
+LambdaBodyIndentation: OuterScope
 Language: Cpp
 LineEnding: LF
 MacroBlockBegin: ''
@@ -111,12 +115,14 @@ MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
 PackConstructorInitializers: NextLine
 PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 19
-PenaltyBreakComment: 300
+PenaltyBreakBeforeFirstCallParameter: 50
+PenaltyBreakComment: 80
 PenaltyBreakFirstLessLess: 120
 PenaltyBreakOpenParenthesis: 50
-PenaltyBreakString: 1
-PenaltyBreakTemplateDeclaration: 10
+#clang-format 18
+#PenaltyBreakScopeResolution: 70
+PenaltyBreakString: 6
+PenaltyBreakTemplateDeclaration: 1
 PenaltyExcessCharacter: 1000
 PenaltyIndentedWhitespace: 0
 PenaltyReturnTypeOnItsOwnLine: 200
