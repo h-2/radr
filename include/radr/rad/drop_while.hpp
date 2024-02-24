@@ -23,29 +23,30 @@
 
 namespace radr::detail
 {
-// clang-format off
+
 inline constexpr auto drop_while_borrow =
-  []<std::ranges::borrowed_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>
-    (URange && urange, Fn fn)
-  {
-      auto it  = radr::begin(urange);
-      auto e   = radr::end(urange);
+  []<std::ranges::borrowed_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(
+    URange && urange,
+    Fn        fn)
+{
+    auto it = radr::begin(urange);
+    auto e  = radr::end(urange);
 
-      size_t count = 0ull;
-      for (; it != e && fn(*it); ++it, ++count)
-      {}
+    size_t count = 0ull;
+    for (; it != e && fn(*it); ++it, ++count)
+    {
+    }
 
-      if constexpr (std::ranges::sized_range<URange>)
-      {
-          assert(count <= std::ranges::size(urange));
-          return subborrow(std::forward<URange>(urange), it, e, std::ranges::size(urange) - count);
-      }
-      else
-      {
-          return subborrow(std::forward<URange>(urange), it, e);
-      }
-  };
-// clang-format on
+    if constexpr (std::ranges::sized_range<URange>)
+    {
+        assert(count <= std::ranges::size(urange));
+        return subborrow(std::forward<URange>(urange), it, e, std::ranges::size(urange) - count);
+    }
+    else
+    {
+        return subborrow(std::forward<URange>(urange), it, e);
+    }
+};
 
 inline constexpr auto drop_while_coro =
   []<movable_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)

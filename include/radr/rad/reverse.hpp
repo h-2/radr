@@ -22,44 +22,41 @@
 
 namespace radr::detail
 {
-// clang-format off
 inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange && urange)
     requires std::ranges::bidirectional_range<URange>
-  {
+{
+    //TODO we need proper radr::rbegin, radr::rend, radr::crbegin and radr::crend
+    auto get_rbeg = [](auto && rng)
+    {
+        if constexpr (requires { std::ranges::rbegin(rng); })
+            return std::ranges::rbegin(rng);
+        else
+            return std::make_reverse_iterator(std::ranges::next(radr::begin(rng), radr::end(rng)));
+    };
 
-      //TODO we need proper radr::rbegin, radr::rend, radr::crbegin and radr::crend
-      auto get_rbeg = [] (auto && rng)
-      {
-          if constexpr (requires { std::ranges::rbegin(rng); })
-              return std::ranges::rbegin(rng);
-          else
-              return std::make_reverse_iterator(std::ranges::next(radr::begin(rng), radr::end(rng)));
-      };
+    auto get_rend = [](auto && rng)
+    {
+        if constexpr (requires { std::ranges::rend(rng); })
+            return std::ranges::rend(rng);
+        else
+            return std::make_reverse_iterator(radr::begin(rng));
+    };
 
-      auto get_rend = [] (auto && rng)
-      {
-          if constexpr (requires { std::ranges::rend(rng); })
-              return std::ranges::rend(rng);
-          else
-              return std::make_reverse_iterator(radr::begin(rng));
-      };
+    static_assert(std::same_as<decltype(get_rbeg(urange)), decltype(get_rend(urange))>);
 
-      static_assert(std::same_as<decltype(get_rbeg(urange)), decltype(get_rend(urange))>);
+    using It      = decltype(get_rbeg(urange));
+    using ConstIt = decltype(get_rbeg(std::as_const(urange)));
 
-      using It      = decltype(get_rbeg(urange));
-      using ConstIt = decltype(get_rbeg(std::as_const(urange)));
+    static_assert(std::convertible_to<It, ConstIt>);
 
-      static_assert(std::convertible_to<It, ConstIt>);
+    It beg = get_rbeg(urange);
+    It e   = get_rend(urange);
 
-      It beg = get_rbeg(urange);
-      It e   = get_rend(urange);
-
-      static constexpr auto kind =
-        std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
-      using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, kind>;
-      return BorrowingRad{std::move(beg), std::move(e), size_or_not(urange)};
-  };
-// clang-format on
+    static constexpr auto kind =
+      std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
+    using BorrowingRad = borrowing_rad<It, It, ConstIt, ConstIt, kind>;
+    return BorrowingRad{std::move(beg), std::move(e), size_or_not(urange)};
+};
 
 } // namespace radr::detail
 

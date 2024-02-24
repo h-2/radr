@@ -23,30 +23,27 @@
 
 namespace radr::detail
 {
-// clang-format off
-inline constexpr auto drop_borrow = detail::overloaded{
-  []<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
-    requires std::ranges::forward_range<URange>
-  {
-      auto it  = radr::begin(urange);
-      auto end = radr::end(urange);
+inline constexpr auto drop_borrow =
+  detail::overloaded{[]<std::ranges::borrowed_range URange>(URange && urange, size_t const n)
+                         requires std::ranges::forward_range<URange>
+{
+    auto it  = radr::begin(urange);
+    auto end = radr::end(urange);
 
-      std::ranges::advance(it, n, end);
+    std::ranges::advance(it, n, end);
 
-      if constexpr (std::ranges::sized_range<URange>)
-      {
-          return subborrow(std::forward<URange>(urange),
-                           it,
-                           end,
-                           n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n);
-      }
-      else
-      {
-          return subborrow(std::forward<URange>(urange), it, end);
-      }
-  }
-};
-// clang-format on
+    if constexpr (std::ranges::sized_range<URange>)
+    {
+        return subborrow(std::forward<URange>(urange),
+                         it,
+                         end,
+                         n > std::ranges::size(urange) ? 0ull : std::ranges::size(urange) - n);
+    }
+    else
+    {
+        return subborrow(std::forward<URange>(urange), it, end);
+    }
+}};
 
 inline constexpr auto drop_coro = []<movable_range URange>(URange && urange, size_t const n)
 {
