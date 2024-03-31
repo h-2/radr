@@ -42,7 +42,7 @@ This library fundamentally differentiates between multi-pass and single-pass ran
 | category                    | `forward_range` or better | `forward_range` or better   |  `input_range` only    |
 | `borrowed_range`            | no                        | yes                         | no ❘ *irrelevant*      |
 | iterating¹ w/o side-effects | yes                       | yes                         | no                     |
-| const-iterable              | yes                       | yes                         | no                     |
+| const-iterable              | yes ❘ deep-const          | yes ❘ deep-const            | no                     |
 | default-constructible       | yes                       | yes                         | no                     |
 | copyable                    | yes ❘ `O(n)`              | yes ❘ `O(1)`                | no                     |
 | equality-comparable²        | yes ❘ `O(n)`              | yes ❘ `O(n)`                | no                     |
@@ -55,6 +55,7 @@ This library fundamentally differentiates between multi-pass and single-pass ran
 </sup></sub>
 
 **The listed properties are both requirements on the underlying range and guarantees given by the range adaptors, i.e. ranges and their adaptations stay within a given domain.**
+Some properties of borrowed ranges are intentionally designed to mirror those of owning ranges (deep-const, deep comparison).
 This consistency is a core feature of the library which makes reasoning about it easier, but it also makes the code
 more maintainable by reducing special cases.
 
@@ -90,7 +91,7 @@ auto rad = std::ref(vec) | radr::take(2);               // this library
 
 This is a bit more verbose, but allows a cleaner design and avoids unintended dangling references. See the [this example](./comparison_tables.md#Safety) for more details.
 
-### Further reading
+## Further reading
 
 * [Implementation status and feature table](./implementation_status_and_features.md): overview of which adaptors are available in the library.
 * [Comparison tables](./comparison_tables.md): examples that illustrate standard library usage vs radr usage ("tony tables").
