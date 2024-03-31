@@ -61,10 +61,16 @@ struct expect_range_eq
 #define EXPECT_SAME_TYPE_VANEXPECT_SAME_TYPE_ISH
 
 #define EXPECT_SAME_TYPE(val1, val2)                                                                                   \
-    EXPECT_PRED_FORMAT2(::radr::test::expect_same_type{},                                                              \
+    EXPECT_PRED_FORMAT2(::radr::test::expect_same_type<true>{},                                                        \
                         (std::type_identity<EXPECT_SAME_TYPE_DEPAREN(val1)>{}),                                        \
                         (std::type_identity<EXPECT_SAME_TYPE_DEPAREN(val2)>{}));
 
+#define EXPECT_DIFFERENT_TYPE(val1, val2)                                                                              \
+    EXPECT_PRED_FORMAT2(::radr::test::expect_same_type<false>{},                                                       \
+                        (std::type_identity<EXPECT_SAME_TYPE_DEPAREN(val1)>{}),                                        \
+                        (std::type_identity<EXPECT_SAME_TYPE_DEPAREN(val2)>{}));
+
+template <bool outcome = true>
 struct expect_same_type
 {
     template <typename lhs_t, typename rhs_t>
@@ -113,13 +119,23 @@ struct expect_same_type
             return demangled_name;
         };
 
-        if (std::is_same_v<lhs_t, rhs_t>)
+        if (std::is_same_v<lhs_t, rhs_t> == outcome)
             return ::testing::AssertionSuccess();
 
-        return ::testing::internal::CmpHelperEQFailure(remove_wrap_type_identity(lhs_expression).c_str(),
-                                                       remove_wrap_type_identity(rhs_expression).c_str(),
-                                                       type_name_as_string(lhs),
-                                                       type_name_as_string(rhs));
+        if (outcome)
+        {
+            return ::testing::internal::CmpHelperEQFailure(remove_wrap_type_identity(lhs_expression).c_str(),
+                                                           remove_wrap_type_identity(rhs_expression).c_str(),
+                                                           type_name_as_string(lhs),
+                                                           type_name_as_string(rhs));
+        }
+        else
+        {
+            return ::testing::internal::CmpHelperNE(remove_wrap_type_identity(lhs_expression).c_str(),
+                                                    remove_wrap_type_identity(rhs_expression).c_str(),
+                                                    type_name_as_string(lhs),
+                                                    type_name_as_string(rhs));
+        }
     }
 };
 

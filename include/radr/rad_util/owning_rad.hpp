@@ -111,8 +111,8 @@ public:
       base_(std::move(urange.base_)), bounds{std::move(cacher_fn)(urange.bounds)}
     {}
 
-    constexpr URange base() const & { return *base_; }
-    constexpr URange base() && { return std::move(*base_); }
+    constexpr URange container() const & { return *base_; }
+    constexpr URange container() && { return std::move(*base_); }
 
     constexpr auto begin()
         requires(!const_symmetric)
