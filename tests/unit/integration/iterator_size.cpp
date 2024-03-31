@@ -37,7 +37,11 @@ TEST(iterator_size, transform)
     {
         auto v = vec | std::views::transform(plus1) | std::views::transform(plus2) | std::views::transform(plus3) |
                  std::views::transform(plus4);
+#if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE < 12)
+        EXPECT_EQ(sizeof(v), 40);
+#else
         EXPECT_EQ(sizeof(v), 8);
+#endif
         EXPECT_EQ(sizeof(v.begin()), 40);
         EXPECT_EQ(sizeof(v.end()), 40);
     }
@@ -202,7 +206,7 @@ TEST(iterator_size, filter_transform)
     {
         auto v = vec | std::views::transform(plus1) | std::views::filter(mod1) | std::views::transform(plus2) |
                  std::views::filter(mod2);
-#ifdef _LIBCPP_RANGES
+#if defined(_LIBCPP_RANGES) || (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE < 12))
         EXPECT_EQ(sizeof(v), 72);
 #else
         EXPECT_EQ(sizeof(v), 56);

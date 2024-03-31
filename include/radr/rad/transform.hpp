@@ -282,7 +282,8 @@ public:
 
     friend constexpr bool operator==(transform_iterator<Iter, Fn> const & x, transform_sentinel const & y)
     {
-        return x.current_ == y.end_;
+        // GCC<=12 doesn't handle  `.current_` here ¯\_(ツ)_/¯
+        return x.base() == y.end_;
     }
 
     friend constexpr std::iter_difference_t<transform_iterator<Iter, Fn>> operator-(
