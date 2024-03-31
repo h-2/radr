@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <functional>
 #include <iterator>
 #include <ranges>
@@ -258,7 +259,7 @@ template <std::forward_iterator Iter, std::sentinel_for<Iter> Sen, typename Fn>
     requires detail::transform::fn_constraints<Iter, Fn>
 class transform_sentinel
 {
-    Sen end_{};
+    [[no_unique_address]] Sen end_{};
 
     template <std::forward_iterator Iter_, std::sentinel_for<Iter_> Sent_, typename Fn_>
         requires detail::transform::fn_constraints<Iter_, Fn_>
@@ -271,9 +272,9 @@ public:
 
     constexpr transform_sentinel(Fn, Sen end) : end_(end) {}
 
-    template <std::forward_iterator OtherIter, detail::different_from<Sen> OtherSent>
+    template <std::forward_iterator OtherIter, typename OtherSent>
     constexpr transform_sentinel(transform_sentinel<OtherIter, OtherSent, Fn> i)
-        requires std::convertible_to<OtherSent, Sen>
+        requires std::convertible_to<OtherSent, Sen> && std::convertible_to<OtherIter, Iter>
       : end_(std::move(i.end_))
     {}
 
@@ -281,19 +282,22 @@ public:
 
     friend constexpr bool operator==(transform_iterator<Iter, Fn> const & x, transform_sentinel const & y)
     {
-        return x.current_ == y.end_;
+        // GCC<=12 doesn't handle  `.current_` here ¯\_(ツ)_/¯
+        return x.base() == y.end_;
     }
 
-    friend constexpr std::ranges::range_difference_t<transform_iterator<Iter, Fn>> operator-(
+    friend constexpr std::iter_difference_t<transform_iterator<Iter, Fn>> operator-(
       transform_iterator<Iter, Fn> const & x,
       transform_sentinel const &           y)
+        requires std::sized_sentinel_for<Sen, Iter>
     {
         return x.current_ - y.end_;
     }
 
-    friend constexpr std::ranges::range_difference_t<transform_iterator<Iter, Fn>> operator-(
+    friend constexpr std::iter_difference_t<transform_iterator<Iter, Fn>> operator-(
       transform_sentinel const &           x,
       transform_iterator<Iter, Fn> const & y)
+        requires std::sized_sentinel_for<Sen, Iter>
     {
         return x.end_ - y.current_;
     }
