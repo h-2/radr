@@ -133,7 +133,7 @@ namespace radr
 {
 
 //=============================================================================
-// Wrapper function
+// Wrapper function subborrow
 //=============================================================================
 
 // clang-format off
@@ -161,6 +161,10 @@ inline constexpr auto subborrow = detail::overloaded{
                         radr::begin(urange) + e);
   }
 };
+
+//=============================================================================
+// borrow()
+//=============================================================================
 
 inline constexpr auto borrow = detail::overloaded{
   [] <const_borrowable_range URange> (URange && urange)
@@ -190,6 +194,25 @@ inline constexpr auto borrow = detail::overloaded{
   }
 };
 // clang-format on
+
+//=============================================================================
+// borrow_single()
+//=============================================================================
+
+inline constexpr auto borrow_single = [](auto && val)
+{
+    static_assert(std::is_lvalue_reference_v<decltype(val)>,
+                  "You can only borrow from lvalues. To create a range from a single rvalue, use radr::single.");
+    using val_t = std::remove_reference_t<decltype(val)>;
+
+    using subrange_t = borrowing_rad<val_t *>;
+
+    return tag_invoke(custom::subborrow_tag{}, subrange_t{}, &val, &val + 1, 1ull);
+};
+
+//=============================================================================
+// range_fwd()
+//=============================================================================
 
 //TODO nothing uses this at the moment
 
