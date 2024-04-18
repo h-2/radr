@@ -8,7 +8,7 @@
 namespace radr::test
 {
 
-/* for all our forward range adaptors model these concepts*/
+/* all our forward range adaptors model these concepts*/
 template <typename rad_t, typename container_t>
 inline void generic_adaptor_checks()
 {
@@ -21,6 +21,7 @@ inline void generic_adaptor_checks()
     EXPECT_TRUE(std::equality_comparable<rad_t>);
     EXPECT_TRUE(std::copyable<rad_t>);
 
+    EXPECT_TRUE(radr::constant_range<crad_t>);
     EXPECT_TRUE(radr::const_symmetric_range<crad_t>);
     EXPECT_TRUE(std::default_initializable<crad_t>);
     EXPECT_TRUE(std::equality_comparable<crad_t>);

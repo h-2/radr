@@ -104,3 +104,24 @@ TEST_F(subborrow_list, subborrow_it_size)
     EXPECT_SAME_TYPE(decltype(sub), sized_borrow_t);
     EXPECT_TRUE(std::ranges::sized_range<decltype(sub)>);
 }
+
+// --------------------------------------------------------------------------
+// borrow_single()
+// --------------------------------------------------------------------------
+
+TEST(borrow_single, type)
+{
+    int  i = 3;
+    auto b = radr::borrow_single(i);
+    EXPECT_SAME_TYPE(decltype(b), radr::borrowing_rad<int *>);
+}
+
+TEST(borrow_single, val)
+{
+    int  i = 3;
+    auto b = radr::borrow_single(i);
+    EXPECT_EQ(*b.begin(), 3);
+    EXPECT_EQ(*b.data(), 3);
+    EXPECT_EQ(b.size(), 1ull);
+    EXPECT_EQ(b.empty(), false);
+}

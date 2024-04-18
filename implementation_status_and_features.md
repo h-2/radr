@@ -2,21 +2,14 @@
 
 ## Entity overview
 
-| Range adaptors (types)     | Equivalent in `std::`                                          | Remarks                                         |
+| Range adaptors (classes)   | Equivalent in `std::`                                          | Remarks                                         |
 |----------------------------|----------------------------------------------------------------|-------------------------------------------------|
 | `radr::generator<>`        | `std::generator<>`                                             | custom implementation atm, but will be an alias |
 | `radr::borrowing_rad<>`    | `std::ranges::subrange`, (`std:span`, `std::ranges::ref_view`) | stores (iterator, sentinel) pair                |
 | `radr::owning_rad<>`       | `std::ranges::owning_view`                                     | stores rvalues of containers                    |
 
 There are no distinct type templates per adaptor (like e.g. `std::ranges::transform_view` for `std::views::transform` in the standard library).
-Range adaptor objects in this library return a specialisation of one of the above types, i.e.:
-  * `radr::generator` if the underlying range is single-pass
-  * `radr::borrowing_rad` if the underlying range is multi-pass, const-iterable and borrowed,
-  * `radr::owning_rad` if the underlying range is multi-pass and const-iterable,
-  * otherwise the call is ill-formed
-
-If you absolutely need to operate on a multi-pass range that is not const-iterable, demote it to a single-pass range via
-`radr::make_single_pass` (see below).
+Instead all range adaptor objects in this library (see below) return a specialisation of one of the above types.
 
 | Range adaptors (objects)   | Tests | Equivalent in `std::`   | Remarks                                  |
 |----------------------------|------:|-------------------------|------------------------------------------|
@@ -35,18 +28,22 @@ If you absolutely need to operate on a multi-pass range that is not const-iterab
 We plan to add equivalent objects for most standard library adaptors.
 
 
-| Standalone ranges          | kind | Equivalent in `std::`   |
-|----------------------------|:----:|-------------------------|
-|                            |      |                         |
+| Standalone ranges          | kind  | Equivalent in `std::`      | Remarks                                         |
+|----------------------------|:-----:|----------------------------|-------------------------------------------------|
+| `radr::empty_range<T>`     | class | `std::ranges::empty_view`  | a container of fixed size 0                     |
+| `radr::single<T>`          | class | `std::ranges::single_view` | a container of fixed size 1                     |
 
 Note that most of our standalone ranges are not implemented as "factory" objects, but just as plain types.
 
 
-| Customisation points               | tag                            | Remarks                                         |
-|------------------------------------|:------------------------------:|-------------------------------------------------|
-| `radr::subborrow(r, it, sen[, s])` | `radr::custom::subborrow_tag`  | Used when creating subranges from other ranges  |
+| Notable functions                  | CP   | Remarks                                              |
+|------------------------------------|:----:|------------------------------------------------------|
+| `radr::subborrow(r, it, sen[, s])` | ✔   | Used when creating subranges from other ranges      |
+| `radr::subborrow(r, i, j)`         | (✔) | Position-based slice                                 |
+| `radr::borrow(r)`                  | (✔) | `= radr::subborrow(r, r.begin(), r.end(), r.size()`  |
+| `radr::borrow_single(v)`           | (✔) | like `radr::single` but doesn't own the element      |
 
-
+CP denotes functions that you can customise for your own types, e.g. specify a different subrange-type for a specific container.
 
 ## Feature table
 
