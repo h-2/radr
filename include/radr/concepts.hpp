@@ -62,9 +62,6 @@ concept const_borrowable_range = const_iterable_range<Range> && std::ranges::bor
 namespace radr::detail
 {
 
-template <typename Range>
-concept const_borrowable_unqual = const_borrowable_range<Range> && unqualified_forward_range<Range>;
-
 template <class B>
 concept boolean_testable = std::convertible_to<B, bool> && requires(B && b) {
     {

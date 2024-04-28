@@ -6,9 +6,10 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
+#include <radr/custom/subborrow.hpp>
 #include <radr/standalone/single.hpp>
 
-TEST(empty_range, concepts)
+TEST(single, concepts)
 {
     using R = radr::single<int>;
     using C = radr::single<int const>;
@@ -23,7 +24,7 @@ TEST(empty_range, concepts)
     radr::test::generic_adaptor_checks<C, std::vector<int> /*irrelevant*/>();
 }
 
-TEST(empty_range, members)
+TEST(single, members)
 {
     radr::single<int> r{3};
     EXPECT_EQ(*r.begin(), 3);

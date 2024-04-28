@@ -1,8 +1,7 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2023 The LLVM Project
-// Copyright (c) 2023 Hannes Hauswedell
+// Copyright (c) 2024 Hannes Hauswedell
 //
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
@@ -12,36 +11,19 @@
 
 #pragma once
 
-#include <functional>
-#include <ranges>
-
-#include "../concepts.hpp"
-#include "../custom/subborrow.hpp"
-#include "../detail/detail.hpp"
 #include "take.hpp"
 
 namespace radr::detail
 {
 
 inline constexpr auto take_exactly_borrow =
-  detail::overloaded{[]<const_borrowable_range URange>(URange && urange, size_t const n)
+  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
 {
-    using BorrowingRad = borrowing_rad<std::counted_iterator<radr::iterator_t<URange>>,
-                                       std::default_sentinel_t,
-                                       std::counted_iterator<radr::const_iterator_t<URange>>,
-                                       std::default_sentinel_t,
-                                       borrowing_rad_kind::sized>;
-
-    return BorrowingRad{std::counted_iterator<radr::iterator_t<URange>>(radr::begin(urange), n),
-                        std::default_sentinel,
-                        n};
-},
-                     []<const_borrowable_range URange>(URange && urange, size_t const n)
-                         requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
-{
-    return subborrow(std::forward<URange>(urange), 0ull, n);
-}};
-
+    if constexpr (std::ranges::sized_range<URange>)
+        return take_borrow(borrowing_rad{urange}, n);
+    else
+        return take_borrow(borrowing_rad{urange, n}, n); // exact value for first size not important
+};
 } // namespace radr::detail
 
 namespace radr
