@@ -99,6 +99,13 @@ concept common_range = std::same_as<iterator_t<R>, sentinel_t<R>>;
 namespace radr::detail
 {
 
+template <typename Range1, typename Range2>
+concept equivalent_range = std::same_as<iterator_t<Range1>, iterator_t<Range2>> &&
+                           std::same_as<const_iterator_t<Range1>, const_iterator_t<Range2>> &&
+                           std::same_as<sentinel_t<Range1>, sentinel_t<Range2>> &&
+                           std::same_as<const_sentinel_t<Range1>, const_sentinel_t<Range2>> &&
+                           std::ranges::sized_range<Range1> == std::ranges::sized_range<Range2>;
+
 template <typename T>
 using std_const_iterator_t = decltype(detail::cbegin_impl(std::declval<T &>()));
 

@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <iterator>
 
@@ -152,7 +153,7 @@ public:
     {}
 
     //!\brief Range + NotSize
-    template <detail::different_from<borrowing_rad> Range>
+    template <typename Range>
         requires(const_borrowable_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
                  std::convertible_to<radr::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range, detail::not_size)
@@ -161,7 +162,7 @@ public:
     {}
 
     //!\brief Range + Size
-    template <detail::different_from<borrowing_rad> Range>
+    template <typename Range>
         requires(const_borrowable_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
                  std::convertible_to<radr::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)

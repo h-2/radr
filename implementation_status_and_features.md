@@ -15,13 +15,13 @@ Instead all range adaptor objects in this library (see below) return a specialis
 |----------------------------|------:|-------------------------|------------------------------------------|
 | `radr::as_const`           | ✔     | `std::views::as_const`  | make the range *and* its elements const  |
 | `radr::as_rvalue`          | ✔     | `std::views::as_rvalue` | returns only input ranges in C++20       |
-| `radr::drop(n)`            | TODO  | `std::views::drop`      |                                          |
-| `radr::drop_while(fn)`     | TODO  | `std::views::drop_while`|                                          |
+| `radr::drop(n)`            | ✔     | `std::views::drop`      |                                          |
+| `radr::drop_while(fn)`     | ✔     | `std::views::drop_while`|                                          |
 | `radr::filter(fn)`         | ✔     | `std::views::filter`    |                                          |
 | `radr::reverse`            | ✔     | `std::views::reverse`   |                                          |
 | `radr::slice(m, n)`        | TODO  | *not yet available*     | get subrange between m and n             |
 | `radr::take(n)`            | ✔     | `std::views::take`      |                                          |
-| `radr::take_exactly(n)`    | TODO  | *not yet available*     | turns unsized into sized                 |
+| `radr::take_exactly(n)`    | ✔     | *not yet available*     | turns unsized into sized                 |
 | `radr::transform(fn)`      | ✔     | `std::views::transform` |                                          |
 | `radr::make_single_pass`   | ✔     | *not yet available*     | demotes range category to input          |
 
