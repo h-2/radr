@@ -162,6 +162,10 @@ inline constexpr auto subborrow = detail::overloaded{
   }
 };
 
+template <typename ... Args>
+    requires (requires { subborrow(std::declval<Args>()...); })
+using subborrow_t = decltype(subborrow(std::declval<Args>()...));
+
 //=============================================================================
 // borrow()
 //=============================================================================
@@ -194,6 +198,10 @@ inline constexpr auto borrow = detail::overloaded{
   }
 };
 // clang-format on
+
+template <typename R>
+    requires(requires { borrow(std::declval<R>()); })
+using borrow_t = decltype(borrow(std::declval<R>()));
 
 //=============================================================================
 // range_fwd()
