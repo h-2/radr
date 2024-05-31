@@ -1,7 +1,7 @@
 # C++ 𝗥ange 𝗔𝐝aptors 𝗥eimagined
 
 This library explores a different design for C++ Range Adaptors, commonly referred to as "Views". It tries to reduce complexity in the conceptual space and provide a better, more consistent user experience.
-The library only replaces certain components from the Standard's Ranges library, and aims to maintain a sufficient level of compatibility with existing code.
+At the same time, the usage patterns and naming will remain close enough to the standard library to be used almost as a drop-in replacement.
 
 ## Difference and similarities to std ranges
 

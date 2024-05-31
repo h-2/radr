@@ -28,10 +28,10 @@ Instead all range adaptor objects in this library (see below) return a specialis
 We plan to add equivalent objects for most standard library adaptors.
 
 
-| Standalone ranges          | kind  | Equivalent in `std::`      | Remarks                                         |
-|----------------------------|:-----:|----------------------------|-------------------------------------------------|
-| `radr::empty_range<T>`     | class | `std::ranges::empty_view`  | a container of fixed size 0                     |
-| `radr::single<T>`          | class | `std::ranges::single_view` | a container of fixed size 1                     |
+| Standalone ranges          | kind  | Equivalent in `std::`      | Remarks                                              |
+|----------------------------|:-----:|----------------------------|------------------------------------------------------|
+| `radr::empty_range<T>`     | class | `std::ranges::empty_view`  | a range of fixed size 0                          |
+| `radr::single<T, s>`       | class | `std::ranges::single_view` | a range of fixed size 1; storage configurable    |
 
 Note that most of our standalone ranges are not implemented as "factory" objects, but just as plain types.
 
@@ -41,7 +41,6 @@ Note that most of our standalone ranges are not implemented as "factory" objects
 | `radr::subborrow(r, it, sen[, s])` | ✔   | Used when creating subranges from other ranges      |
 | `radr::subborrow(r, i, j)`         | (✔) | Position-based slice                                 |
 | `radr::borrow(r)`                  | (✔) | `= radr::subborrow(r, r.begin(), r.end(), r.size()`  |
-| `radr::borrow_single(v)`           | (✔) | like `radr::single` but doesn't own the element      |
 
 CP denotes functions that you can customise for your own types, e.g. specify a different subrange-type for a specific container.
 
@@ -58,6 +57,7 @@ CP denotes functions that you can customise for your own types, e.g. specify a d
 | `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
 | `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
+| `radr::split(pat)`         | always         | fwd     | fwd      |  -    |  -        |                                          |
 | `radr::take(n)`            |                | input   | contig   |  =    |  ra+sized |                                          |
 | `radr::take_exactly(n)`    |                | input   | contig   |  +    |  ra+sized | turns unsized into sized                 |
 | `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
