@@ -45,6 +45,14 @@ jobs:
             build: unit
             build_type: Debug
 
+          - name: "Unit clang18 (libc++)"
+            cxx: "clang++-18"
+            cc: "clang-18"
+            pkg: "clang-18 libc++-18-dev libc++abi-18-dev libc++1-18 libc++abi1-18"
+            cxx_flags: "-stdlib=libc++"
+            build: unit
+            build_type: Debug
+
           - name: "Unit gcc11 Release"
             cxx: "g++-11"
             cc: "gcc-11"
@@ -81,6 +89,7 @@ jobs:
         if: contains(matrix.pkg, 'clang')
         run: |
           sudo apt-add-repository --no-update --yes "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
+          sudo apt-add-repository --no-update --yes "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
 
       - name: Configure APT
