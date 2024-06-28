@@ -17,6 +17,7 @@
 #include "../custom/subborrow.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
+#include "../rad/as_const.hpp"
 #include "../range_access.hpp"
 #include "../standalone/single.hpp"
 
@@ -28,31 +29,39 @@ template <const_borrowable_range Borrow, const_borrowable_range Pattern>
                                         std::ranges::equal_to> &&
              std::semiregular<Pattern> && std::is_nothrow_default_constructible_v<Pattern> &&
              std::is_nothrow_copy_constructible_v<Pattern>
-struct split_rad_iterator
+class split_rad_iterator
 {
 private:
-    using UIt       = iterator_t<Borrow>;
-    using USen      = sentinel_t<Borrow>;
-    using UCIt      = const_iterator_t<Borrow>;
-    using Subborrow = subborrow_t<Borrow, UIt, UIt>;
+    using UIt  = iterator_t<Borrow>;
+    using USen = sentinel_t<Borrow>;
 
-    [[no_unique_address]] UIt       it;            // begin of current subrange
-    [[no_unique_address]] USen      uend{};        // end of the underlying range
-    [[no_unique_address]] Subborrow pattern_match; // [end_of_current_subrange, begin_of_pattern_matchsubrange]
-    [[no_unique_address]] Pattern   pattern;       // TODO
-    [[no_unique_address]] bool      trailing_empty_ = false;
+    [[no_unique_address]] Pattern pattern{};           // the pattern
+    [[no_unique_address]] USen    uend{};              // end of the underlying range
+    [[no_unique_address]] UIt     subrange_begin{};    // begin of current subrange (in underlying)
+    [[no_unique_address]] UIt     subrange_end{};      // end of current subrange (in underlying)
+    [[no_unique_address]] UIt     pattern_match_end{}; // end of where pattern currently matches (in underlying)
+    [[no_unique_address]] bool    trailing_empty_ = false;
 
     constexpr void go_next()
     {
-        auto [begin, end] = std::ranges::search(std::ranges::subrange(it, uend), pattern);
-        if (begin != uend && std::ranges::empty(pattern))
+        auto [match_b, match_e] = std::ranges::search(std::ranges::subrange(subrange_begin, uend), pattern);
+        if (match_b != uend && std::ranges::empty(pattern))
         {
-            ++begin;
-            ++end;
+            ++match_b;
+            ++match_e;
         }
 
-        pattern_match = subborrow(Borrow{}, begin, end);
+        subrange_end      = match_b;
+        pattern_match_end = match_e;
     }
+
+    template <const_borrowable_range Borrow2, const_borrowable_range Pattern2>
+        requires std::indirectly_comparable<std::ranges::iterator_t<Borrow2>,
+                                            std::ranges::iterator_t<Pattern2>,
+                                            std::ranges::equal_to> &&
+                 std::semiregular<Pattern2> && std::is_nothrow_default_constructible_v<Pattern2> &&
+                 std::is_nothrow_copy_constructible_v<Pattern2>
+    friend class split_rad_iterator;
 
 public:
     /*!\name Associated types
@@ -60,7 +69,7 @@ public:
      */
     using split_rad_iterator_concept  = std::forward_iterator_tag;
     using split_rad_iterator_category = std::input_iterator_tag;
-    using value_type                  = Subborrow;
+    using value_type                  = subborrow_t<Borrow, UIt, UIt>;
     using difference_type             = std::ranges::range_difference_t<value_type>;
     //!\}
 
@@ -75,7 +84,7 @@ public:
 
     //!\brief Construct from values.
     constexpr split_rad_iterator(Borrow urange_, Pattern pattern_) :
-      it{radr::begin(urange_)}, uend{radr::end(urange_)}, pattern{pattern_}
+      pattern{std::move(pattern_)}, uend{radr::end(urange_)}, subrange_begin{radr::begin(urange_)}
     {
         go_next();
     }
@@ -84,37 +93,47 @@ public:
     template <different_from<Borrow> Borrow2, typename Pattern2>
         requires(std::constructible_from<UIt, typename split_rad_iterator<Borrow2, Pattern2>::UIt> &&
                  std::constructible_from<USen, typename split_rad_iterator<Borrow2, Pattern2>::USen> &&
-                 std::constructible_from<Subborrow,
-                                         iterator_t<typename split_rad_iterator<Borrow2, Pattern2>::Subborrow>,
-                                         sentinel_t<typename split_rad_iterator<Borrow2, Pattern2>::Subborrow>> &&
-                 std::constructible_from<Pattern, typename split_rad_iterator<Borrow2, Pattern2>::USen>)
-    constexpr split_rad_iterator(split_rad_iterator<Borrow2, Pattern2> citer) :
-      it{std::move(citer.it)},
-      uend{std::move(citer.uend)},
-      pattern_match{radr::begin(citer.pattern_match), radr::end(citer.pattern_match)},
-      pattern{std::move(citer.pattern_)}
+                 std::constructible_from<Pattern, Pattern2>)
+    constexpr split_rad_iterator(split_rad_iterator<Borrow2, Pattern2> mut_iter) :
+      pattern{std::move(mut_iter.pattern)},
+      uend{std::move(mut_iter.uend)},
+      subrange_begin{std::move(mut_iter.subrange_begin)},
+      subrange_end{std::move(mut_iter.subrange_end)},
+      pattern_match_end{std::move(mut_iter.pattern_match_end)}
     {}
     //!\}
 
     /*!\name Iterator operators
      * \{
      */
-    constexpr value_type operator*() const { return subborrow(Borrow{}, it, pattern_match.begin()); }
+    constexpr value_type operator*() const { return subborrow(Borrow{}, subrange_begin, subrange_end); }
 
     constexpr split_rad_iterator & operator++()
     {
-        it = pattern_match.begin();
-        if (it != uend)
+        subrange_begin = subrange_end;
+        if (subrange_begin != uend)
         {
-            it = pattern_match.end();
-            if (it == uend)
+            subrange_begin = pattern_match_end;
+            if (subrange_begin == uend)
             {
-                trailing_empty_ = true;
-                pattern_match   = subborrow(Borrow{}, it, it);
+                trailing_empty_   = true;
+                subrange_end      = subrange_begin;
+                pattern_match_end = subrange_begin;
             }
             else
             {
+                /* The following call triggers an uninitialized read within Pattern, if Pattern is
+                 * radr::single<T, in_iterator> and that is default initialised. This is typically only the
+                 * case when this object is also default-initialised in which case it == uend and this branch
+                 * is never taken.*/
+#ifndef __clang__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
                 go_next();
+#ifndef __clang__
+#    pragma GCC diagnostic pop
+#endif
             }
         }
         else
@@ -137,12 +156,12 @@ public:
      */
     friend constexpr bool operator==(split_rad_iterator const & x, split_rad_iterator const & y)
     {
-        return x.it == y.it && x.trailing_empty_ == y.trailing_empty_;
+        return x.subrange_begin == y.subrange_begin && x.trailing_empty_ == y.trailing_empty_;
     }
 
     friend constexpr bool operator==(split_rad_iterator const & x, USen const & y)
     {
-        return x.it == y && !x.trailing_empty_;
+        return x.subrange_begin == y && !x.trailing_empty_;
     }
     //!\}
 };
@@ -153,14 +172,14 @@ inline constexpr auto split_borrow_impl =
       indirectly_comparable<std::ranges::iterator_t<URange>, std::ranges::iterator_t<Pattern>, std::ranges::equal_to>
 {
     auto borrow_  = radr::borrow(urange);
-    auto pattern_ = radr::borrow(pattern);
+    auto pattern_ = radr::detail::as_const_borrow(pattern);
 
     auto it  = split_rad_iterator{borrow_, pattern_};
     auto sen = radr::end(borrow_); // use the underlying range's sentinel as-is
 
     using It   = decltype(it);
     using Sen  = sentinel_t<URange>;
-    using CIt  = split_rad_iterator<borrow_t<URange const &>, borrow_t<Pattern>>;
+    using CIt  = split_rad_iterator<borrow_t<URange const &>, decltype(pattern_)>;
     using CSen = const_sentinel_t<URange>;
 
     return borrowing_rad<It, Sen, CIt, CSen>{std::move(it), std::move(sen)};

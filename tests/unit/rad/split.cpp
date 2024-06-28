@@ -1,3 +1,6 @@
+#include <forward_list>
+#include <ranges>
+
 #include <gtest/gtest.h>
 #include <radr/test/adaptor_template.hpp>
 #include <radr/test/aux_ranges.hpp>
@@ -71,7 +74,58 @@ TEST(split, single_pass_trailing_empty)
 }
 
 // --------------------------------------------------------------------------
-// Different pattern types
+// forward_list
+// --------------------------------------------------------------------------
+
+TEST(split, forward_range_elem)
+{
+    std::forward_list<int> l{1, 2, 3, 2, 4, 5, 2, 2, 2, 6, 2};
+
+    auto ra = std::ref(l) | radr::split(2);
+
+    auto it = ra.begin();
+    EXPECT_RANGE_EQ(*it, std::vector{1});
+    ++it;
+    EXPECT_RANGE_EQ(*it, std::vector{3});
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector{4, 5}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, std::vector{6});
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{}));
+    ++it;
+    EXPECT_EQ(it, ra.end());
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
+}
+
+TEST(split, forward_range_pattern)
+{
+    std::forward_list<int> l{1, 2, 3, 2, 4, 5, 2, 3, 2, 6, 2};
+    std::forward_list<int> p{2, 3};
+
+    auto ra = std::ref(l) | radr::split(std::ref(p));
+
+    auto it = ra.begin();
+    EXPECT_RANGE_EQ(*it, std::vector{1});
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector{2, 4, 5}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector{2, 6, 2}));
+    ++it;
+    EXPECT_EQ(it, ra.end());
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
+}
+
+// --------------------------------------------------------------------------
+// string + Different pattern types
 // --------------------------------------------------------------------------
 
 TEST(split, lvalue_range_pattern)
@@ -92,6 +146,9 @@ TEST(split, lvalue_range_pattern)
     EXPECT_EQ(it, ra.end());
 
     EXPECT_SAME_TYPE(decltype(*it), std::string_view);
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
 }
 
 TEST(split, rvalue_range_pattern)
@@ -111,6 +168,9 @@ TEST(split, rvalue_range_pattern)
     EXPECT_EQ(it, ra.end());
 
     EXPECT_SAME_TYPE(decltype(*it), std::string_view);
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
 }
 
 // Not supported at the moment
@@ -151,6 +211,9 @@ TEST(split, lvalue_element_pattern)
     EXPECT_EQ(it, ra.end());
 
     EXPECT_SAME_TYPE(decltype(*it), std::string_view);
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
 }
 
 TEST(split, rvalue_element_pattern)
@@ -170,6 +233,9 @@ TEST(split, rvalue_element_pattern)
     EXPECT_EQ(it, ra.end());
 
     EXPECT_SAME_TYPE(decltype(*it), std::string_view);
+
+    // default init
+    EXPECT_TRUE(std::ranges::empty(decltype(ra){}));
 }
 
 // --------------------------------------------------------------------------
@@ -218,4 +284,48 @@ TEST(split, empty_end)
     EXPECT_EQ(it, ra.end());
 
     EXPECT_SAME_TYPE(decltype(*it), std::string_view);
+}
+
+// --------------------------------------------------------------------------
+// concepts
+// --------------------------------------------------------------------------
+
+template <typename ra_t>
+void type_checks_impl()
+{
+    EXPECT_TRUE(std::ranges::forward_range<ra_t>);
+    EXPECT_FALSE(std::ranges::bidirectional_range<ra_t>);
+    EXPECT_FALSE(std::ranges::sized_range<ra_t>);
+    EXPECT_FALSE(std::ranges::common_range<ra_t>);
+}
+
+TEST(split, concepts)
+{
+    {
+        std::string s  = "thisXisXaXtest";
+        auto        ra = std::ref(s) | radr::split('X');
+        type_checks_impl<decltype(ra)>();
+        EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, radr::borrowing_rad<char *>);
+    }
+
+    {
+        std::string s  = "thisXisXaXtest";
+        auto const  ra = std::ref(s) | radr::split('X');
+        type_checks_impl<decltype(ra)>();
+        EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, std::string_view);
+    }
+
+    {
+        std::string const s  = "thisXisXaXtest";
+        auto              ra = std::ref(s) | radr::split('X');
+        type_checks_impl<decltype(ra)>();
+        EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, std::string_view);
+    }
+
+    {
+        std::string const s  = "thisXisXaXtest";
+        auto const        ra = std::ref(s) | radr::split('X');
+        type_checks_impl<decltype(ra)>();
+        EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, std::string_view);
+    }
 }

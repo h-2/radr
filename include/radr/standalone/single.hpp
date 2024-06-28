@@ -32,7 +32,7 @@ public:
     using value_type        = Value;
     using difference_type   = ptrdiff_t;
 
-    /*!\name Constructors, desctructors and assignment
+    /*!\name Constructors, destructors and assignment
      * \{
      */
     constexpr small_single_iterator()                                          = default;
@@ -53,7 +53,11 @@ public:
     /*!\name Forward operators
      * \{
      */
-    constexpr Value const & operator*() const noexcept { return *value; }
+    constexpr Value const & operator*() const noexcept
+    {
+        assert(value.has_value());
+        return *value;
+    }
 
     constexpr small_single_iterator & operator++() noexcept
     {
