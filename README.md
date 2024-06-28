@@ -1,7 +1,7 @@
 # C++ 𝗥ange 𝗔𝐝aptors 𝗥eimagined
 
 This library explores a different design for C++ Range Adaptors, commonly referred to as "Views". It tries to reduce complexity in the conceptual space and provide a better, more consistent user experience.
-The library only replaces certain components from the Standard's Ranges library, and aims to maintain a sufficient level of compatibility with existing code.
+At the same time, the usage patterns and naming remain close enough to the standard library to be used almost as a drop-in replacement.
 
 ## Difference and similarities to std ranges
 
@@ -108,7 +108,7 @@ This is a bit more verbose, but allows a cleaner design and avoids unintended da
 
 ## Credits
 
-This library relies heavily on the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
+This library uses code from the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
 
 I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.
 

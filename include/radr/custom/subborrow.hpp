@@ -162,6 +162,10 @@ inline constexpr auto subborrow = detail::overloaded{
   }
 };
 
+template <typename ... Args>
+    requires (requires { subborrow(std::declval<Args>()...); })
+using subborrow_t = decltype(subborrow(std::declval<Args>()...));
+
 //=============================================================================
 // borrow()
 //=============================================================================
@@ -195,20 +199,9 @@ inline constexpr auto borrow = detail::overloaded{
 };
 // clang-format on
 
-//=============================================================================
-// borrow_single()
-//=============================================================================
-
-inline constexpr auto borrow_single = [](auto && val)
-{
-    static_assert(std::is_lvalue_reference_v<decltype(val)>,
-                  "You can only borrow from lvalues. To create a range from a single rvalue, use radr::single.");
-    using val_t = std::remove_reference_t<decltype(val)>;
-
-    using subrange_t = borrowing_rad<val_t *>;
-
-    return tag_invoke(custom::subborrow_tag{}, subrange_t{}, &val, &val + 1, 1ull);
-};
+template <typename R>
+    requires(requires { borrow(std::declval<R>()); })
+using borrow_t = decltype(borrow(std::declval<R>()));
 
 //=============================================================================
 // range_fwd()
