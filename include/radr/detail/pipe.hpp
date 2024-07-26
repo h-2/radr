@@ -84,7 +84,7 @@ struct pipe_fwd_base
         requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
                  std::ranges::borrowed_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
-      noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
+      noexcept(noexcept(operator()(radr::borrow(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
 
