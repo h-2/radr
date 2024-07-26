@@ -18,6 +18,7 @@ Instead all range adaptor objects in this library (see below) return a specialis
 | `radr::drop(n)`            | `std::views::drop`      |                                          |
 | `radr::drop_while(fn)`     | `std::views::drop_while`|                                          |
 | `radr::filter(fn)`         | `std::views::filter`    |                                          |
+| `radr::join`               | `std::views::join`      |                                          |
 | `radr::reverse`            | `std::views::reverse`   |                                          |
 | `radr::slice(m, n)`        | *not yet available*     | get subrange between m and n             |
 | `radr::split(pat)`         | `std::views::split`     |                                          |
@@ -56,6 +57,7 @@ CP denotes functions that you can customise for your own types, e.g. specify a d
 | `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
 | `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
 | `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
+| `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
 | `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
 | `radr::split(pat)`         | always         | input   | fwd      |  -    |  -        |                                          |
@@ -70,6 +72,6 @@ ra (`random_access_range`) or contig (`contiguous_range`)<br>
 `-` means property is lost<br>
 `=` means property is preserved<br>
 `+` means property is gained (this is rare)<br>
-Encircled symbols indicate differences from the standard library adaptors
+Encircled symbols or categories in () indicate differences from the standard library adaptors
 
 
