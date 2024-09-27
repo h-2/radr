@@ -1,3 +1,4 @@
+#include <forward_list>
 #include <list>
 #include <ranges>
 #include <vector>
@@ -10,6 +11,7 @@
 #include <radr/concepts.hpp>
 #include <radr/rad/drop.hpp>
 #include <radr/rad/filter.hpp>
+#include <radr/rad/join.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/transform.hpp>
 
@@ -240,5 +242,52 @@ TEST(iterator_size, take_drop_bidi)
         EXPECT_EQ(sizeof(v), 16);
         EXPECT_EQ(sizeof(v.begin()), 16);
         EXPECT_EQ(sizeof(v.end()), 1);
+    }
+}
+
+TEST(iterator_size, join_fwd)
+{
+    std::forward_list<std::string> l;
+    EXPECT_EQ(sizeof(l.begin()), 8);
+
+#if !(defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION < 180000)) // doesn't have views::join
+    {
+        auto v = l | std::views::join;
+
+#    if defined(_LIBCPP_VERSION) || (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 11))
+        EXPECT_EQ(sizeof(v), 16);
+#    else
+        EXPECT_EQ(sizeof(v), 8);
+#    endif
+
+#    if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 12)
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 24);
+#    else
+        EXPECT_EQ(sizeof(v.begin()), 32);
+        EXPECT_EQ(sizeof(v.end()), 32);
+#    endif
+    }
+#endif
+
+    {
+        auto v = std::ref(l) | radr::join;
+        EXPECT_EQ(sizeof(v), 64);
+        EXPECT_EQ(sizeof(v.begin()), 32);
+        EXPECT_EQ(sizeof(v.end()), 32);
+    }
+}
+
+TEST(iterator_size, join_bidi)
+{
+    std::vector<std::string> l;
+
+    // std version same as above
+
+    {
+        auto v = std::ref(l) | radr::join;
+        EXPECT_EQ(sizeof(v), 96);
+        EXPECT_EQ(sizeof(v.begin()), 48);
+        EXPECT_EQ(sizeof(v.end()), 48);
     }
 }

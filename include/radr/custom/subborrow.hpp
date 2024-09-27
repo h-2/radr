@@ -189,6 +189,9 @@ inline constexpr auto borrow = detail::overloaded{
                             radr::end(urange));
       }
   },
+  // if a range is already borrowed and copyable, just copy it (we assume O(1) copy)
+  // BUT do not do this if a copy would result in a constant_range becoming a mutable range
+  // TODO IS THIS SPECIAL CASE WORTH IT / IMPORTANT?
   [] <const_borrowable_range URange> (URange && urange)
     requires (std::ranges::borrowed_range<std::remove_cvref_t<URange>> && std::copyable<std::remove_cvref_t<URange>> &&
         std::same_as<std::ranges::range_reference_t<URange>, std::ranges::range_reference_t<std::remove_cvref_t<URange>>>)

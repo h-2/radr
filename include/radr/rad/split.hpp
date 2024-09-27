@@ -268,8 +268,12 @@ inline constexpr auto split_coro = []<movable_range URange, typename Pattern>(UR
 
         if (trailing_empty)
         {
-            auto tmp = inner_functor(it, e);
-            co_yield tmp;
+            auto empty_ = []() -> inner_gen_t
+            {
+                co_return;
+            }();
+
+            co_yield empty_;
         }
     }(std::move(urange), std::move(pattern));
 };
