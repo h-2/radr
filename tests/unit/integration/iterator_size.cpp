@@ -226,6 +226,25 @@ TEST(iterator_size, filter_transform)
     }
 }
 
+TEST(iterator_size, take_drop_contig)
+{
+    std::vector<int> l{};
+
+    {
+        auto v = l | std::views::take(1) | std::views::drop(1) | std::views::take(1) | std::views::drop(1);
+        EXPECT_EQ(sizeof(v), 48);
+        EXPECT_EQ(sizeof(v.begin()), 8);
+        EXPECT_EQ(sizeof(v.end()), 8);
+    }
+
+    {
+        auto v = std::ref(l) | radr::take(1) | radr::drop(1) | radr::take(1) | radr::drop(1);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 8);
+        EXPECT_EQ(sizeof(v.end()), 8);
+    }
+}
+
 TEST(iterator_size, take_drop_bidi)
 {
     std::list<int> l{};

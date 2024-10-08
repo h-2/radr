@@ -75,6 +75,21 @@ jobs:
             build: unit
             build_type: Debug
 
+          - name: "benchmark gcc13"
+            cxx: "g++-13"
+            cc: "gcc-13"
+            pkg: "gcc-13 g++-13 libbenchmark-dev"
+            build: benchmark
+            build_type: Release
+
+          - name: "benchmark clang18"
+            cxx: "clang++-18"
+            cc: "clang-18"
+            pkg: "clang-18 libc++-18-dev libc++abi-18-dev libc++1-18 libc++abi1-18 libbenchmark-dev"
+            cxx_flags: "-stdlib=libc++"
+            build: benchmark
+            build_type: Release
+
           - name: "Clang Format"
             pkg: "clang-format-17"
             build: clang_format
