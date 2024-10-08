@@ -232,7 +232,11 @@ TEST(iterator_size, take_drop_contig)
 
     {
         auto v = l | std::views::take(1) | std::views::drop(1) | std::views::take(1) | std::views::drop(1);
+#if defined(_LIBCPP_VERSION) || (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE < 12))
+        EXPECT_EQ(sizeof(v), 40);
+#else
         EXPECT_EQ(sizeof(v), 48);
+#endif
         EXPECT_EQ(sizeof(v.begin()), 8);
         EXPECT_EQ(sizeof(v.end()), 8);
     }
