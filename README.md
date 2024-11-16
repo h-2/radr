@@ -59,6 +59,9 @@ In particular, you may be interested in:
 
 ## Credits
 
+Not everything presented here is novel—in fact, many of the ideas are based on older "ranges" designs (e.g. old ISO papers, Boost ranges and range-v3).
+The actual innovation is applying different rules to multi-pass and single-pass ranges, as well as opting out of the whole "What is a view" discussion.
+
 This library uses code from the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
 
 I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.
