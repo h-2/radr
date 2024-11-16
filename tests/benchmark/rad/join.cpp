@@ -4,7 +4,39 @@
 
 #include <radr/rad/join.hpp>
 
-void std_tenK(benchmark::State & state)
+void std100(benchmark::State & state)
+{
+    std::vector<std::vector<uint32_t>> vec_of_vec;
+    for (size_t i = 0; i < 100'000; ++i)
+        vec_of_vec.push_back(radr::test::generate_numeric_sequence<uint32_t>(100));
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (int32_t i : vec_of_vec | std::views::join)
+            count += i;
+    }
+
+    benchmark::DoNotOptimize(count);
+}
+
+void radr100(benchmark::State & state)
+{
+    std::vector<std::vector<uint32_t>> vec_of_vec;
+    for (size_t i = 0; i < 100'000; ++i)
+        vec_of_vec.push_back(radr::test::generate_numeric_sequence<uint32_t>(100));
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (int32_t i : std::ref(vec_of_vec) | radr::join)
+            count += i;
+    }
+
+    benchmark::DoNotOptimize(count);
+}
+
+void std10k(benchmark::State & state)
 {
     std::vector<std::vector<uint32_t>> vec_of_vec;
     for (size_t i = 0; i < 1'000; ++i)
@@ -20,7 +52,7 @@ void std_tenK(benchmark::State & state)
     benchmark::DoNotOptimize(count);
 }
 
-void radr_tenK(benchmark::State & state)
+void radr10k(benchmark::State & state)
 {
     std::vector<std::vector<uint32_t>> vec_of_vec;
     for (size_t i = 0; i < 1'000; ++i)
@@ -35,7 +67,7 @@ void radr_tenK(benchmark::State & state)
 
     benchmark::DoNotOptimize(count);
 }
-void std_ten(benchmark::State & state)
+void std1m(benchmark::State & state)
 {
     std::vector<std::vector<uint32_t>> vec_of_vec;
     for (size_t i = 0; i < 10; ++i)
@@ -51,7 +83,7 @@ void std_ten(benchmark::State & state)
     benchmark::DoNotOptimize(count);
 }
 
-void radr_ten(benchmark::State & state)
+void radr1m(benchmark::State & state)
 {
     std::vector<std::vector<uint32_t>> vec_of_vec;
     for (size_t i = 0; i < 10; ++i)
@@ -68,14 +100,13 @@ void radr_ten(benchmark::State & state)
 }
 
 // warm up
-BENCHMARK(radr_tenK);
+BENCHMARK(radr100);
 
-// multiple adaptors created before loop
-BENCHMARK(std_tenK);
-BENCHMARK(radr_tenK);
-
-// multiple adaptors created within loop
-BENCHMARK(std_ten);
-BENCHMARK(radr_ten);
+BENCHMARK(std100);
+BENCHMARK(radr100);
+BENCHMARK(std10k);
+BENCHMARK(radr10k);
+BENCHMARK(std1m);
+BENCHMARK(radr1m);
 
 BENCHMARK_MAIN();

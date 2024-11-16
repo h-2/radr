@@ -2,11 +2,11 @@
 
 ## Entity overview
 
-| Range adaptors (classes)   | Equivalent in `std::`                                          | Remarks                                         |
-|----------------------------|----------------------------------------------------------------|-------------------------------------------------|
-| `radr::generator<>`        | `std::generator<>`                                             | custom implementation atm, but will be an alias |
-| `radr::borrowing_rad<>`    | `std::ranges::subrange`, (`std:span`, `std::ranges::ref_view`) | stores (iterator, sentinel) pair                |
-| `radr::owning_rad<>`       | `std::ranges::owning_view`                                     | stores rvalues of containers                    |
+| Range adaptors (classes)   | Equivalent in `std::`                                           | Remarks                                         |
+|----------------------------|-----------------------------------------------------------------|-------------------------------------------------|
+| `radr::generator<>`        | `std::generator<>`                                              | custom implementation atm, but will be an alias |
+| `radr::borrowing_rad<>`    | `std::ranges::subrange`, (`std::span`, `std::ranges::ref_view`) | stores (iterator, sentinel) pair                |
+| `radr::owning_rad<>`       | `std::ranges::owning_view`                                      | stores rvalues of containers                    |
 
 There are no distinct type templates per adaptor (like e.g. `std::ranges::transform_view` for `std::views::transform` in the standard library).
 Instead all range adaptor objects in this library (see below) return a specialisation of one of the above types.
@@ -15,6 +15,7 @@ Instead all range adaptor objects in this library (see below) return a specialis
 |----------------------------|-------------------------|------------------------------------------|
 | `radr::as_const`           | `std::views::as_const`  | make the range *and* its elements const  |
 | `radr::as_rvalue`          | `std::views::as_rvalue` | returns only input ranges in C++20       |
+| `radr::cache_end`          | (`std::views::common`)  | turns non-common into common             |
 | `radr::drop(n)`            | `std::views::drop`      |                                          |
 | `radr::drop_while(fn)`     | `std::views::drop_while`|                                          |
 | `radr::filter(fn)`         | `std::views::filter`    |                                          |
@@ -54,6 +55,7 @@ CP denotes functions that you can customise for your own types, e.g. specify a d
 |----------------------------|:--------------:|---------|----------|:-----:|:---------:|------------------------------------------|
 | `radr::as_const`           |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
 | `radr::as_rvalue`          |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
+| `radr::cache_end`          | !(common)      | fwd     | contig   |  ⊕   |  +        |                                          |
 | `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
 | `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
 | `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
