@@ -226,6 +226,29 @@ TEST(iterator_size, filter_transform)
     }
 }
 
+TEST(iterator_size, take_drop_contig)
+{
+    std::vector<int> l{};
+
+    {
+        auto v = l | std::views::take(1) | std::views::drop(1) | std::views::take(1) | std::views::drop(1);
+#if defined(_LIBCPP_VERSION) || (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE < 12))
+        EXPECT_EQ(sizeof(v), 40);
+#else
+        EXPECT_EQ(sizeof(v), 48);
+#endif
+        EXPECT_EQ(sizeof(v.begin()), 8);
+        EXPECT_EQ(sizeof(v.end()), 8);
+    }
+
+    {
+        auto v = std::ref(l) | radr::take(1) | radr::drop(1) | radr::take(1) | radr::drop(1);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 8);
+        EXPECT_EQ(sizeof(v.end()), 8);
+    }
+}
+
 TEST(iterator_size, take_drop_bidi)
 {
     std::list<int> l{};
