@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.7)
 project (radr_benchmark CXX)
 
+include(FetchContent)
+
 # ----------------------------------------------------------------------------
 # Preamble
 # ----------------------------------------------------------------------------
@@ -35,8 +37,17 @@ set (RADR_UNIT_TESTS_SRC "${RADR_BASE_DIR}/tests/benchmark/")
 # Components and dependencies
 # ----------------------------------------------------------------------------
 
-find_package(benchmark REQUIRED)
 enable_testing ()
+
+set(BENCHMARK_ENABLE_TESTING NO)
+
+FetchContent_Declare(
+    googlebenchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG "v1.8.3"
+)
+
+FetchContent_MakeAvailable(googlebenchmark)
 
 # ----------------------------------------------------------------------------
 # Define test library
