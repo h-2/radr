@@ -1,5 +1,6 @@
 radr_unit_test(as_const)
 radr_unit_test(as_rvalue)
+radr_unit_test(cache_end)
 radr_unit_test(drop)
 radr_unit_test(drop_while)
 radr_unit_test(filter)
