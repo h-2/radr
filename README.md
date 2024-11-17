@@ -7,7 +7,7 @@ At the same time, the usage patterns and naming remain close enough to the stand
 
 ```cpp
 //                              ↓  what are the requirements on the original range?
-auto adapted_range   =   original_range   |   range_adaptor_object   |   second_range_adaptor_object;
+auto adapted_range   =   original_range   |   range_adaptor_object   |   range_adaptor_object2;
 //      ↑    what are the properties of the new range?
 ```
 
@@ -18,18 +18,19 @@ To achieve this, we are sometimes stricter about what the `original_range` needs
 
 ### Summary for the casual C++ programmer
 
-* Similar usage patterns to the standard library.
-* Fewer surprises: range adaptors on containers (probably most that you use) behave a lot more like containers, e.g. you can default-construct them, compare them, copy them and pass them by `const &` (this is not true for many standard library adaptors).
-* Fewer footguns: you are less likely to return dangling references, because references to existing ranges need to be created explicitly.
+* [Similar usage patterns](./docs/getting_started.md) to the standard library.
+* Fewer surprises: range adaptors on containers (probably most that you use) behave a lot more like containers, e.g. you can [default-construct them, compare them, copy them](./docs/regular.md) and [pass them by `const &`](./docs/const.md) (this is not true for many standard library adaptors).
+* Fewer footguns: you are less likely to return [dangling references](./docs/safety.md) and cause certain forms of *undefined behaviour*; [`const` will protect you](./docs/const.md) from changing a range and its elements.
+* [Simpler types](./docs/simpler_types.md) and better error messages (at least we are trying :sweat_smile:).
 * Less confusion: you don't need to understand what a "view" is, because it is irrelevant for this library.
 
 ### Summary for the Ranges nerd
 
-This library fundamentally differentiates between multi-pass and single-pass ranges.
+This library [fundamentally differentiates between multi-pass and single-pass ranges](./docs/range_properties.md).
 
 1. multi-pass ranges:
-  * Adaptors return exactly one of two class templates: `radr::owning_rad` or `radr::borrowing_rad` for owning/borrowing ranges respectively.
-  * The semantics are implemented completely in terms of an iterator-sentinel pair which is always stored/cached.
+  * Adaptors return one of two class templates: `radr::owning_rad` or `radr::borrowing_rad` for owning/borrowing ranges respectively.
+  * The semantics are implemented completely in terms of an iterator-sentinel pair [which is always stored/cached](./docs/caching_begin.md).
   * This means adaptors on borrowed ranges are also borrowed ranges, and no "view" concept is required.
   * Adaptors never contain mutable state, are always const-iterable and calling `.begin()` (non-const) has no side effects.
 2. single-pass ranges:
@@ -39,14 +40,13 @@ This library fundamentally differentiates between multi-pass and single-pass ran
 
 ## Further reading
 
-**Please have a look at the Wiki wich has extensive documentation!**
-
+**Please have a look at the docs folder.**
 In particular, you may be interested in:
 
-* [Getting started]: short introduction how to use this library and the terminology used in the documentation.
-* [Implementation status and feature table](./implementation_status_and_features.md): overview of which adaptors are available in the library.
-* [Comparison tables](./comparison_tables.md): examples that illustrate standard library usage vs radr usage ("tony tables").
-
+* [Getting started](./docs/getting_started.md): short introduction on how to use this library and the terminology used in the documentation.
+* [Implementation status](./docs/implementation_status.md): overview of which adaptors are already available.
+* [Examples](./docs/examples.md): examples that illustrate standard library usage vs radr usage ("tony tables").
+* [Trade-offs](./docs/tradeoffs.md): things to be aware before switching to this library.
 
 ## Library facts
 
@@ -59,8 +59,8 @@ In particular, you may be interested in:
 
 ## Credits
 
-Not everything presented here is novel—in fact, many of the ideas are based on older "ranges" designs (e.g. old ISO papers, Boost ranges and range-v3).
-The actual innovation is applying different rules to multi-pass and single-pass ranges, as well as opting out of the whole "What is a view" discussion.
+Not everything presented here is novel—in fact, many of the ideas are based on older "ranges" designs (e.g. old ISO papers, Boost ranges and old range-v3).
+One "innovation" is applying different rules to multi-pass and single-pass ranges, and one important decision is opting out of the whole "What is a view" discussion.
 
 This library uses code from the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
 

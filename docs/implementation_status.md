@@ -1,6 +1,7 @@
 # Implementation status
 
-## Entity overview
+## Range adaptor classes
+
 
 | Range adaptors (classes)   | Equivalent in `std::`                                           | Remarks                                         |
 |----------------------------|-----------------------------------------------------------------|-------------------------------------------------|
@@ -9,7 +10,9 @@
 | `radr::owning_rad<>`       | `std::ranges::owning_view`                                      | stores rvalues of containers                    |
 
 There are no distinct type templates per adaptor (like e.g. `std::ranges::transform_view` for `std::views::transform` in the standard library).
-Instead all range adaptor objects in this library (see below) return a specialisation of one of the above types.
+Instead all range adaptor objects in this library (see below) return a specialisation of one of the above type templates.
+
+## Range adaptor objects
 
 | Range adaptors (objects)   | Equivalent in `std::`   | Remarks                                  |
 |----------------------------|-------------------------|------------------------------------------|
@@ -30,6 +33,7 @@ Instead all range adaptor objects in this library (see below) return a specialis
 
 We plan to add equivalent objects for most standard library adaptors.
 
+## Standalone ranges
 
 | Standalone ranges          | kind  | Equivalent in `std::`      | Remarks                                              |
 |----------------------------|:-----:|----------------------------|------------------------------------------------------|
@@ -39,6 +43,8 @@ We plan to add equivalent objects for most standard library adaptors.
 Note that most of our standalone ranges are not implemented as "factory" objects, but just as plain types.
 
 
+## Notable functions
+
 | Notable functions                  | CP   | Remarks                                              |
 |------------------------------------|:----:|------------------------------------------------------|
 | `radr::subborrow(r, it, sen[, s])` | ✔   | Used when creating subranges from other ranges        |
@@ -46,34 +52,3 @@ Note that most of our standalone ranges are not implemented as "factory" objects
 | `radr::borrow(r)`                  | (✔) | `= radr::subborrow(r, r.begin(), r.end(), r.size())`  |
 
 CP denotes functions that you can customise for your own types, e.g. specify a different subrange-type for a specific container.
-
-## Feature table
-
-**Range adaptor objects:**
-
-| Range adaptor              | $O(n)$ constr  | min cat | max cat  | sized | common    | Remarks                                  |
-|----------------------------|:--------------:|---------|----------|:-----:|:---------:|------------------------------------------|
-| `radr::as_const`           |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
-| `radr::as_rvalue`          |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
-| `radr::cache_end`          | !(common)      | fwd     | contig   |  ⊕   |  +        |                                          |
-| `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
-| `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
-| `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
-| `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
-| `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
-| `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
-| `radr::split(pat)`         | always         | input   | fwd      |  -    |  -        |                                          |
-| `radr::take(n)`            |                | input   | contig   |  =    |  ra+sized |                                          |
-| `radr::take_exactly(n)`    |                | input   | contig   |  +    |  ra+sized | turns unsized into sized                 |
-| `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
-| `radr::make_single_pass`   |                | input   | input    |  -    |  -        | demotes range category to single-pass    |
-
-**min cat** underlying range required to be at least input (`input_range`), fwd (`forward_range`), bidi (`bidirectional_range`),
-ra (`random_access_range`) or contig (`contiguous_range`)<br>
-**max cat** maximum category that is preserved<br>
-`-` means property is lost<br>
-`=` means property is preserved<br>
-`+` means property is gained (this is rare)<br>
-Encircled symbols or categories in () indicate differences from the standard library adaptors
-
-
