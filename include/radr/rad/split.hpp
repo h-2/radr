@@ -63,6 +63,21 @@ private:
                  std::is_nothrow_copy_constructible_v<Pattern2>
     friend class split_rad_iterator;
 
+    template <typename Container>
+    constexpr friend split_rad_iterator tag_invoke(custom::rebind_iterator_tag,
+                                                   split_rad_iterator it,
+                                                   Container &        container_old,
+                                                   Container &        container_new)
+    {
+        it.uend           = tag_invoke(custom::rebind_iterator_tag{}, it.uend, container_old, container_new);
+        it.subrange_begin = tag_invoke(custom::rebind_iterator_tag{}, it.subrange_begin, container_old, container_new);
+        it.subrange_end   = tag_invoke(custom::rebind_iterator_tag{}, it.subrange_end, container_old, container_new);
+        it.pattern_match_end =
+          tag_invoke(custom::rebind_iterator_tag{}, it.pattern_match_end, container_old, container_new);
+
+        return it;
+    }
+
 public:
     /*!\name Associated types
      * \{
@@ -179,7 +194,7 @@ inline constexpr auto split_borrow_impl =
 
     using It   = decltype(it);
     using Sen  = sentinel_t<URange>;
-    using CIt  = split_rad_iterator<borrow_t<URange const &>, decltype(pattern_)>;
+    using CIt  = split_rad_iterator<borrow_t<std::remove_cvref_t<URange> const &>, decltype(pattern_)>;
     using CSen = const_sentinel_t<URange>;
 
     return borrowing_rad<It, Sen, CIt, CSen>{std::move(it), std::move(sen)};

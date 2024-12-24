@@ -17,4 +17,7 @@ namespace radr::custom
 struct subborrow_tag
 {};
 
+struct rebind_iterator_tag
+{};
+
 } // namespace radr::custom

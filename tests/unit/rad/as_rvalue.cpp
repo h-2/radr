@@ -23,7 +23,7 @@ inline std::vector<size_t> const comp{1, 2, 3, 4, 5, 6};
 // input test
 // --------------------------------------------------------------------------
 
-TEST(transform, input)
+TEST(as_rvalue, input)
 {
     auto ra = radr::test::iota_input_range(1, 7) | radr::as_rvalue;
 
@@ -31,7 +31,7 @@ TEST(transform, input)
     EXPECT_SAME_TYPE(decltype(ra), radr::generator<size_t>);
 }
 
-TEST(transform, input_ref_t_is_ref)
+TEST(as_rvalue, input_ref_t_is_ref)
 {
     auto ra = std::ref(comp) | radr::make_single_pass | radr::as_rvalue;
 
@@ -123,6 +123,18 @@ TYPED_TEST(as_rvalue_forward, lvalue)
     EXPECT_SAME_TYPE(decltype(ra), borrow_t);
 
     TestFixture::template type_checks<decltype(ra)>();
+}
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(as_rvalue, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6} | radr::as_rvalue;
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
 }
 
 #endif

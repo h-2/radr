@@ -16,6 +16,7 @@
 #include <cassert>
 #include <iterator>
 
+#include "../custom/rebind_iterator.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/fwd.hpp"
 #include "rad_interface.hpp"
@@ -59,11 +60,7 @@ public:
 
 private:
     static constexpr bool MustProvideSizeAtConstruction = !StoreSize; // just to improve compiler diagnostics
-    struct Empty
-    {
-        constexpr Empty(auto) noexcept {}
-    };
-    using Size = std::conditional_t<StoreSize, std::make_unsigned_t<std::iter_difference_t<Iter>>, Empty>;
+    using Size = std::conditional_t<StoreSize, std::make_unsigned_t<std::iter_difference_t<Iter>>, detail::empty_t>;
 
     static constexpr bool const_symmetric = std::same_as<CIter, Iter> && std::same_as<CSent, Sent>;
 
@@ -76,6 +73,18 @@ private:
     [[no_unique_address]] Iter begin_ = Iter();
     [[no_unique_address]] Sent end_   = Sent();
     [[no_unique_address]] Size size_  = 0;
+
+    template <typename Container>
+        requires rebindable_iterator_to<Iter, Container> && rebindable_iterator_to<Sent, Container>
+    friend constexpr borrowing_rad rebind(borrowing_rad const & rad,
+                                          Container &           container_old,
+                                          Container &           container_new)
+    {
+        auto it  = tag_invoke(custom::rebind_iterator_tag{}, rad.begin_, container_old, container_new);
+        auto sen = tag_invoke(custom::rebind_iterator_tag{}, rad.end_, container_old, container_new);
+
+        return borrowing_rad{it, sen, detail::size_or_not(rad)};
+    }
 
 public:
     borrowing_rad() = default;
@@ -348,6 +357,11 @@ constexpr auto get(borrowing_rad<Iter, Sent, CIter, CSent, Kind> && borrowing_ra
     else
         return borrowing_rad.end();
 }
+
+template <typename T, typename Container>
+concept rebindable_borrow_to = std::forward_iterator<T> && requires(T it, Container & container) {
+    tag_invoke(custom::rebind_iterator_tag{}, it, container, container);
+};
 
 } // namespace radr
 

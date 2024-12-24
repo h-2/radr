@@ -20,12 +20,11 @@
 #include "../detail/detail.hpp"
 #include "../generator.hpp"
 #include "rad_interface.hpp"
+#include "radr/custom/subborrow.hpp"
 
 /* TODO add version that stores offsets for RA+sized uranges
  * this avoids unique_ptr and BorrowedRange
  * NO; THIS WILL BE SEPARATE
- *
- * TODO add collapsing constructor that avoids nesting owning_rad
  *
  */
 
@@ -61,26 +60,17 @@ public:
     owning_rad(owning_rad &&)             = default;
     owning_rad & operator=(owning_rad &&) = default;
 
-    owning_rad(owning_rad const & rhs)
-    {
-        if (rhs.base_ != nullptr)
-        {
-            // deep copy of range
-            if (base_)
-                *base_ = *rhs.base_;
-            else
-                base_.reset(new URange(*rhs.base_));
-            // shallow copy of bounds
-            bounds = BorrowedRange{*base_};
-        }
-    }
+    owning_rad(owning_rad const & rhs) { *this = rhs; }
 
     owning_rad & operator=(owning_rad const & rhs)
     {
-        if (rhs.base_ == nullptr)
+        if (base_ == rhs.base_)
+        {
+        }
+        else if (rhs.base_ == nullptr)
         {
             base_.reset(nullptr);
-            bounds = rhs.bounds;
+            bounds = BorrowedRange{};
         }
         else
         {
@@ -89,8 +79,8 @@ public:
                 *base_ = *rhs.base_;
             else
                 base_.reset(new URange(*rhs.base_));
-            // shallow copy of bounds
-            bounds = BorrowedRange{*base_};
+
+            bounds = rebind(rhs.bounds, *rhs.base_, *base_);
         }
 
         return *this;

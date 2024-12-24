@@ -201,3 +201,16 @@ TEST(filter_forward_, noncommon_chained)
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), borrow_t);
 }
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(filter, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6} | radr::filter(fn);
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}

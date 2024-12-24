@@ -107,6 +107,16 @@ class transform_iterator : public detail::transform::iterator_category_base<Iter
         requires detail::transform::fn_constraints<Iter_, Fn_>
     friend class transform_sentinel;
 
+    template <typename Container>
+    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+                                     transform_iterator it,
+                                     Container &        container_old,
+                                     Container &        container_new)
+    {
+        it.current_ = tag_invoke(custom::rebind_iterator_tag{}, it.current_, container_old, container_new);
+        return it;
+    }
+
 public:
     using iterator_concept = typename detail::transform::iterator_concept<Iter>::type;
     using value_type       = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;

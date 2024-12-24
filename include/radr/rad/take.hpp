@@ -39,7 +39,8 @@ public:
     constexpr take_sentinel(take_sentinel<OtherIter, OtherSen> s) : end_(std::move(s.end_))
     {}
 
-    constexpr Sen base() const { return end_; }
+    constexpr Sen const & base() const & noexcept { return end_; }
+    constexpr Sen         base() && noexcept { return std::move(end_); }
 
     friend constexpr bool operator==(std::counted_iterator<Iter> const & lhs, take_sentinel const & rhs)
     {

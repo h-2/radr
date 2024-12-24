@@ -93,6 +93,15 @@ void forward_range_test()
         EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
     }
 
+    /* default-constructed is valid and empty */
+    {
+        auto ra = borrow_t{};
+        EXPECT_TRUE(std::ranges::empty(ra));
+
+        auto ra2 = radr::owning_rad<container_t, borrow_t>{};
+        EXPECT_TRUE(std::ranges::empty(ra2));
+    }
+
     type_checks<borrow_t, container_t>();
 }
 
@@ -163,4 +172,17 @@ TEST(slice, vector)
     using borrow_t = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, radr::borrowing_rad_kind::sized>;
 
     forward_range_test<container_t, borrow_t>();
+}
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(slice, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6, 7} | radr::slice(1, 4);
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
 }

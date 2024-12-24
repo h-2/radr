@@ -76,6 +76,14 @@ struct overloaded : Fn...
 template <typename... Fn>
 overloaded(Fn...) -> overloaded<Fn...>;
 
+struct empty_t
+{
+    constexpr empty_t() noexcept = default;
+    constexpr empty_t(auto &&) noexcept {}
+
+    constexpr friend bool operator==(empty_t, empty_t) noexcept = default;
+};
+
 //=============================================================================
 // Range adaptor closure
 //=============================================================================
