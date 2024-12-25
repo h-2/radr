@@ -113,6 +113,15 @@ TEST(take, forward_list)
     forward_range_test<container_t, borrow_t>();
 }
 
+TEST(take, owning_copy_test)
+{
+    auto own = std::forward_list{1, 2, 3, 4, 5, 6} | radr::take(3);
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}
+
 // --------------------------------------------------------------------------
 // list test (in particular, this tests the sized-but-not-RA codepath)
 // --------------------------------------------------------------------------

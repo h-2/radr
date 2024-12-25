@@ -183,3 +183,16 @@ TEST(as_const_forward2, string)
     EXPECT_SAME_TYPE(decltype(ra1), std::string_view);
     EXPECT_RANGE_EQ(ra1, str);
 }
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(as_const, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6} | radr::as_const;
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}

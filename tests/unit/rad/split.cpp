@@ -329,3 +329,16 @@ TEST(split, concepts)
         EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, std::string_view);
     }
 }
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(split, owning_copy_test)
+{
+    auto own = std::string{"thisXisXaXtest"} | radr::split('X');
+    EXPECT_EQ(std::ranges::distance(own), 4ull);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}

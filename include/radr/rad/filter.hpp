@@ -69,6 +69,17 @@ class filter_iterator : public filter_iterator_category<Iter>
     [[no_unique_address]] Iter                  current_{};
     [[no_unique_address]] Sent                  end_{};
 
+    template <typename Container>
+    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+                                     filter_iterator it,
+                                     Container &     container_old,
+                                     Container &     container_new)
+    {
+        it.current_ = tag_invoke(custom::rebind_iterator_tag{}, it.current_, container_old, container_new);
+        it.end_     = tag_invoke(custom::rebind_iterator_tag{}, it.end_, container_old, container_new);
+        return it;
+    }
+
 public:
     // clang-format off
     using iterator_concept =

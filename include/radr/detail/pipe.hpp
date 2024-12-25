@@ -22,9 +22,6 @@
 namespace radr::detail
 {
 
-struct empty_t
-{};
-
 template <bool nonzero, typename... Args>
 concept arg_count = (bool(sizeof...(Args)) == nonzero);
 
@@ -51,10 +48,14 @@ struct pipe_input_base<void, non_empty_args>
     void operator()(noop_) {}
 };
 
+/*!\brief Handles multi-pass ranges.
+ * \tparam BorrowFn The functor that performs the borrow action / returns the adapted borrowed range.
+ * \tparam non_empty_args Whether to expect arguments or not.
+ */
 template <typename BorrowFn, bool non_empty_args>
 struct pipe_fwd_base
 {
-    //!\brief Forward into Owning Range Adaptor.
+    //!\brief Owning Range rvalue → owning_rad.
     template <movable_range Range, class... Args>
         requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
@@ -66,32 +67,24 @@ struct pipe_fwd_base
         return owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)};
     }
 
-    //!\brief Forward into Borrowing Range Adaptor.
+    //!\brief Borrowed range → borrowing_rad or specialised
     template <movable_range Range, class... Args>
         requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
-                 std::ranges::borrowed_range<Range> && std::semiregular<std::remove_cvref_t<Range>>)
+                 std::ranges::borrowed_range<Range>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
         static_assert(const_iterable_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
 
-        return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
+        // we make sure that what we are forwarding is semiregular
+        if constexpr (std::semiregular<std::remove_cvref_t<Range>>)
+            return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
+        else // the borrow CPO is required to return a semiregular range
+            return BorrowFn{}(radr::borrow(range), std::forward<Args>(args)...);
     }
 
-    //!\brief Forward into Borrowing Range Adaptor. Borrowed Ranges that are not semiregular and made semiregular.
-    template <movable_range Range, class... Args>
-        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
-                 std::ranges::borrowed_range<Range>)
-    [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
-      noexcept(noexcept(operator()(radr::borrow(range), std::forward<Args>(args)...)))
-    {
-        static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
-
-        // we convert the range into a borrowing_rad which is always semiregular
-        return operator()(radr::borrow(range), std::forward<Args>(args)...);
-    }
-
+    //!\brief std::reference_wrapper -> unpacked and fwd'ed as borrowed range
     template <std::ranges::input_range Range, class... Args>
         requires arg_count<non_empty_args, Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> const & range, Args &&... args) const
@@ -102,6 +95,7 @@ struct pipe_fwd_base
         return operator()(radr::borrow(static_cast<Range &>(range)), std::forward<Args>(args)...);
     }
 
+    //!\brief std::reference_wrapper -> unpacked and fwd'ed as borrowed range
     template <std::ranges::input_range Range, class... Args>
         requires arg_count<non_empty_args, Args...>
     [[nodiscard]] constexpr auto operator()(std::reference_wrapper<Range> && range, Args &&... args) const

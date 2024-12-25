@@ -193,3 +193,16 @@ TYPED_TEST(transform_forward, chained_adaptor)
 }
 
 //TODO chained test for non-common
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(transform, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6} | radr::transform(fn);
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}

@@ -31,23 +31,24 @@ private:
     using InnerIt  = radr::iterator_t<Inner>;
     using InnerSen = radr::sentinel_t<Inner>;
 
-    struct Empty
-    {
-        constexpr Empty() noexcept = default;
-        constexpr Empty(auto) noexcept {}
-
-        constexpr friend bool operator==(Empty, Empty) noexcept = default;
-    };
-
     static constexpr bool bidi =
       std::bidirectional_iterator<UIt> && std::ranges::bidirectional_range<Inner> && common_range<Inner>;
 
-    [[no_unique_address]] std::conditional_t<bidi, UIt, Empty>     outer_begin{}; // begin of underlying outer range
-    [[no_unique_address]] UIt                                      outer_it{};    // position in underlying outer range
-    [[no_unique_address]] USen                                     outer_end{};   // end of underlying outer range
-    [[no_unique_address]] std::conditional_t<bidi, InnerIt, Empty> inner_begin{}; // begin of underlying inner range
-    [[no_unique_address]] InnerIt                                  inner_it{};    // position in underlying inner range
-    [[no_unique_address]] InnerSen                                 inner_end{};   // end of underlying inner range
+    //!\brief If we use empty_t defined in detail/detail.hpp, it is not optimised out ¯\_(ツ)_/¯
+    struct empty_t
+    {
+        constexpr empty_t() noexcept = default;
+        constexpr empty_t(auto &&) noexcept {}
+
+        constexpr friend bool operator==(empty_t, empty_t) noexcept = default;
+    };
+
+    [[no_unique_address]] std::conditional_t<bidi, UIt, empty_t>     outer_begin{}; // begin of underlying outer rng
+    [[no_unique_address]] UIt                                        outer_it{};    // position in underlying outer rng
+    [[no_unique_address]] USen                                       outer_end{};   // end of underlying outer rng
+    [[no_unique_address]] std::conditional_t<bidi, InnerIt, empty_t> inner_begin{}; // begin of underlying inner rng
+    [[no_unique_address]] InnerIt                                    inner_it{};    // position in underlying inner rng
+    [[no_unique_address]] InnerSen                                   inner_end{};   // end of underlying inner rng
 
     void update_inner()
     {
@@ -69,6 +70,31 @@ private:
     template <std::forward_iterator UIt2, std::sentinel_for<UIt2> USen2>
         requires const_borrowable_range<std::iter_reference_t<UIt2>>
     friend class join_rad_iterator;
+
+    template <typename Container>
+    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+                                     join_rad_iterator it,
+                                     Container &       container_old,
+                                     Container &       container_new)
+    {
+        if (it == join_rad_iterator{})
+            return it;
+
+        auto inner_range_old = borrow(*it.outer_it);
+
+        if constexpr (bidi)
+            it.outer_begin = tag_invoke(custom::rebind_iterator_tag{}, it.outer_begin, container_old, container_new);
+        it.outer_it  = tag_invoke(custom::rebind_iterator_tag{}, it.outer_it, container_old, container_new);
+        it.outer_end = tag_invoke(custom::rebind_iterator_tag{}, it.outer_end, container_old, container_new);
+
+        auto inner_range_new = borrow(*it.outer_it);
+        if constexpr (bidi)
+            it.inner_begin =
+              tag_invoke(custom::rebind_iterator_tag{}, it.inner_begin, inner_range_old, inner_range_new);
+        it.inner_it  = tag_invoke(custom::rebind_iterator_tag{}, it.inner_it, inner_range_old, inner_range_new);
+        it.inner_end = tag_invoke(custom::rebind_iterator_tag{}, it.inner_end, inner_range_old, inner_range_new);
+        return it;
+    }
 
 public:
     /*!\name Associated types
