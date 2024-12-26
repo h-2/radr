@@ -18,6 +18,7 @@
 #include "../concepts.hpp"
 #include "../custom/tags.hpp"
 #include "../detail/detail.hpp"
+#include "../detail/indirect.hpp"
 #include "../generator.hpp"
 #include "rad_interface.hpp"
 #include "radr/custom/subborrow.hpp"
@@ -47,8 +48,8 @@ namespace radr
 template <detail::owned_range_constraints URange, detail::borrowed_range_constraints BorrowedRange>
 class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 {
-    [[no_unique_address]] std::unique_ptr<URange> base_ = nullptr;
-    [[no_unique_address]] BorrowedRange           bounds{};
+    [[no_unique_address]] detail::indirect<URange> base_{};
+    [[no_unique_address]] BorrowedRange            bounds{};
 
     static constexpr bool const_symmetric = const_symmetric_range<BorrowedRange>;
 
@@ -64,34 +65,24 @@ public:
 
     owning_rad & operator=(owning_rad const & rhs)
     {
-        if (base_ == rhs.base_)
+        if (this != &rhs)
         {
-        }
-        else if (rhs.base_ == nullptr)
-        {
-            base_.reset(nullptr);
-            bounds = BorrowedRange{};
-        }
-        else
-        {
-            // deep copy of range
-            if (base_)
-                *base_ = *rhs.base_;
+            base_ = rhs.base_;
+
+            if (rhs.base_.get())
+                // using get() here intentionally bypasses deep-const of indirect()
+                bounds = rebind(rhs.bounds, *rhs.base_.get(), *base_.get());
             else
-                base_.reset(new URange(*rhs.base_));
-
-            bounds = rebind(rhs.bounds, *rhs.base_, *base_);
+                bounds = BorrowedRange{};
         }
-
         return *this;
     }
 
-    constexpr explicit owning_rad(URange && base) : base_(new URange(std::move(base))), bounds{*base_} {}
+    constexpr explicit owning_rad(URange && base) : base_(std::move(base)), bounds{*base_} {}
 
     template <typename Fn>
         requires std::regular_invocable<Fn &&, URange &>
-    constexpr owning_rad(URange && base, Fn cacher_fn) :
-      base_(new URange(std::move(base))), bounds{std::move(cacher_fn)(*base_)}
+    constexpr owning_rad(URange && base, Fn cacher_fn) : base_(std::move(base)), bounds{std::move(cacher_fn)(*base_)}
     {}
 
     //!\brief Collapsing constructor
@@ -100,9 +91,6 @@ public:
     constexpr owning_rad(owning_rad<URange, BorrowedRange_> && urange, Fn cacher_fn) :
       base_(std::move(urange.base_)), bounds{std::move(cacher_fn)(urange.bounds)}
     {}
-
-    constexpr URange container() const & { return *base_; }
-    constexpr URange container() && { return std::move(*base_); }
 
     constexpr auto begin()
         requires(!const_symmetric)
