@@ -33,6 +33,13 @@ struct expect_range_eq
         return rng_copy;
     }
 
+    auto copy_range(char const * const rng)
+    {
+        std::vector<char> rng_copy{};
+        std::ranges::copy(std::string_view(rng), std::back_inserter(rng_copy));
+        return rng_copy;
+    }
+
     template <std::ranges::range lhs_t, std::ranges::range rhs_t>
     ::testing::AssertionResult operator()(char const * lhs_expression,
                                           char const * rhs_expression,

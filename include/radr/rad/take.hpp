@@ -30,7 +30,7 @@ class take_sentinel
     friend class take_sentinel;
 
 public:
-    take_sentinel() = default;
+    constexpr take_sentinel() = default;
 
     constexpr explicit take_sentinel(Sen end) : end_(std::move(end)) {}
 
@@ -41,6 +41,9 @@ public:
 
     constexpr Sen const & base() const & noexcept { return end_; }
     constexpr Sen         base() && noexcept { return std::move(end_); }
+
+    // Clang complains about the following being constexpr for some reason
+    friend bool operator==(take_sentinel const & lhs, take_sentinel const & rhs) = default;
 
     friend constexpr bool operator==(std::counted_iterator<Iter> const & lhs, take_sentinel const & rhs)
     {
