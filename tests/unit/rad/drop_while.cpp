@@ -105,3 +105,16 @@ TYPED_TEST(drop_while_forward, folding)
     EXPECT_SAME_TYPE(decltype(ra), typename TestFixture::borrow_t);
     TestFixture::template type_checks<decltype(ra)>();
 }
+
+// --------------------------------------------------------------------------
+// owning copy test
+// --------------------------------------------------------------------------
+
+TEST(filter, owning_copy_test)
+{
+    auto own = std::vector{1, 2, 3, 4, 5, 6} | radr::drop_while(fn);
+    EXPECT_RANGE_EQ(own, comp);
+
+    auto cpy = own;
+    EXPECT_RANGE_EQ(own, cpy);
+}

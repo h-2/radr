@@ -39,8 +39,6 @@ private:
     {
         constexpr empty_t() noexcept = default;
         constexpr empty_t(auto &&) noexcept {}
-
-        constexpr friend bool operator==(empty_t, empty_t) noexcept = default;
     };
 
     [[no_unique_address]] std::conditional_t<bidi, UIt, empty_t>     outer_begin{}; // begin of underlying outer rng
@@ -212,11 +210,20 @@ public:
     {
         // The center line check prevents us from looking at inner if either of the sides is at end
         // which would make inner invalid
-        return std::tie(lhs.outer_it, lhs.outer_end, lhs.outer_begin) ==
-                 std::tie(rhs.outer_it, rhs.outer_end, rhs.outer_begin) &&
-               ((lhs.outer_it == lhs.outer_end) || // both are at end
-                std::tie(lhs.inner_it, lhs.inner_end, lhs.inner_begin) ==
-                  std::tie(rhs.inner_it, rhs.inner_end, rhs.inner_begin));
+        if constexpr (bidi)
+        {
+            return std::tie(lhs.outer_it, lhs.outer_end, lhs.outer_begin) ==
+                     std::tie(rhs.outer_it, rhs.outer_end, rhs.outer_begin) &&
+                   ((lhs.outer_it == lhs.outer_end) || // both are at end
+                    std::tie(lhs.inner_it, lhs.inner_end, lhs.inner_begin) ==
+                      std::tie(rhs.inner_it, rhs.inner_end, rhs.inner_begin));
+        }
+        else
+        {
+            return std::tie(lhs.outer_it, lhs.outer_end) == std::tie(rhs.outer_it, rhs.outer_end) &&
+                   ((lhs.outer_it == lhs.outer_end) || // both are at end
+                    std::tie(lhs.inner_it, lhs.inner_end) == std::tie(rhs.inner_it, rhs.inner_end));
+        }
     }
 
     friend bool operator==(join_rad_iterator const & lhs, std::default_sentinel_t)

@@ -92,6 +92,7 @@ constexpr iterator_t<Container> tag_invoke(rebind_iterator_tag,
 
 //!\brief Recursion anchor for const_iterator type.
 template <typename Container>
+    requires(!std::same_as<iterator_t<Container>, const_iterator_t<Container>>)
 constexpr const_iterator_t<Container> tag_invoke(rebind_iterator_tag,
                                                  const_iterator_t<Container> it,
                                                  Container &                 container_old,
