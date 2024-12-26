@@ -99,8 +99,13 @@ struct range_adaptor_closure : std::ranges::views::__adaptor::_RangeAdaptorClosu
 {};
 #    endif
 #elif defined(_LIBCPP_VERSION)
+#    if _LIBCPP_VERSION >= 190000
+template <typename T>
+using range_adaptor_closure = std::ranges::__range_adaptor_closure<T>;
+#    else
 template <typename T>
 using range_adaptor_closure = std::__range_adaptor_closure<T>;
+#    endif
 #else
 #    error "RADR requires either libstdc++ or libc++ standard libraries."
 #endif
