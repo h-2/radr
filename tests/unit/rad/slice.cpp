@@ -90,7 +90,7 @@ void forward_range_test()
         auto ra = std::move(container) | radr::slice(1, 4);
 
         EXPECT_RANGE_EQ(ra, comp);
-        EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+        EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
     }
 
     /* default-constructed is valid and empty */
@@ -98,7 +98,7 @@ void forward_range_test()
         auto ra = borrow_t{};
         EXPECT_TRUE(std::ranges::empty(ra));
 
-        auto ra2 = radr::owning_rad<container_t, borrow_t>{};
+        auto ra2 = radr::owning_rad<borrow_t>{};
         EXPECT_TRUE(std::ranges::empty(ra2));
     }
 

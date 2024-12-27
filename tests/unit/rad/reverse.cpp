@@ -74,13 +74,12 @@ TYPED_TEST_SUITE(reverse_forward, container_types);
 
 TYPED_TEST(reverse_forward, rvalue)
 {
-    using container_t = TestFixture::container_t;
     using borrow_t    = TestFixture::borrow_t;
 
     auto ra = std::move(this->in) | radr::reverse;
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
 
     TestFixture::template type_checks<decltype(ra)>();
 }

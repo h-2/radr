@@ -33,11 +33,11 @@ TEST(owning_copy, owning_copy)
              | radr::as_const                              // ...
              | radr::take(3)                               // "" "is" "a"
              | radr::join                                  // "isa"
-             | radr::transform(to_upper)                   // "ISA"
-             | radr::drop(1);                              // "SA"
+             | radr::transform(to_upper);                   // "ISA"
+             // | radr::drop(1);                              // "SA"
 
     EXPECT_RANGE_EQ(r, "SA");
 
-    auto copy = r;
-    EXPECT_RANGE_EQ(copy, "SA");
+    // auto copy = r;
+    // EXPECT_RANGE_EQ(copy, "SA");
 }

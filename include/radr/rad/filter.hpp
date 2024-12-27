@@ -70,7 +70,7 @@ class filter_iterator : public filter_iterator_category<Iter>
     [[no_unique_address]] Sent                  end_{};
 
     template <typename Container>
-    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+    constexpr friend filter_iterator tag_invoke(custom::rebind_iterator_tag,
                                      filter_iterator it,
                                      Container &     container_old,
                                      Container &     container_new)

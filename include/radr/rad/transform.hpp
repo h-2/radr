@@ -108,7 +108,7 @@ class transform_iterator : public detail::transform::iterator_category_base<Iter
     friend class transform_sentinel;
 
     template <typename Container>
-    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+    constexpr friend transform_iterator tag_invoke(custom::rebind_iterator_tag,
                                      transform_iterator it,
                                      Container &        container_old,
                                      Container &        container_new)

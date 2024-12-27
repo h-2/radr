@@ -88,7 +88,7 @@ void forward_range_test()
         auto ra = std::move(container) | radr::take(3);
 
         EXPECT_RANGE_EQ(ra, comp);
-        EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+        EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
     }
 
     type_checks<borrow_t, container_t>();

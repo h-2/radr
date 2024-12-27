@@ -80,7 +80,7 @@ TYPED_TEST(drop_while_forward, rvalue)
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra),
-                     (radr::owning_rad<typename TestFixture::container_t, typename TestFixture::borrow_t>));
+                     (radr::owning_rad<typename TestFixture::borrow_t>));
     TestFixture::template type_checks<decltype(ra)>();
 }
 

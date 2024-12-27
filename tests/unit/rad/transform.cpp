@@ -130,39 +130,36 @@ TYPED_TEST(transform_forward, lvalue_function_syntax2)
 
 TYPED_TEST(transform_forward, rvalue)
 {
-    using container_t = TestFixture::container_t;
     using borrow_t    = TestFixture::borrow_t;
 
     auto ra = std::move(this->in) | radr::transform(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
 
     TestFixture::template type_checks<decltype(ra)>();
 }
 
 TYPED_TEST(transform_forward, rvalue_function_syntax)
 {
-    using container_t = TestFixture::container_t;
     using borrow_t    = TestFixture::borrow_t;
 
     auto ra = radr::transform(fn)(std::move(this->in));
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
 
     TestFixture::template type_checks<decltype(ra)>();
 }
 
 TYPED_TEST(transform_forward, rvalue_function_syntax2)
 {
-    using container_t = TestFixture::container_t;
     using borrow_t    = TestFixture::borrow_t;
 
     auto ra = radr::transform(std::move(this->in), fn);
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
+    EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<borrow_t>));
 
     TestFixture::template type_checks<decltype(ra)>();
 }
