@@ -42,7 +42,7 @@ See [Range properties](./range_properties.md) for formal definitions.
 A *range adaptor* is a range that is created on top of another range, typically referred to as the *underlying range* or
 the *original range*.
 Our range adaptors can be created on any of these three categories, and will result in an adapted range of the same
-category, except that `std::ref()`-ing an existing range always leads to a borrowed range (see the third example above).
+category, except that `std::ref()`-ing a container leads to a borrowed range (see the third example above).
 
 In particular, it should be noted that *adapted ranges* are not a separate category and no range properties are specific to them; e.g. an adaptor on a `std::string_view` (a borrowed range) is also just a borrowed range while an adaptor on a `std::vector` (first example above) is also just a "container".
 We do not use the term "view" and the formal and informal definitions of "view" are irrelevant for this library.
