@@ -89,13 +89,24 @@ struct empty_t
 //=============================================================================
 
 #if defined(__GLIBCXX__)
-#    if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202202L
+#    if defined(__cpp_lib_ranges) && (__cpp_lib_ranges >= 202202L)
+// GCC >= 14 and C++23; unfortunately libc++ erronously defines the macro without providing the CRTP base
 template <typename T>
 using range_adaptor_closure = std::ranges::range_adaptor_closure<T>;
 #    else
+
+// GCC < 14: _RangeAdaptorClosure is a type
+template <typename T, typename Derived>
+T rac_t();
+
+// GCC >= 14 and C++20: _RangeAdaptorClosure is a template
+template <template <typename> typename T, typename Derived>
+T<Derived> rac_t();
+
 template <typename T>
     requires(std::is_class_v<T> && std::same_as<T, std::remove_cv_t<T>>)
-struct range_adaptor_closure : std::ranges::views::__adaptor::_RangeAdaptorClosure
+struct range_adaptor_closure :
+  decltype(rac_t<std::ranges::views::__adaptor::_RangeAdaptorClosure, range_adaptor_closure<T>>())
 {};
 #    endif
 #elif defined(_LIBCPP_VERSION)

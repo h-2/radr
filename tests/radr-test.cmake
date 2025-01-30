@@ -15,9 +15,6 @@ cmake_minimum_required (VERSION 3.10)
 # RADR SETUP
 # ----------------------------------------------------------------------------
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-
 find_path (RADR_INCLUDE_DIR NAMES radr/rad/as_const.hpp HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../../include/" REQUIRED)
 find_path (RADR_TEST_INCLUDE_DIR NAMES radr/test/gtest_helpers.hpp HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../include/" REQUIRED)
 

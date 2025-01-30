@@ -12,6 +12,15 @@
 
 #include "../concepts.hpp"
 
+#if defined(__cpp_lib_ranges_as_const)
+namespace radr
+{
+
+using std::make_const_iterator;
+using std::make_const_sentinel;
+
+} // namespace radr
+#else
 namespace radr::detail
 {
 
@@ -425,3 +434,4 @@ struct common_type<radr::detail::basic_const_iterator<Ty1>, radr::detail::basic_
 };
 
 } // namespace std
+#endif
