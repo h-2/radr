@@ -25,7 +25,7 @@ inline constexpr auto cbegin_impl = []<const_borrowable_range Rng>(Rng && rng)
     if constexpr (constant_range<detail::add_const_t<Rng>>)
         return std::ranges::begin(std::as_const(rng));
     else
-        return make_const_iterator(std::ranges::begin(std::as_const(rng)));
+        return radr::make_const_iterator(std::ranges::begin(std::as_const(rng)));
 };
 
 inline constexpr auto cend_impl = []<const_borrowable_range Rng>(Rng && rng)
@@ -33,7 +33,7 @@ inline constexpr auto cend_impl = []<const_borrowable_range Rng>(Rng && rng)
     if constexpr (constant_range<detail::add_const_t<Rng>>)
         return std::ranges::end(std::as_const(rng));
     else
-        return make_const_sentinel(std::ranges::end(std::as_const(rng)));
+        return radr::make_const_sentinel(std::ranges::end(std::as_const(rng)));
 };
 
 } // namespace radr::detail

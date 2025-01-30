@@ -155,7 +155,7 @@ TEST(as_const_forward2, subrange)
     auto ra = std::move(span) | radr::as_const;
     EXPECT_FALSE(radr::constant_range<decltype(vec)>);
     EXPECT_TRUE(radr::constant_range<decltype(std::as_const(vec))>);
-    using RaDit = radr::detail::basic_const_iterator<DIt>;
+    using RaDit = decltype(radr::make_const_iterator(DIt{}));
     EXPECT_SAME_TYPE(decltype(ra), (radr::borrowing_rad<RaDit, RaDit, RaDit, RaDit>));
     EXPECT_RANGE_EQ(ra, comp);
 }
