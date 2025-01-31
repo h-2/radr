@@ -23,7 +23,7 @@ namespace radr
 
 template <class T>
     requires std::is_object_v<T>
-class empty_range : public rad_interface<empty_range<T>>
+class empty_rng : public rad_interface<empty_rng<T>>
 {
 public:
     constexpr T * begin() noexcept
@@ -48,22 +48,22 @@ public:
     static constexpr size_t size() noexcept { return 0; }
     static constexpr bool   empty() noexcept { return true; }
 
-    constexpr friend bool operator==(empty_range const &, empty_range const &) { return true; }
+    constexpr friend bool operator==(empty_rng const &, empty_rng const &) { return true; }
 
-    template <detail::decays_to<empty_range> R, detail::decays_to<std::remove_const_t<T>> T_>
+    template <detail::decays_to<empty_rng> R, detail::decays_to<std::remove_const_t<T>> T_>
     constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, T_ *, T_ *)
     {
-        return empty_range<T_>{};
+        return empty_rng<T_>{};
     }
 
-    template <detail::decays_to<empty_range> R, detail::decays_to<std::remove_const_t<T>> T_>
+    template <detail::decays_to<empty_rng> R, detail::decays_to<std::remove_const_t<T>> T_>
     constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, T_ *, T_ *, size_t)
     {
-        return empty_range<T_>{};
+        return empty_rng<T_>{};
     }
 };
 
 } // namespace radr
 
 template <class T>
-inline constexpr bool std::ranges::enable_borrowed_range<radr::empty_range<T>> = true;
+inline constexpr bool std::ranges::enable_borrowed_range<radr::empty_rng<T>> = true;

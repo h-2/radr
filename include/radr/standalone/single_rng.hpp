@@ -148,17 +148,17 @@ public:
 namespace radr
 {
 
-//!\brief Determines how the value in radr::single is stored.
-enum class single_storage
+//!\brief Determines how the value in radr::single_rng is stored.
+enum class single_rng_storage
 {
     indirect,   //!< Value storage is independent of range.
     in_range,   //!< Value is stored within range.
     in_iterator //!< Value is copied into every iterator.
 };
 
-/*!\brief A range of a single value
+/*!\brief A range of a single_rng value.
  * \tparam TVal The value type. Must be an object type (`const` allowed, reference not).
- * \tparam storage Storage behaviour of the value; see radr::single_storage.
+ * \tparam storage Storage behaviour of the value; see radr::single_rng_storage.
  *
  * \details
  *
@@ -169,27 +169,27 @@ enum class single_storage
  * | default-constructible | yes¹         | yes          | yes            |
  * | range_reference_t     | `TVal &`     | `TVal &`     | `TVal const &` |
  *
- * ¹ Dereferecing the iterator of a default-constructed single_range with indirect storage is undefined behaviour.
+ * ¹ Dereferecing the iterator of a default-constructed single_rng with indirect storage is undefined behaviour.
  */
-template <std::copy_constructible TVal, single_storage storage>
+template <std::copy_constructible TVal, single_rng_storage storage>
     requires std::is_object_v<TVal>
-class single : public rad_interface<single<TVal, storage>>
+class single_rng : public rad_interface<single_rng<TVal, storage>>
 {
     using TValNoConst = std::remove_const_t<TVal>;
 
-    static_assert(storage == single_storage::indirect || std::copy_constructible<TValNoConst>,
+    static_assert(storage == single_rng_storage::indirect || std::copy_constructible<TValNoConst>,
                   "The value type needs to be copy constructible.");
 
-    static_assert(storage == single_storage::indirect || std::default_initializable<TValNoConst>,
+    static_assert(storage == single_rng_storage::indirect || std::default_initializable<TValNoConst>,
                   "The value type needs to be default-initializable.");
 
-    static_assert(storage != single_storage::in_iterator ||
+    static_assert(storage != single_rng_storage::in_iterator ||
                     (std::is_nothrow_default_constructible_v<TVal> && std::is_nothrow_copy_constructible_v<TVal>),
                   "The value type needs to be nothrow_default_constructible and nothrow_copy_constructible for "
                   "in_iterator storage.");
 
     using storage_type =
-      std::conditional_t<storage == single_storage::indirect, TVal *, detail::semiregular_box<TValNoConst>>;
+      std::conditional_t<storage == single_rng_storage::indirect, TVal *, detail::semiregular_box<TValNoConst>>;
 
     [[no_unique_address]] storage_type value{};
 
@@ -197,43 +197,43 @@ public:
     /*!\name Constructors: Rule-of-5
      * \{
      */
-    constexpr single()                           = default;
-    constexpr single(single const &)             = default;
-    constexpr single(single &&)                  = default;
-    constexpr single & operator=(single const &) = default;
-    constexpr single & operator=(single &&)      = default;
+    constexpr single_rng()                               = default;
+    constexpr single_rng(single_rng const &)             = default;
+    constexpr single_rng(single_rng &&)                  = default;
+    constexpr single_rng & operator=(single_rng const &) = default;
+    constexpr single_rng & operator=(single_rng &&)      = default;
     //!\}
 
     /*!\name Constructors for indirect storage
      * \{
      */
-    constexpr explicit single(TVal & val)
-        requires(storage == single_storage::indirect)
+    constexpr explicit single_rng(TVal & val)
+        requires(storage == single_rng_storage::indirect)
       : value(&val)
     {}
 
-    constexpr explicit single(std::reference_wrapper<TVal> const & val)
-        requires(storage == single_storage::indirect)
+    constexpr explicit single_rng(std::reference_wrapper<TVal> const & val)
+        requires(storage == single_rng_storage::indirect)
       : value(&static_cast<TVal &>(val))
     {}
 
-    constexpr explicit single(TVal && val)
-        requires(storage == single_storage::indirect)
+    constexpr explicit single_rng(TVal && val)
+        requires(storage == single_rng_storage::indirect)
     = delete;
     //!\}
 
     /*!\name Constructors for in_range or in_iterator storage
      * \{
      */
-    constexpr explicit single(TValNoConst val)
-        requires(storage != single_storage::indirect)
+    constexpr explicit single_rng(TValNoConst val)
+        requires(storage != single_rng_storage::indirect)
       : value(std::in_place, std::move(val))
     {}
 
     template <class... _Args>
         requires std::constructible_from<TValNoConst, _Args...>
-    constexpr explicit single(std::in_place_t, _Args &&... args)
-        requires(storage != single_storage::indirect)
+    constexpr explicit single_rng(std::in_place_t, _Args &&... args)
+        requires(storage != single_rng_storage::indirect)
       : value{std::in_place, std::forward<_Args>(args)...}
     {}
     //!\}
@@ -242,13 +242,13 @@ public:
      * \{
      */
     constexpr auto begin() const noexcept
-        requires(storage == single_storage::in_iterator)
+        requires(storage == single_rng_storage::in_iterator)
     {
         return detail::small_single_iterator<TValNoConst>{*value};
     }
 
     constexpr auto end() const noexcept
-        requires(storage == single_storage::in_iterator)
+        requires(storage == single_rng_storage::in_iterator)
     {
         return detail::small_single_iterator<TValNoConst>{};
     }
@@ -258,45 +258,45 @@ public:
      * \{
      */
     constexpr TVal * begin() noexcept
-        requires(storage != single_storage::in_iterator)
+        requires(storage != single_rng_storage::in_iterator)
     {
         return data();
     }
     constexpr TVal const * begin() const noexcept
-        requires(storage != single_storage::in_iterator)
+        requires(storage != single_rng_storage::in_iterator)
     {
         return data();
     }
 
     constexpr TVal * end() noexcept
-        requires(storage != single_storage::in_iterator)
+        requires(storage != single_rng_storage::in_iterator)
     {
         return data() + 1;
     }
     constexpr TVal const * end() const noexcept
-        requires(storage != single_storage::in_iterator)
+        requires(storage != single_rng_storage::in_iterator)
     {
         return data() + 1;
     }
 
     constexpr TVal * data() noexcept
-        requires(storage == single_storage::indirect)
+        requires(storage == single_rng_storage::indirect)
     {
         return value;
     }
     constexpr TVal const * data() const noexcept
-        requires(storage == single_storage::indirect)
+        requires(storage == single_rng_storage::indirect)
     {
         return value;
     }
 
     constexpr TVal * data() noexcept
-        requires(storage == single_storage::in_range)
+        requires(storage == single_rng_storage::in_range)
     {
         return &*value;
     }
     constexpr TVal const * data() const noexcept
-        requires(storage == single_storage::in_range)
+        requires(storage == single_rng_storage::in_range)
     {
         return &*value;
     }
@@ -307,7 +307,7 @@ public:
      */
     static constexpr size_t size() noexcept { return 1; }
 
-    constexpr friend bool operator==(single const & lhs, single const & rhs)
+    constexpr friend bool operator==(single_rng const & lhs, single_rng const & rhs)
         requires detail::weakly_equality_comparable<TVal>
     {
         return lhs.front() == rhs.front();
@@ -319,22 +319,22 @@ public:
  * \{
  */
 template <typename T>
-single(std::reference_wrapper<T> &&) -> single<T, single_storage::indirect>;
+single_rng(std::reference_wrapper<T> &&) -> single_rng<T, single_rng_storage::indirect>;
 template <typename T>
-single(std::reference_wrapper<T> &) -> single<T, single_storage::indirect>;
+single_rng(std::reference_wrapper<T> &) -> single_rng<T, single_rng_storage::indirect>;
 template <typename T>
-single(std::reference_wrapper<T> const &) -> single<T, single_storage::indirect>;
+single_rng(std::reference_wrapper<T> const &) -> single_rng<T, single_rng_storage::indirect>;
 
 template <typename T>
-single(T &&) -> single<std::remove_reference_t<T>, single_storage::in_range>;
+single_rng(T &&) -> single_rng<std::remove_reference_t<T>, single_rng_storage::in_range>;
 
 template <typename T>
     requires(std::is_nothrow_default_constructible_v<T> && std::is_nothrow_copy_constructible_v<T> && sizeof(T) <= 64)
-single(T &&) -> single<std::remove_cvref_t<T> const, single_storage::in_iterator>;
+single_rng(T &&) -> single_rng<std::remove_cvref_t<T> const, single_rng_storage::in_iterator>;
 //!\}
 
 } // namespace radr
 
-template <class T, radr::single_storage storage>
-inline constexpr bool std::ranges::enable_borrowed_range<radr::single<T, storage>> =
-  (storage != radr::single_storage::in_range);
+template <class T, radr::single_rng_storage storage>
+inline constexpr bool std::ranges::enable_borrowed_range<radr::single_rng<T, storage>> =
+  (storage != radr::single_rng_storage::in_range);

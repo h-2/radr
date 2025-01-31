@@ -8,7 +8,7 @@
 #include <radr/test/gtest_helpers.hpp>
 
 #include <radr/rad/join.hpp>
-#include <radr/rad/make_single_pass.hpp>
+#include <radr/rad/to_single_pass.hpp>
 
 using namespace std::string_view_literals;
 
@@ -18,7 +18,7 @@ using namespace std::string_view_literals;
 
 TEST(join, single_pass)
 {
-    auto ra = std::vector<std::string>{"foo", "" /*empty*/, "bar", "b"} | radr::make_single_pass | radr::join;
+    auto ra = std::vector<std::string>{"foo", "" /*empty*/, "bar", "b"} | radr::to_single_pass | radr::join;
 
     EXPECT_RANGE_EQ(ra, "foobarb"sv);
     EXPECT_SAME_TYPE(decltype(ra), (radr::generator<char &, char>));
