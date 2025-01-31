@@ -11,7 +11,7 @@
 
 #include <radr/concepts.hpp>
 #include <radr/rad/as_rvalue.hpp>
-#include <radr/rad/make_single_pass.hpp>
+#include <radr/rad/to_single_pass.hpp>
 
 // --------------------------------------------------------------------------
 // test data
@@ -37,7 +37,7 @@ TEST(as_rvalue, input)
 
 TEST(as_rvalue, input_ref_t_is_ref)
 {
-    auto ra = std::ref(comp) | radr::make_single_pass | radr::as_rvalue;
+    auto ra = std::ref(comp) | radr::to_single_pass | radr::as_rvalue;
 
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t const &&, size_t>));

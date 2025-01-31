@@ -22,7 +22,7 @@
 namespace radr::detail
 {
 
-inline constexpr auto make_single_pass_coro =
+inline constexpr auto to_single_pass_coro =
   detail::overloaded{[]<movable_range URange>(URange && urange)
                          requires(std::ranges::forward_range<URange>)
 {
@@ -48,11 +48,11 @@ namespace radr
 
 inline namespace cpo
 {
-inline constexpr auto make_single_pass = detail::range_adaptor_closure_t{
-  detail::overloaded{detail::make_single_pass_coro,
+inline constexpr auto to_single_pass = detail::range_adaptor_closure_t{
+  detail::overloaded{detail::to_single_pass_coro,
                      []<std::ranges::input_range URange>(std::reference_wrapper<URange> const & range)
                      {
-                     return detail::make_single_pass_coro(borrow(static_cast<URange &>(range)));
+                     return detail::to_single_pass_coro(borrow(static_cast<URange &>(range)));
                      }}
 };
 

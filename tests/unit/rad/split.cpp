@@ -6,8 +6,8 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
-#include <radr/rad/make_single_pass.hpp>
 #include <radr/rad/split.hpp>
+#include <radr/rad/to_single_pass.hpp>
 
 using namespace std::string_view_literals;
 
@@ -17,7 +17,7 @@ using namespace std::string_view_literals;
 
 TEST(split, single_pass)
 {
-    auto ra = std::string("thisXisXaXtest") | radr::make_single_pass | radr::split('X');
+    auto ra = std::string("thisXisXaXtest") | radr::to_single_pass | radr::split('X');
 
     auto it = ra.begin();
     EXPECT_RANGE_EQ(*it, "this"sv);
@@ -35,7 +35,7 @@ TEST(split, single_pass)
 
 TEST(split, single_pass_empty)
 {
-    auto ra = std::string("thisXisXXaXtest") | radr::make_single_pass | radr::split('X');
+    auto ra = std::string("thisXisXXaXtest") | radr::to_single_pass | radr::split('X');
 
     auto it = ra.begin();
     EXPECT_RANGE_EQ(*it, "this"sv);
@@ -55,7 +55,7 @@ TEST(split, single_pass_empty)
 
 TEST(split, single_pass_trailing_empty)
 {
-    auto ra = std::string("thisXisXaXtestX") | radr::make_single_pass | radr::split('X');
+    auto ra = std::string("thisXisXaXtestX") | radr::to_single_pass | radr::split('X');
 
     auto it = ra.begin();
     EXPECT_RANGE_EQ(*it, "this"sv);

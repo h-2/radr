@@ -23,7 +23,7 @@
 
 namespace radr::detail
 {
-inline constexpr auto cache_end_borrow = []<const_borrowable_range URange>(URange && urange)
+inline constexpr auto to_common_borrow = []<const_borrowable_range URange>(URange && urange)
 {
     if constexpr (common_range<URange>)
     {
@@ -68,6 +68,6 @@ inline namespace cpo
  *
  */
 
-inline constexpr auto cache_end = detail::pipe_without_args_fn<void, decltype(detail::cache_end_borrow)>{};
+inline constexpr auto to_common = detail::pipe_without_args_fn<void, decltype(detail::to_common_borrow)>{};
 } // namespace cpo
 } // namespace radr

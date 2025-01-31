@@ -29,7 +29,7 @@
     "provide ´.begin() const`.\n"                                                                                     \
     "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
     "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
-    "auto a = your_range | std::views::filter(/**/) | radr::make_single_pass | radr::take(3);\n "                      \
+    "auto a = your_range | std::views::filter(/**/) | radr::to_single_pass | radr::take(3);\n "                        \
     "Here, std::views::filter is non-conforming because not const-iterable, so radr's multi-pass take doesn't "        \
     "accept it, but radr's single-pass take does."
 
@@ -37,7 +37,7 @@
     "RADR adaptors created on rvalues of forward ranges require those ranges to be std::copyable.\n"                   \
     "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
     "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
-    "auto a = std::vector{1,2,3} | std::views::transform(/**/) | radr::make_single_pass | radr::take(3);\n "           \
+    "auto a = std::vector{1,2,3} | std::views::transform(/**/) | radr::to_single_pass | radr::take(3);\n "             \
     "Here, std::views::transform is non-conforming because not copyable, so radr's multi-pass take doesn't "           \
     "accept it, but radr's single-pass take does."
 
