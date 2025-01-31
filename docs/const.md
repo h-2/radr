@@ -1,9 +1,9 @@
 # Range adaptors and `const`
 
 Ranges can be readable (i.e. they model `std::ranges::input_range`) and/or writeable (i.e. they model `std::ranges::output_range`). [^elements]
-While **write-only** ranges are possible, in practice you will likely encounter only ranges that are readable+writeable (**rw**) or read-only (**ro**).
+While **write-only** ranges are possible, in practice you will likely encounter only ranges that are readable+writeable (*mutable ranges*, **mut**) or read-only (*constant ranges*, **con**).
 
-Adding `const` to a type typically switches it from **rw** to **ro**, e.g. `std::vector<int>` is an `input_range` and an `output_range`, but `std::vector<int> const` is an `input_range` but not an `output_range`.
+Adding `const` to a type typically switches it from **mut** to **con**, e.g. `std::vector<int>` is mutable range, but `std::vector<int> const` is a constant range.
 
 We will see below that this is not always the case, and that substantial knowledge is required to understand how `const` affects standard library range adaptors.
 
@@ -13,16 +13,16 @@ Here are some examples from the standard library: [^notation]
 
 | `T`:                                            |  `T`  | `T const`       |
 |-------------------------------------------------|:-----:|:---------------:|
-| `std::vector<int>`                              |  rw   |  ro             |
-| `std::string_view`                              |  ro   |  ro             |
-| `std::span<int>`                                |  rw   |  rw             |
-| `std::vector<int>&  │ std::views::reverse`      |  rw   |  rw             |
-| `std::vector<int>&& │ std::views::reverse`      |  rw   |  ro             |
-| `std::vector<int>&  │ std::views::filter(/**/)` |  rw   |  n/a[^notrange] |
-| `std::vector<int>&& │ std::views::filter(/**/)` |  rw   |  n/a            |
+| `std::vector<int>`                              |  mut  |  con            |
+| `std::string_view`                              |  con  |  con            |
+| `std::span<int>`                                |  mut  |  mut            |
+| `std::vector<int>&  │ std::views::reverse`      |  mut  |  mut            |
+| `std::vector<int>&& │ std::views::reverse`      |  mut  |  con            |
+| `std::vector<int>&  │ std::views::filter(/**/)` |  mut  |  n/a[^notrange] |
+| `std::vector<int>&& │ std::views::filter(/**/)` |  mut  |  n/a            |
 
 We observe three different semantics here:
-* `const` turns **rw** into **ro**
+* `const` turns **mut** into **con**
 * `const` has no effect
 * `const` renders the object unusable (it is no longer a range)
 
@@ -30,12 +30,12 @@ And here are the respective examples from this library:[^string_view]
 
 | `T`:                                         |  `T`  | `T const` |
 |----------------------------------------------|:-----:|:---------:|
-| `std::vector<int>`                           |  rw   |  ro       |
-| `radr::borrowing_rad<int*>`                  |  rw   |  ro       |
-| `std::vector<int>&  │ radr::reverse`         |  rw   |  ro       |
-| `std::vector<int>&& │ radr::reverse`         |  rw   |  ro       |
-| `std::vector<int>&  │ radr::filter(/**/)`    |  rw   |  ro       |
-| `std::vector<int>&& │ radr::filter(/**/)`    |  rw   |  ro       |
+| `std::vector<int>`                           |  mut  |  con      |
+| `radr::borrowing_rad<int*>`                  |  mut  |  con      |
+| `std::vector<int>&  │ radr::reverse`         |  mut  |  con      |
+| `std::vector<int>&& │ radr::reverse`         |  mut  |  con      |
+| `std::vector<int>&  │ radr::filter(/**/)`    |  mut  |  con      |
+| `std::vector<int>&& │ radr::filter(/**/)`    |  mut  |  con      |
 
 We only have one semantic. If this already convinces you, you do not need to read further :wink:
 
@@ -69,9 +69,9 @@ Some standard library range adaptors behave like this only in certain combinatio
 
 | `T`                                                                      |  `T`  | `T const` |
 |--------------------------------------------------------------------------|:-----:|:---------:|
-| `std::vector<int>& │ std::views::reverse`                                |  rw   |  rw       |
-| `std::vector<int>& │ std::views::take_while(/**/)`                       |  rw   |  rw       |
-| `std::vector<int>& │ std::views::take_while(/**/) │ std::views::reverse` |  rw   |  n/a      |
+| `std::vector<int>& │ std::views::reverse`                                |  mut  |  mut      |
+| `std::vector<int>& │ std::views::take_while(/**/)`                       |  mut  |  mut      |
+| `std::vector<int>& │ std::views::take_while(/**/) │ std::views::reverse` |  mut  |  n/a      |
 
 Here you can see that `reverse` and `take_while` are const-iterable on their own, but they are not when combined.
 
@@ -95,8 +95,8 @@ See [Terminology](./getting_started.md#Terminology) and [Fundamental Range Prope
 
 For those ranges and range adaptors that are const-iterable, we observe two different behaviours in the standard library:
 
-1. "deep const": The range behaves like a container; `const` protects the elements from change; `T const` is "read-only".
-2. "shallow const": The range behaves like a pointer; `const` does not protect the elements; `T const` is still "read-write".
+1. "deep const": The range behaves like a container; `const` turns the range into a *constant range*.
+2. "shallow const": The range behaves like a pointer; `const` does not protect the elements; the range remains *mutable*.
 
 This is an example of shallow const:
 
@@ -131,4 +131,4 @@ Thus, we have chosen to follow the principle of least surprise and make all mult
 
 [^notation]: We using some very liberal pseudo-code here to describe "lvalues of a vector" and "rvalues of a vector" as inputs to a range adaptor.
 
-[^what_is_a_view]: This design change happened after the release of C++20 (https://wg21.link/p2415), but was applied as a defect report back into C++20. We think that owning range adaptors are useful in general, but believe that this particular change to have had some undesirable ripple-effects.
+[^what_is_a_view]: This design change happened after the release of C++20 (https://wg21.link/p2415), but was applied as a defect report back into C++20. We think that owning range adaptors are useful in general, but believe this particular change to have had some undesirable ripple-effects.
