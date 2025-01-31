@@ -34,7 +34,11 @@ TEST(filter, input)
     auto ra = radr::test::iota_input_range(1, 7) | radr::filter(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), radr::generator<size_t>);
+#ifdef __cpp_lib_generator
+    EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t &&, size_t>));
+#else
+    EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t>));
+#endif
 }
 
 // --------------------------------------------------------------------------

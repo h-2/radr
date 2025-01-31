@@ -14,6 +14,12 @@
 namespace radr::detail
 {
 
+#ifdef __cpp_lib_bind_back
+
+using std::bind_back;
+
+#else
+
 template <class Op, class Indices, class... BoundArgs>
 struct perfect_forward_impl;
 
@@ -127,5 +133,7 @@ constexpr auto bind_back(Fn && f, Args &&... args) noexcept(noexcept(
       std::forward<Fn>(f),
       std::forward_as_tuple(std::forward<Args>(args)...));
 }
+
+#endif
 
 } // namespace radr::detail

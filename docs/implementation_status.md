@@ -5,7 +5,7 @@
 
 | Range adaptors (classes)   | Equivalent in `std::`                                           | Remarks                                         |
 |----------------------------|-----------------------------------------------------------------|-------------------------------------------------|
-| `radr::generator<>`        | `std::generator<>`                                              | custom implementation atm, but will be an alias |
+| `radr::generator<>`        | `std::generator<>`                                              | alias for std::generator if available           |
 | `radr::borrowing_rad<>`    | `std::ranges::subrange`, (`std::span`, `std::ranges::ref_view`) | stores (iterator, sentinel) pair                |
 | `radr::owning_rad<>`       | `std::ranges::owning_view`                                      | stores rvalues of containers                    |
 
