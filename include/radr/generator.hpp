@@ -1,3 +1,22 @@
+#pragma once
+
+#include <version>
+
+#ifdef __cpp_lib_generator
+
+#    include <generator>
+
+namespace radr
+{
+
+using std::generator;
+
+using std::ranges::elements_of;
+
+} // namespace radr
+
+#else
+
 ///////////////////////////////////////////////////////////////////////////////
 // Reference implementation of std::generator proposal P2168.
 //
@@ -11,13 +30,11 @@
 // (See accompanying file LICENSE or http://www.boost.org/LICENSE_1_0.txt)
 ///////////////////////////////////////////////////////////////////////////////
 
-#pragma once
-
-#if __has_include(<coroutine>)
-#    include <coroutine>
-#else
+#    if __has_include(<coroutine>)
+#        include <coroutine>
+#    else
 // Fallback for older experimental implementations of coroutines.
-#    include <experimental/coroutine>
+#        include <experimental/coroutine>
 namespace std
 {
 using std::experimental::coroutine_handle;
@@ -26,16 +43,15 @@ using std::experimental::noop_coroutine;
 using std::experimental::suspend_always;
 using std::experimental::suspend_never;
 } // namespace std
-#endif
+#    endif
 
-#include <cassert>
-#include <concepts>
-#include <exception>
-#include <iterator>
-#include <new>
-#include <ranges>
-#include <type_traits>
-#include <utility>
+#    include <cassert>
+#    include <exception>
+#    include <iterator>
+#    include <memory>
+#    include <ranges>
+#    include <type_traits>
+#    include <utility>
 
 namespace radr::detail
 {
@@ -715,3 +731,5 @@ template <typename T, typename U, typename Alloc>
 inline constexpr bool enable_view<radr::generator<T, U, Alloc>> = true;
 
 } // namespace std::ranges
+
+#endif

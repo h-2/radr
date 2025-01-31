@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <type_traits>
+
 #include "../concepts.hpp"
 
 #if defined(__cpp_lib_ranges_as_const)
