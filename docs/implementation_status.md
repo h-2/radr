@@ -16,26 +16,26 @@ Instead all range adaptor objects in this library (see below) return a specialis
 
 We plan to add equivalent objects for all standard library adaptors.
 
-| Range adaptors (objects) | C++XY | | Equivalent in `std::`    | C++XY | Differences of `radr` objects            |
-|--------------------------|-------|-|--------------------------|-------|------------------------------------------|
-| `radr::as_const`         |       | | `std::views::as_const`   | C++23 | make the range *and* its elements const  |
-| `radr::as_rvalue`        | *     | | `std::views::as_rvalue`  | C++23 | *returns only input ranges in C++20      |
-| `radr::drop(n)`          |       | | `std::views::drop`       |       |                                          |
-| `radr::drop_while(fn)`   |       | | `std::views::drop_while` |       |                                          |
-| `radr::filter(fn)`       |       | | `std::views::filter`     |       |                                          |
-| `radr::join`             |       | | `std::views::join`       |       |                                          |
-| `radr::reverse`          |       | | `std::views::reverse`    |       |                                          |
-| `radr::slice(m, n)`      |       | | *not yet available*      |       | get subrange between m and n             |
-| `radr::split(pat)`       |       | | `std::views::split`      |       |                                          |
-| `radr::take(n)`          |       | | `std::views::take`       |       |                                          |
-| `radr::take_exactly(n)`  |       | | *not yet available*      |       | turns unsized into sized                 |
-| `radr::to_common`        |       | | `std::views::common`¹    |       | turns non-common into common             |
-| `radr::to_single_pass`   |       | | `std::views::to_input`¹  | C++26 | demotes range category to input          |
-| `radr::transform(fn)`    |       | | `std::views::transform`  |       |                                          |
+| Range adaptors (objects) | C++XY | | Equivalent in `std::`          | C++XY | Differences of `radr` objects            |
+|--------------------------|-------|-|--------------------------------|-------|------------------------------------------|
+| `radr::as_const`         |       | | `std::views::as_const`         | C++23 | make the range *and* its elements const  |
+| `radr::as_rvalue`        | *     | | `std::views::as_rvalue`        | C++23 | *returns only input ranges in C++20      |
+| `radr::drop(n)`          |       | | `std::views::drop`             |       |                                          |
+| `radr::drop_while(fn)`   |       | | `std::views::drop_while`       |       |                                          |
+| `radr::filter(fn)`       |       | | `std::views::filter`           |       |                                          |
+| `radr::join`             |       | | `std::views::join`             |       |                                          |
+| `radr::reverse`          |       | | `std::views::reverse`          |       |                                          |
+| `radr::slice(m, n)`      |       | | *not yet available*            |       | get subrange between m and n             |
+| `radr::split(pat)`       |       | | `std::views::split`            |       |                                          |
+| `radr::take(n)`          |       | | `std::views::take`             |       |                                          |
+| `radr::take_exactly(n)`  |       | | *not yet available*            |       | turns unsized into sized                 |
+| `radr::to_common`        |       | | `std::views::common`[^diff]    |       | turns non-common into common             |
+| `radr::to_single_pass`   |       | | `std::views::to_input`[^diff]  | C++26 | demotes range category to input          |
+| `radr::transform(fn)`    |       | | `std::views::transform`        |       |                                          |
 
 C++XY is C++20 unless otherwise noted.
 
-¹ These range adaptors have relevant differences between `std::` and `radr::`. Usually the names have been chosen differently to highlight this.
+[^diff]: These range adaptors have relevant differences between `std::` and `radr::`. Usually the names have been chosen differently to highlight this.
 
 ## Standalone ranges
 

@@ -16,6 +16,10 @@ We never preserve contiguous iterators, and instead always store pointers. This 
 
 We believe that this trade-off is worthwhile and that bounds-checking should instead be provided by the language (language contracts, security profiles,  …). Such features will be added library-wide once available in C++. In the meantime, you can create a custom range-adaptor that re-adds bounds-checking and add it to the end of your adaptor pipelines, if desired (or required).
 
+A change submitted to C++26 [^p3349] officially allows this behaviour.
+
+[^p3349]: http://wg21.link/P3349
+
 ## It is not possible to "unpeal" chained adaptors
 
 Most standard library adaptor types provide the `.base()` function which returns the underlying range, and, because
