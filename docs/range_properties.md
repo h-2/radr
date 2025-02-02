@@ -24,12 +24,9 @@
 **The listed properties define the three range domains and are guaranteed on our adaptors. Ranges and their adaptations stay within a given domain.**
 This consistency is a core feature of the library which makes using it and reasoning about adaptors much easier.
 But it also makes the code more maintainable by reducing special cases.
-The semi-regularity properties (default-constructible, copyable) are guaranteed on our multi-pass adaptors even if the underlying range does not provide them.[^copy]
-Equality-comparability is guaranteed if the elements are comparable (and independent of the underlying range's comparison operators).
-All other listed properties, in particular const-iterability of multi-pass ranges, are a hard requirement.
 
 Two facilities exist to explicitly switch between domains:
-  * `std::ref(r) | ...` to create borrowed multi-pass adaptor from an owning range.
+  * `std::ref(r) | ...` to create a borrowed multi-pass adaptor from an owning range.
   * `... | radr::to_single_pass` to create a single-pass adaptor from multi-pass range.
 
 In contrast to the standard library, several properties of borrowed multi-pass ranges are designed to mirror those of standard library containers: (semi-)regularity, deep-const, deep comparison.
@@ -47,7 +44,3 @@ Use our adaptors instead. Help us complete the list if a particular one is missi
 
 As a workaround to use our adaptors with a non-compliant forward range, you can demote that range to a single-pass range via `radr::to_single_pass`.
 It will then be accepted by our adaptors but be in the single-pass domain.
-
-
-
-[^copy]: There is some fine-print here. Copy-constructibility is required. Certain exotic iterators may need special handling.

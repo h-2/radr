@@ -123,9 +123,14 @@ Well-formed; not dangling.
 This library's syntax explicitly forces you to choose between `std::move()`-ing or `std::ref()`-ing existing variables
 into adaptors. This avoids unintendedly creating dangling references.
 
+<!--
+
+TODO
 
 ## side-effects
 
 .begin()
 
 .empty()
+
+-->
