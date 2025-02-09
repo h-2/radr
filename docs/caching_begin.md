@@ -10,24 +10,17 @@ To satisfy the above requirements (`O(n+m)` and not `O(n*m)`), the begin iterato
 There are two possibilities:
 
 
-## Cache it the first time begin() is called
+## 1) Cache it the first time begin() is called
 
-This is what standard library adaptors do. It has the advantage that no iteration takes place if `begin()` is never called. However, we believe that this is rarely useful, because you want to iterate over your adaptor (or at least check `begin() == end()`)—that's why you create it. See the [page on performance](./performance.md) for more details.
-
-<!--In practice, we have observed two styles commonly employed with range adaptors:
-1. Data in the form of containers is passed into an algorithm which locally creates adaptors on said container when it needs the respective transformation/operation. In this case, the adaptors are created just before they are used and `begin()` is always called.
-2. Data is loaded/generated initially in the form of containers and stored together with range adaptors that are then repeatedly used during the runtime of the program. In this case, the initial setup cost of the adaptors is likely neglegible.-->
-
+This is what standard library adaptors do. It has the advantage that no iteration takes place if `begin()` is never called.
 The downsides of this design are, however, quite significant:
 * Calling `begin()` has side-effects. This is a fundamental difference to how other existing multi-pass ranges, in particular containers, behave. This has implications for (thread) safety.
 * For the same reasons, `.begin() const` does not exist on such ranges, i.e. they are not const-iterable and it is impossible to pass these adaptors by `const &`. This is surprising, because the mutability is not observable by the user, and an operation like "show me all elements except the first 5" is by all reasonable assumptions a read-only operation.
 
 
-## Cache on construction
+## 2) Cache on construction
 
 This is what our library does. It has the advantage that none of the adaptors require mutable state, and we can provide `.begin() const` as well as `.begin()` (non-const) with the same guarantees as standard library containers (provided that the underlying range also does).
-
-TODO
 
 ### But aren't range adaptors supposed to be lazy?
 
@@ -37,4 +30,47 @@ Are they "lazier" than our adaptors? Arguably. But it is important to point out,
 
 We believe that providing better behaviour with regard to `const`-ness and side-effects is the right choice for most people.
 
+## Performance implications
 
+### Never calling begin()
+
+This library caches on construction, so if you never call `begin()` on the range (i.e. don't use it), you are wasting CPU cycles compared to the standard library (wich caches on calling `begin()`).
+However, we believe that this is rarely useful, because you want to iterate over your adaptor (or at least check `begin() == end()`)—that's why you create it.
+And you can delay creating the adaptor until you actually need it.[^delay]
+
+[^delay]: In practice, we have observed two styles commonly employed with range adaptors:
+
+    1. Data in the form of containers is passed into an algorithm which locally creates adaptors on said container when it needs the respective transformation/operation. In this case, the adaptors are created just before they are used—and `begin()` is always called.
+
+    2. Data is loaded/generated initially in the form of containers and stored together with range adaptors—that are then repeatedly used during the runtime of the program. In this case, the initial setup cost of the adaptors is likely neglegible.
+
+### "Non-propagating cache"
+
+```cpp
+std::list<size_t> vec{1,1,1,1,1, 2,2,2,2,2, 1,1,1,1,1};
+auto even = [] (size_t i) { return i % 2 == 0; };
+
+auto vue =          vec  | std::views::filter(even);
+auto rad = std::ref(vec) |       radr::filter(even);
+```
+
+Let's say we have the above list (five 1s, five 2s, five 1s), and we want to filter it for even values.
+The point of caching begin() is to avoid reading over the first five 1s every time `begin()` is called.
+
+The first time we iterate over `vue` or `rad`, the predicate `even` will be invoked 15 times. The second time each is invoked 9 times. Note that since neither `std` nor `radr` cache the end, the *last* five 1s will always be parsed.
+
+|  `std::`                                                | # calls     |
+|---------------------------------------------------------|------------:|
+| `for (size_t i : vue) {}` (1st)                         | 15          |
+| `for (size_t i : vue) {}` (2nd)                         |  9          |
+| `for (size_t i : vue │ std::views::take(100)) {}` (3rd) | 15          |
+| **`radr::`**                                            |             |
+| `for (size_t i : rad) {}` (1st)                         | 15          |
+| `for (size_t i : rad) {}` (2nd)                         |  9          |
+| `for (size_t i : rad │ radr::take(100)) {}` (3rd)       |  9          |
+
+We clearly see that the second iteration makes use of the cache. However, in the standard library, the third iteration *does not*.
+That's because the caching mechanism in the standard library is *non-propagating*, i.e. it is not preserved when being copied or moved.
+This is not known to most users of `std::ranges::`, and it is even more surprising since "building up" ranges pipelines in multiple steps is a frequently recommended practice.
+
+The adaptors from this library don't suffer from this problem and can thus deliver a higher performance in certain use-cases.
