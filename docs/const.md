@@ -3,7 +3,7 @@
 Ranges can be readable (i.e. they model `std::ranges::input_range`) and/or writeable (i.e. they model `std::ranges::output_range`). [^elements]
 While **write-only** ranges are possible, in practice you will likely encounter only ranges that are readable+writeable (*mutable ranges*, **mut**) or read-only (*constant ranges*, **con**).
 
-Adding `const` to a type typically switches it from **mut** to **con**, e.g. `std::vector<int>` is mutable range, but `std::vector<int> const` is a constant range.
+Adding `const` to a type typically switches it from **mut** to **con**, e.g. `std::vector<int>` is a mutable range, but `std::vector<int> const` is a constant range.
 
 We will see below that this is not always the case, and that substantial knowledge is required to understand how `const` affects standard library range adaptors.
 
