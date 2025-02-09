@@ -21,8 +21,8 @@
 #include "fwd.hpp"
 
 #define RADR_ASSERTSTRING_RVALUE                                                                                       \
-    "RADR adaptors and coroutines only take arguments as (r)values. If you want to "                                   \
-    "adapt an lvalue range, wrap it in std::ref(), e.g.:\nauto a = std::ref(lvalue) | radr::take(3);"
+    "RADR adaptors do not accept lvalues of containers unless the indirection is made explicit. To do so,  "           \
+    "wrap it in std::ref(), e.g.:\nauto a = std::ref(lvalue) | radr::take(3);"
 
 #define RADR_ASSERTSTRING_CONST_ITERABLE                                                                               \
     "RADR adaptors created on forward ranges require those ranges to be radr::const_iterable, i.e. they need to "      \
@@ -32,6 +32,8 @@
     "auto a = your_range | std::views::filter(/**/) | radr::to_single_pass | radr::take(3);\n "                        \
     "Here, std::views::filter is non-conforming because not const-iterable, so radr's multi-pass take doesn't "        \
     "accept it, but radr's single-pass take does."
+
+#define RADR_ASSERTSTRING_MOVABLE "RADR adaptors on single-pass ranges requires those ranges to be std::movable."
 
 #define RADR_ASSERTSTRING_COPYABLE                                                                                     \
     "RADR adaptors created on rvalues of forward ranges require those ranges to be std::copyable.\n"                   \

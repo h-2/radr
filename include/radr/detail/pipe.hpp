@@ -1,8 +1,7 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2023 The LLVM Project
-// Copyright (c) 2023 Hannes Hauswedell
+// Copyright (c) 2025 Hannes Hauswedell
 //
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
@@ -29,13 +28,13 @@ template <typename CoroFn, bool non_empty_args>
 struct pipe_input_base
 {
     //!\brief Forward into Coroutine-Functor.
-    template <movable_range Range, class... Args>
+    template <std::ranges::input_range Range, class... Args>
         requires(arg_count<non_empty_args, Args...>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
         static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
-
+        static_assert(std::movable<Range>, RADR_ASSERTSTRING_MOVABLE);
         return CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
     }
 };
@@ -55,33 +54,28 @@ struct pipe_input_base<void, non_empty_args>
 template <typename BorrowFn, bool non_empty_args>
 struct pipe_fwd_base
 {
-    //!\brief Owning Range rvalue → owning_rad.
-    template <movable_range Range, class... Args>
-        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range>)
+    //!\brief Create the adaptor!
+    template <std::ranges::forward_range Range, class... Args>
+        requires(arg_count<non_empty_args, Args...>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
     {
-        static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
-        static_assert(const_iterable_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
-        static_assert(std::copyable<Range>, RADR_ASSERTSTRING_COPYABLE);
-
-        return owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)};
-    }
-
-    //!\brief Borrowed range → borrowing_rad or specialised
-    template <movable_range Range, class... Args>
-        requires(arg_count<non_empty_args, Args...> && std::ranges::forward_range<Range> &&
-                 std::ranges::borrowed_range<Range>)
-    [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
-      noexcept(noexcept(BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
-    {
-        static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
         static_assert(const_iterable_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
 
-        // we make sure that what we are forwarding is semiregular
-        if constexpr (std::semiregular<std::remove_cvref_t<Range>>)
-            return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
-        else // the borrow CPO is required to return a semiregular range
-            return BorrowFn{}(radr::borrow(range), std::forward<Args>(args)...);
+        /* borrowing_rad */
+        if constexpr (std::ranges::borrowed_range<std::remove_reference_t<Range>>)
+        {
+            // we make sure that what we are forwarding is semiregular
+            if constexpr (std::semiregular<std::remove_cvref_t<Range>>)
+                return BorrowFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
+            else // the borrow CPO is required to return a semiregular range
+                return BorrowFn{}(radr::borrow(range), std::forward<Args>(args)...);
+        }
+        else /* owning rad */
+        {
+            static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
+            static_assert(std::copyable<Range>, RADR_ASSERTSTRING_COPYABLE);
+            return owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)};
+        }
     }
 
     //!\brief std::reference_wrapper -> unpacked and fwd'ed as borrowed range

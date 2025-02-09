@@ -44,9 +44,10 @@ inline constexpr auto drop_borrow =
     }
 }};
 
-inline constexpr auto drop_coro = []<movable_range URange>(URange && urange, size_t const n)
+inline constexpr auto drop_coro = []<std::ranges::input_range URange>(URange && urange, size_t const n)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can drop by value
     return

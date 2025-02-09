@@ -381,11 +381,13 @@ inline constexpr auto transform_borrow =
        std::move(fn));
 };
 
-inline constexpr auto transform_coro = []<movable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
+inline constexpr auto transform_coro =
+  []<std::ranges::input_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can take by value
     return

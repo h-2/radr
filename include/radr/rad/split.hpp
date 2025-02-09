@@ -242,10 +242,13 @@ inline constexpr auto split_borrow = overloaded{
 }};
 // clang-format on
 
-inline constexpr auto split_coro = []<movable_range URange, typename Pattern>(URange && urange, Pattern pattern)
-    requires std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>
+inline constexpr auto split_coro =
+  []<std::ranges::input_range URange, typename Pattern>(URange && urange, Pattern pattern)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
+    static_assert(std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>,
+                  "The element type of the range needs to be comparable with the Pattern.");
 
     using inner_gen_t = radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>;
 
