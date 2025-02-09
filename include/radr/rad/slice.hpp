@@ -36,9 +36,12 @@ inline constexpr auto slice_borrow =
     }
 };
 
-inline constexpr auto slice_coro = []<movable_range URange>(URange && urange, size_t const start, size_t const end)
+inline constexpr auto slice_coro =
+  []<std::ranges::input_range URange>(URange && urange, size_t const start, size_t const end)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
+
     size_t const t = end >= start ? end - start : 0ull;
     return take_coro(drop_coro(std::forward<URange>(urange), start), t);
 };

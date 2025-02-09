@@ -79,6 +79,15 @@ void forward_range_test()
         EXPECT_SAME_TYPE(decltype(ra), borrow_t);
     }
 
+    /* borrowed */
+    {
+        auto b  = radr::borrow(container);
+        auto ra = b | radr::take(3);
+
+        EXPECT_RANGE_EQ(ra, comp);
+        EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+    }
+
     /* lvalue, folding */
     {
         auto ra = std::ref(container) | radr::take(4) | radr::take(3);
@@ -174,4 +183,50 @@ TEST(take, vector)
     using borrow_t = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, radr::borrowing_rad_kind::sized>;
 
     forward_range_test<container_t, borrow_t>();
+}
+
+// --------------------------------------------------------------------------
+// pipe tests (these are independent of take and only test detail/pipe.hpp
+// --------------------------------------------------------------------------
+
+TEST(pipe, function_call_test)
+{
+    constexpr bool owning_rval = requires { radr::take(std::vector{1, 2, 3, 4, 5, 6}, 1); };
+    // constexpr bool owning_lval = requires (std::vector<int> vec) { radr::take(vec, 1); };
+
+    constexpr bool borrowed_rval = requires { radr::take(std::string_view{"foo"}, 1); };
+    constexpr bool borrowed_lval = requires(std::string_view v) { radr::take(v, 1); };
+
+    constexpr bool singlepass_rval = requires { radr::take(radr::test::iota_input_range(1, 1), 1); };
+    // constexpr bool singlepass_lval = requires (radr::generator<int> g) { radr::take(g, 1); };
+
+    EXPECT_TRUE(owning_rval);
+    // EXPECT_FALSE(owning_lval);
+
+    EXPECT_TRUE(borrowed_rval);
+    EXPECT_TRUE(borrowed_lval);
+
+    EXPECT_TRUE(singlepass_rval);
+    // EXPECT_FALSE(singlepass_lval);
+}
+
+TEST(pipe, pipe_test)
+{
+    constexpr bool owning_rval = requires { std::vector{1, 2, 3, 4, 5, 6} | radr::take(1); };
+    // constexpr bool owning_lval = requires (std::vector<int> vec) { vec | radr::take(1); };
+
+    constexpr bool borrowed_rval = requires { std::string_view{"foo"} | radr::take(1); };
+    constexpr bool borrowed_lval = requires(std::string_view v) { v | radr::take(1); };
+
+    constexpr bool singlepass_rval = requires { radr::test::iota_input_range(1, 1) | radr::take(1); };
+    // constexpr bool singlepass_lval = requires (radr::generator<int> g) { g | radr::take(1); };
+
+    EXPECT_TRUE(owning_rval);
+    // EXPECT_FALSE(owning_lval);
+
+    EXPECT_TRUE(borrowed_rval);
+    EXPECT_TRUE(borrowed_lval);
+
+    EXPECT_TRUE(singlepass_rval);
+    // EXPECT_FALSE(singlepass_lval);
 }

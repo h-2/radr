@@ -224,9 +224,12 @@ inline constexpr auto filter_borrow =
 };
 
 inline constexpr auto filter_coro =
-  []<movable_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(URange && urange, Fn fn)
+  []<std::ranges::input_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(
+    URange && urange,
+    Fn        fn)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can take by value
     return [](auto urange_,

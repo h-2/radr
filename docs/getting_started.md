@@ -16,10 +16,15 @@ std::vector vec1{1, 2, 3};
 auto vue1 = std::move(vec1) | std::views::take(2);      // standard library
 auto rad1 = std::move(vec1) | radr::take(2);            // this library
 
-/* refer to existing */
+/* refer to existing borrowed range */
+std::span s = vec1;
+auto vue2 =  s  | std::views::take(2);                  // standard library
+auto rad2 =  s  | radr::take(2);                        // this library
+
+/* refer to existing container */
 std::vector vec2{1, 2, 3};
-auto vue2 =          vec2  | std::views::take(2);       // standard library
-auto rad2 = std::ref(vec2) | radr::take(2);             // this library ← DIFFERENCE
+auto vue3 =          vec2  | std::views::take(2);       // standard library
+auto rad3 = std::ref(vec2) | radr::take(2);             // this library ← DIFFERENCE
 ```
 
 As you can see, only the syntax for creating an indirection is slightly different, i.e. when adapting an existing container, you need to explicitly state whether you want to `std::move()` or `std::ref()` it.
