@@ -17,5 +17,5 @@ This heap allocation is small (*just* the control data, not the elements), but i
 In contexts where heap allocations are undesirable, we recommend always using indirections and avoiding `owning_rad` for now.
 
 Possible future directions:
-  * Create an opt-in trait for containers whose iterators remain valid during move (e.g. all standard library containers other than `std::array`). Such containers could be stored directly.
+  * Create an opt-in trait for containers whose iterators remain valid during move. Such containers could be stored directly.
   * If there is demand, an additional interface could be added that allows providing an allocator.
