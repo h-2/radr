@@ -7,7 +7,7 @@ At the same time, the usage patterns and naming remain close enough to the stand
 
 ```cpp
 //                              ↓  what are the requirements on the original range?
-auto adapted_range   =   original_range   |   range_adaptor_object   |   range_adaptor_object2;
+auto adapted_range  =  original_range  |  range_adaptor_object  |  range_adaptor_object2;
 //      ↑    what are the properties of the new range?
 ```
 
@@ -51,11 +51,14 @@ In particular, you may be interested in:
 ## Library facts
 
 * Easy to use: header-only and no dependencies
-* License: Apache with LLVM exception[^2]
+* License: Apache with LLVM exception[^boost]
 * Compilers: GCC≥11 or Clang≥17
 * Standard libraries: both libstdc++ and libc++ are tested.
+* C++20 mode required.[^std]
 
-[^2]: The file `generator.hpp` is licensed under the Boost Software license. It is used only if your standard library does not provide `std::generator`.
+[^boost]: The file `generator.hpp` is licensed under the Boost Software license. It is used only if your standard library does not provide `std::generator`.
+
+[^std]: A bonus of using this library is getting access to the equivalent of C++23 and C++26 adaptors in a C++20-based codebase.
 
 ## Credits
 
