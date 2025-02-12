@@ -39,10 +39,11 @@ C++XY is C++20 unless otherwise noted.
 
 ## Standalone ranges
 
-| Standalone ranges          | kind  | Equivalent in `std::`      | Remarks                                              |
-|----------------------------|:-----:|----------------------------|------------------------------------------------------|
-| `radr::empty_rng<T>`       | class | `std::ranges::empty_view`  | a range of fixed size 0                              |
-| `radr::single_rng<T[, s]>` | class | `std::ranges::single_view` | a range of fixed size 1; storage configurable        |
+| Standalone ranges             | kind  | Equivalent in `std::`      | Remarks                                              |
+|-------------------------------|:-----:|----------------------------|------------------------------------------------------|
+| `radr::empty_rng<T>`          | class | `std::ranges::empty_view`  | a range of fixed size 0                              |
+| `radr::repeat_rng<T[, B, s]>` | class | `std::ranges::repeat_view` | a range of the same value (in)finitely repeated      |
+| `radr::single_rng<T[, s]>`    | class | `std::ranges::single_view` | a range of fixed size 1; storage configurable        |
 
 Note that most of our standalone ranges are not implemented as "factory" objects, but just as plain types.
 

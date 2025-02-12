@@ -12,7 +12,7 @@
 | `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
 | `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
-| `radr::split(pat)`         | always         | input   | fwd      |  -    |  -        |                                          |
+| `radr::split(pat)`         | always         | input   | fwd      |  -    |  ⊝        |                                          |
 | `radr::take(n)`            |                | input   | contig   |  =    |  ra+sized |                                          |
 | `radr::take_exactly(n)`    |                | input   | contig   |  +    |  ra+sized | turns unsized into size of n             |
 | `radr::to_common`          | !(common)      | fwd     | contig   |  ⊕    |  +        |                                          |

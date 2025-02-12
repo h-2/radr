@@ -25,7 +25,8 @@ template <typename Value>
              std::is_nothrow_copy_constructible_v<Value>)
 class small_single_iterator
 {
-    [[no_unique_address]] std::optional<Value> value;
+    [[no_unique_address]] Value value{};
+    [[no_unique_address]] bool  at_end = true;
 
 public:
     using iterator_category = std::random_access_iterator_tag;
@@ -41,7 +42,7 @@ public:
     constexpr small_single_iterator & operator=(small_single_iterator &&)      = default;
     constexpr small_single_iterator & operator=(small_single_iterator const &) = default;
 
-    constexpr small_single_iterator(Value value_) : value(std::move(value_)) {}
+    constexpr small_single_iterator(Value value_, bool at_end_ = false) : value{std::move(value_)}, at_end{at_end_} {}
 
     template <class... _Args>
         requires std::constructible_from<Value, _Args...>
@@ -53,15 +54,11 @@ public:
     /*!\name Forward operators
      * \{
      */
-    constexpr Value const & operator*() const noexcept
-    {
-        assert(value.has_value());
-        return *value;
-    }
+    constexpr Value operator*() const noexcept { return value; }
 
     constexpr small_single_iterator & operator++() noexcept
     {
-        value.reset();
+        at_end = true;
         return *this;
     }
 
@@ -78,7 +75,7 @@ public:
      */
     constexpr small_single_iterator & operator--() noexcept(noexcept(std::is_nothrow_default_constructible_v<Value>))
     {
-        value.emplace();
+        at_end = false;
         return *this;
     }
 
@@ -124,7 +121,7 @@ public:
 
     friend constexpr difference_type operator-(small_single_iterator const & lhs, small_single_iterator const & rhs)
     {
-        return static_cast<difference_type>(!lhs.value.has_value()) - !rhs.value.has_value();
+        return static_cast<difference_type>((int)lhs.at_end - (int)rhs.at_end);
     }
     //!\}
 
@@ -133,12 +130,12 @@ public:
      */
     constexpr friend bool operator==(small_single_iterator const & lhs, small_single_iterator const & rhs)
     {
-        return lhs.value.has_value() == rhs.value.has_value();
+        return lhs.at_end == rhs.at_end;
     }
 
     constexpr friend auto operator<=>(small_single_iterator const & lhs, small_single_iterator const & rhs)
     {
-        return ((int)!lhs.value.has_value()) <=> ((int)!rhs.value.has_value());
+        return (int)lhs.at_end <=> (int)rhs.at_end;
     }
     //!\}
 };
@@ -164,10 +161,13 @@ enum class single_rng_storage
  *
  * |                       |  indirect    | in_range     | in_iterator    |
  * |-----------------------|--------------|--------------|----------------|
- * | category              | contiguous   | contiguous   | random access  |
+ * | category              | contiguous   | contiguous   | random_access  |
  * | borrowed_range        | yes          | no           | yes            |
  * | default-constructible | yes¹         | yes          | yes            |
- * | range_reference_t     | `TVal &`     | `TVal &`     | `TVal const &` |
+ * | range_reference_t     | `TVal &`     | `TVal &`     | `TVal`         |
+ * | constant_range        | no           | no           | yes            |
+ *
+ * All variants of this range are a `sized_range` and a `common_range` and `const_iterable`.
  *
  * ¹ Dereferecing the iterator of a default-constructed single_rng with indirect storage is undefined behaviour.
  */
