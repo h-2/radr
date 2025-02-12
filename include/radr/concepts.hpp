@@ -57,6 +57,11 @@ concept complete_forward_range = const_iterable_range<Range> && std::semiregular
 template <typename Range>
 concept const_borrowable_range = const_iterable_range<Range> && std::ranges::borrowed_range<Range>;
 
+//!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
+template <typename T>
+concept small_type = std::regular<T> && std::is_nothrow_default_constructible_v<T> &&
+                     std::is_nothrow_copy_constructible_v<T> && sizeof(T) <= 3 * sizeof(ptrdiff_t);
+
 } // namespace radr
 
 namespace radr::detail
