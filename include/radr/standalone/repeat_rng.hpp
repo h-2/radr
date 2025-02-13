@@ -12,6 +12,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <iterator>
 #include <type_traits>
 
 #include "radr/detail/detail.hpp"
@@ -162,6 +163,19 @@ public:
 };
 
 } // namespace radr::detail
+
+// GCC < 14 runs into recursive concept checks without this ¯\_(ツ)_/¯
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ < 14
+template <typename Value, typename Bound, radr::single_rng_storage storage>
+struct std::iterator_traits<radr::detail::repeat_iterator<Value, Bound, storage>>
+{
+    using difference_type   = ptrdiff_t;
+    using value_type        = std::remove_const_t<Value>;
+    using pointer           = void;
+    using reference         = std::conditional_t<storage == radr::single_rng_storage::in_iterator, value_type, Value *>;
+    using iterator_category = std::random_access_iterator_tag;
+};
+#endif
 
 namespace radr
 {
