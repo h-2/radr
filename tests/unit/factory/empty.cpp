@@ -7,33 +7,41 @@
 #include <radr/test/gtest_helpers.hpp>
 
 #include <radr/custom/subborrow.hpp>
-#include <radr/standalone/empty_rng.hpp>
+#include <radr/factory/empty.hpp>
+
+using R = std::remove_cvref_t<decltype(radr::empty<int>)>;
+using C = std::remove_cvref_t<decltype(radr::empty<int const>)>;
 
 TEST(empty_rng, concepts)
 {
-    using R = radr::empty_rng<int>;
-    using C = radr::empty_rng<int const>;
-
     EXPECT_TRUE(std::ranges::contiguous_range<R>);
     EXPECT_TRUE(std::ranges::contiguous_range<C>);
-    EXPECT_SAME_TYPE(std::ranges::iterator_t<R>, int *);
-    EXPECT_SAME_TYPE(std::ranges::iterator_t<C>, int const *);
+    EXPECT_TRUE(std::ranges::common_range<R>);
+    EXPECT_TRUE(std::ranges::common_range<C>);
+    EXPECT_TRUE(std::ranges::borrowed_range<R>);
+    EXPECT_TRUE(std::ranges::borrowed_range<C>);
+
+    EXPECT_SAME_TYPE(radr::iterator_t<R>, int *);
+    EXPECT_SAME_TYPE(radr::iterator_t<C>, int const *);
 
     // not an adaptor, but fulfils all the requirements
     radr::test::generic_adaptor_checks<R, std::vector<int> /*irrelevant*/>();
     radr::test::generic_adaptor_checks<C, std::vector<int> /*irrelevant*/>();
+
+    EXPECT_EQ(sizeof(R), 2);
+    EXPECT_EQ(sizeof(C), 2);
 }
 
 TEST(empty_rng, members)
 {
-    radr::empty_rng<int> r;
+    R r;
     EXPECT_EQ(r.begin(), nullptr);
     EXPECT_EQ(r.end(), nullptr);
     EXPECT_EQ(r.data(), nullptr);
     EXPECT_EQ(r.size(), 0ull);
     EXPECT_EQ(r.empty(), true);
 
-    radr::empty_rng<int const> c;
+    C c;
     EXPECT_EQ(c.begin(), nullptr);
     EXPECT_EQ(c.end(), nullptr);
     EXPECT_EQ(c.data(), nullptr);
@@ -43,13 +51,13 @@ TEST(empty_rng, members)
 
 TEST(empty_rng, subborrow)
 {
-    radr::empty_rng<int> r;
+    R r;
 
     auto sub1 = radr::borrow(r);
-    EXPECT_SAME_TYPE(decltype(sub1), decltype(r));
+    EXPECT_SAME_TYPE(decltype(sub1), R);
 
     auto sub2 = radr::borrow(std::as_const(r));
-    EXPECT_SAME_TYPE(decltype(sub2), radr::empty_rng<int const>);
+    EXPECT_SAME_TYPE(decltype(sub2), C);
 
     auto sub3 = radr::subborrow(r, (int *)nullptr, (int *)nullptr);
     EXPECT_SAME_TYPE(decltype(sub3), decltype(r));

@@ -14,12 +14,12 @@
 
 #include <iterator>
 
-#include "../custom/subborrow.hpp"
-#include "../detail/detail.hpp"
-#include "../detail/pipe.hpp"
-#include "../rad/as_const.hpp"
-#include "../range_access.hpp"
-#include "../standalone/single_rng.hpp"
+#include "radr/custom/subborrow.hpp"
+#include "radr/detail/detail.hpp"
+#include "radr/detail/pipe.hpp"
+#include "radr/factory/single.hpp"
+#include "radr/rad/as_const.hpp"
+#include "radr/range_access.hpp"
 
 namespace radr::detail
 {
@@ -138,7 +138,7 @@ public:
             else
             {
                 /* The following call triggers an uninitialized read within Pattern, if Pattern is
-                 * radr::single_rng<T, in_iterator> and that is default initialised. This is typically only the
+                 * radr::repeat_rng<T, constant_t<0>, in_iterator> and that is default initialised. This is typically only the
                  * case when this object is also default-initialised in which case it == uend and this branch
                  * is never taken.*/
 #ifndef __clang__
@@ -228,7 +228,7 @@ inline constexpr auto split_borrow = overloaded{
     requires(!comparable_ranges<URange, Pattern> &&
              std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>)
 {
-    return split_borrow_impl(std::forward<URange>(urange), single_rng<Pattern, single_rng_storage::indirect>(val));
+    return split_borrow_impl(std::forward<URange>(urange), single_rng<Pattern, repeat_rng_storage::indirect>(val));
 },
 /* split by rvalue element */
 []<const_borrowable_range URange, typename Pattern>(URange && urange, Pattern const & val)
@@ -238,7 +238,7 @@ inline constexpr auto split_borrow = overloaded{
     static_assert(std::is_nothrow_default_constructible_v<Pattern> && std::is_nothrow_copy_constructible_v<Pattern>,
                   "The value type needs to be nothrow_default_constructible and nothrow_copy_constructible for "
                   "in_iterator storage.");
-    return split_borrow_impl(std::forward<URange>(urange), single_rng<Pattern, single_rng_storage::in_iterator>(val));
+    return split_borrow_impl(std::forward<URange>(urange), single_rng<Pattern, repeat_rng_storage::in_iterator>(val));
 }};
 // clang-format on
 
