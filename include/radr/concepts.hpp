@@ -12,6 +12,7 @@
 
 #include <concepts>
 #include <ranges>
+#include <type_traits>
 
 #include "detail/detail.hpp"
 
@@ -57,6 +58,10 @@ concept complete_forward_range = const_iterable_range<Range> && std::semiregular
 template <typename Range>
 concept const_borrowable_range = const_iterable_range<Range> && std::ranges::borrowed_range<Range>;
 
+template <typename Range>
+concept borrowed_range_object = std::ranges::borrowed_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> &&
+                                std::semiregular<Range> && const_iterable_range<Range>;
+
 //!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
 template <typename T>
 concept small_type = std::regular<T> && std::is_nothrow_default_constructible_v<T> &&
@@ -96,5 +101,8 @@ concept weakly_equality_comparable = weakly_equality_comparable_with<T, T>;
 
 template <class T, class... Us>
 concept one_of = (std::same_as<T, Us> || ...);
+
+template <typename T>
+concept object = std::is_object_v<T>;
 
 } // namespace radr::detail
