@@ -62,9 +62,6 @@ concept filter_func_constraints =
 template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
 class filter_iterator : public filter_iterator_category<Iter>
 {
-    template <std::forward_iterator Iter2, std::sentinel_for<Iter2> Sent2, filter_func_constraints<Iter2> Func2>
-    friend class filter_iterator;
-
     [[no_unique_address]] semiregular_box<Func> func_;
     [[no_unique_address]] Iter                  current_{};
     [[no_unique_address]] Sent                  end_{};
@@ -96,13 +93,6 @@ public:
 
     constexpr filter_iterator(Func func, Iter current, Sent end) :
       func_(std::in_place, std::move(func)), current_(std::move(current)), end_(std::move(end))
-    {}
-
-    //!\brief Convert from non-const.
-    template <detail::different_from<Iter> OtherIter, typename OtherSent>
-    constexpr filter_iterator(filter_iterator<OtherIter, OtherSent, Func> i)
-        requires(std::convertible_to<OtherIter, Iter> && std::convertible_to<OtherSent, Sent>)
-      : func_(std::move(i.func_)), current_(std::move(i.current_)), end_(std::move(i.end_))
     {}
 
     constexpr Iter const & base_iter() const & noexcept { return current_; }
@@ -180,51 +170,40 @@ public:
 
 // iterator-based borrow
 inline constexpr auto filter_borrow_impl =
-  []<typename UIt, typename USen, typename UCIt, typename UCSen, typename Fn_>(UIt  it,
-                                                                               USen sen,
-                                                                               UCIt,
-                                                                               UCSen,
-                                                                               Fn_ _fn) // generic case
+  []<typename UCIt, typename UCSen, typename Fn_>(UCIt it, UCSen sen, Fn_ _fn) // generic case
 {
-    using iterator_t       = filter_iterator<UIt, USen, Fn_>;
-    using sentinel_t       = std::default_sentinel_t;
-    using const_iterator_t = filter_iterator<UCIt, UCSen, Fn_>;
-    using const_sentinel_t = std::default_sentinel_t;
+    using CIt  = filter_iterator<UCIt, UCSen, Fn_>;
+    using CSen = std::default_sentinel_t;
 
-    using BorrowingRad =
-      borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, borrowing_rad_kind::unsized>;
+    using BorrowingRad = borrowing_rad<CIt, CSen, CIt, CSen, borrowing_rad_kind::unsized>;
 
     // eagerly search for begin
     auto begin = std::ranges::find_if(it, sen, std::ref(_fn));
 
     return BorrowingRad{
-      iterator_t{_fn, std::move(begin), std::move(sen)},
+      CIt{_fn, std::move(begin), std::move(sen)},
       std::default_sentinel
     };
 };
 
 inline constexpr auto filter_borrow =
-  []<const_borrowable_range URange, filter_func_constraints<radr::iterator_t<URange>> Fn>(URange && urange, Fn fn)
+  []<const_borrowable_range URange, filter_func_constraints<radr::const_iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
     // dispatch between generic case and chained case(s)
-    return overloaded{filter_borrow_impl,
-                      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Fn_>(
-                        filter_iterator<UIt, USen, UFn> iter,
-                        std::default_sentinel_t,
-                        filter_iterator<UCIt, UCSen, UFn> citer,
-                        std::default_sentinel_t,
-                        Fn_ new_fn)
+    return overloaded{
+      filter_borrow_impl,
+      []<typename UUCIt, typename UUCSen, typename UFn, typename Fn_>(filter_iterator<UUCIt, UUCSen, UFn> citer,
+                                                                      std::default_sentinel_t,
+                                                                      Fn_ new_fn)
     {
-        return filter_borrow_impl(std::move(iter).base_iter(),
-                                  std::move(iter).base_sent(),
-                                  std::move(citer).base_iter(),
+        return filter_borrow_impl(std::move(citer).base_iter(),
                                   std::move(citer).base_sent(),
-                                  and_fn{std::move(iter).func(), std::move(new_fn)});
-    }}(radr::begin(urange), radr::end(urange), radr::cbegin(urange), radr::cend(urange), std::move(fn));
+                                  and_fn{std::move(citer).func(), std::move(new_fn)});
+    }}(radr::cbegin(urange), radr::cend(urange), std::move(fn));
 };
 
 inline constexpr auto filter_coro =
-  []<std::ranges::input_range URange, std::indirect_unary_predicate<std::ranges::iterator_t<URange>> Fn>(
+  []<std::ranges::input_range URange, std::indirectly_unary_invocable<std::ranges::iterator_t<URange>> Fn>(
     URange && urange,
     Fn        fn)
 {
@@ -247,6 +226,38 @@ namespace radr
 {
 inline namespace cpo
 {
+/*!\brief Take only those elements from the underlying range that satisfy a predicate.
+ * \param[in] urange The underlying range.
+ * \param[in] predicate The predicate.
+ *
+ * \details
+ *
+ * ## Multi-pass ranges
+ *
+ * * Requirements on \p urange : radr::const_iterable
+ * * Requirements on \p predicate : std::copy_constructible, std::is_object_v, std::indirect_unary_predicate (const predicate with urange's const iterator)
+ *
+ * This adaptor preserves categories up to std::ranges::bidirectional_range, and it preserves std::ranges::borrowed_range.
+ *
+ * **It contrast to std::views::filter, it preserves neither radr::common_range nor mutability,
+ * i.e. the returned range is always a radr::constant_range!**
+ *
+ * Use `radr::filter(Fn) | radr::to_common` to make the range common, and use
+ * `radr::to_single_pass | radr::filter(Fn)`, create a mutable range (see below).
+ *
+ * Construction of the adaptor is in O(n), because the first matching element is searched and cached.
+ *
+ * ## Single-pass ranges
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ * * Requirements on \p predicate : std::move_constructible, std::is_object_v, std::indirect_unary_invocable (mutable predicate with urange's non-const iterator)
+ *
+ * Always returns a radr::generator, i.e. a move-only, single-pass range.
+ *
+ * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's elements.
+ * It also allows (observable) changes to the predicate.
+ *
+ */
 inline constexpr auto filter = detail::pipe_with_args_fn{detail::filter_coro, detail::filter_borrow};
 } // namespace cpo
 } // namespace radr

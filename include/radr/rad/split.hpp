@@ -138,7 +138,7 @@ public:
             else
             {
                 /* The following call triggers an uninitialized read within Pattern, if Pattern is
-                 * radr::repeat_rng<T, constant_t<0>, in_iterator> and that is default initialised. This is typically only the
+                 * radr::single_rng<T, in_iterator> and that is default initialised. This is typically only the
                  * case when this object is also default-initialised in which case it == uend and this branch
                  * is never taken.*/
 #ifndef __clang__

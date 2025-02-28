@@ -13,6 +13,7 @@
 #include <radr/rad/filter.hpp>
 #include <radr/rad/take.hpp>
 
+#include "radr/concepts.hpp"
 #include "radr/detail/fwd.hpp"
 
 // --------------------------------------------------------------------------
@@ -54,20 +55,21 @@ struct filter_forward : public testing::Test
     /* type foo */
     using container_t = _container_t;
 
-    using it_t = radr::detail::
-      filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, std::remove_cvref_t<decltype(fn)>>;
-    using sen_t  = std::default_sentinel_t;
     using cit_t  = radr::detail::filter_iterator<radr::const_iterator_t<container_t>,
                                                 radr::const_iterator_t<container_t>,
                                                 std::remove_cvref_t<decltype(fn)>>;
     using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
-    using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
+    using borrow_t                               = radr::borrowing_rad<cit_t, csen_t, cit_t, csen_t, bk>;
 
     template <typename in_t>
     static void type_checks_impl()
     {
+        /* guaranteed for all filter adaptors */
+        EXPECT_TRUE(radr::constant_range<in_t>);
+        EXPECT_TRUE(radr::const_symmetric_range<in_t>);
+
         /* preserved for all filter adaptors */
         EXPECT_EQ(std::ranges::bidirectional_range<in_t>, std::ranges::bidirectional_range<container_t>);
 
@@ -86,7 +88,7 @@ struct filter_forward : public testing::Test
         type_checks_impl<in_t>();
         type_checks_impl<in_t const>();
 
-        EXPECT_SAME_TYPE(std::ranges::range_reference_t<in_t>, size_t &);
+        EXPECT_SAME_TYPE(std::ranges::range_reference_t<in_t>, size_t const &);
         EXPECT_SAME_TYPE(std::ranges::range_reference_t<in_t const>, size_t const &);
     }
 };
@@ -133,15 +135,12 @@ TYPED_TEST(filter_forward, chained_adaptor)
     using chained_pred_t = radr::detail::and_fn<std::remove_cvref_t<decltype(fn)>, decltype(tru)>;
 
     using container_t = TestFixture::container_t;
-    using it_t =
-      radr::detail::filter_iterator<radr::iterator_t<container_t>, radr::iterator_t<container_t>, chained_pred_t>;
-    using sen_t = std::default_sentinel_t;
-    using cit_t = radr::detail::
+    using cit_t       = radr::detail::
       filter_iterator<radr::const_iterator_t<container_t>, radr::const_iterator_t<container_t>, chained_pred_t>;
     using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
-    using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
+    using borrow_t                               = radr::borrowing_rad<cit_t, csen_t, cit_t, csen_t, bk>;
 
     auto ra = std::ref(this->in) | radr::filter(fn) | radr::filter(tru);
 
@@ -163,14 +162,12 @@ TEST(filter_forward_, noncommon)
 
     /* expected type */
     using pred_t = std::remove_cvref_t<decltype(fn)>;
-    using it_t   = radr::detail::filter_iterator<radr::iterator_t<container_t>, radr::sentinel_t<container_t>, pred_t>;
-    using sen_t  = std::default_sentinel_t;
     using cit_t =
       radr::detail::filter_iterator<radr::const_iterator_t<container_t>, radr::const_sentinel_t<container_t>, pred_t>;
     using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
-    using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
+    using borrow_t                               = radr::borrowing_rad<cit_t, csen_t, cit_t, csen_t, bk>;
 
     auto ra = std::ref(in) | radr::filter(fn);
     EXPECT_RANGE_EQ(ra, comp);
@@ -192,14 +189,12 @@ TEST(filter_forward_, noncommon_chained)
 
     /* expected type */
     using pred_t = radr::detail::and_fn<std::remove_cvref_t<decltype(fn)>, decltype(tru)>;
-    using it_t   = radr::detail::filter_iterator<radr::iterator_t<container_t>, radr::sentinel_t<container_t>, pred_t>;
-    using sen_t  = std::default_sentinel_t;
     using cit_t =
       radr::detail::filter_iterator<radr::const_iterator_t<container_t>, radr::const_sentinel_t<container_t>, pred_t>;
     using csen_t = std::default_sentinel_t;
 
     static constexpr radr::borrowing_rad_kind bk = radr::borrowing_rad_kind::unsized;
-    using borrow_t                               = radr::borrowing_rad<it_t, sen_t, cit_t, csen_t, bk>;
+    using borrow_t                               = radr::borrowing_rad<cit_t, csen_t, cit_t, csen_t, bk>;
 
     auto ra = std::ref(in) | radr::filter(fn) | radr::filter(tru);
     EXPECT_RANGE_EQ(ra, comp);
