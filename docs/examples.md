@@ -488,3 +488,65 @@ Ill-formed; can't write through `const`.
 * Many standard library views are not const-iterable; all our adaptors on containers are.
 * Standard library views allow writing through `const`; all our adaptors on containers forbid it.
 * See [the page on const](./const.md) for more details.
+
+## Undefined behaviour
+
+<table>
+<tr>
+<th>
+
+`std::`
+
+</th>
+<th>
+
+`radr::`
+
+</th>
+</tr>
+<tr>
+<td>
+
+**undefined behaviour**
+
+</td>
+<td>
+
+**no undefined behaviour**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```cpp
+std::vector vec{1,2,2,3}
+auto is_even = /**/;
+
+auto vue = vec | std::view::filter(is_even);
+auto b = vue.begin(); // on first '2'
+*b = 1; // no longer satisfies predicate
+```
+
+Undefined bahaviour 💣
+
+</td>
+
+<td>
+
+```cpp
+std::vector vec{1,2,2,3}
+auto is_even = /**/;
+
+auto rad = vec | radr::filter(is_even);
+auto b = vue.begin(); // on first '2'
+// *b = 1;
+```
+
+Our filter disallows changing vec.
+</td>
+</tr>
+</table>
+
+This library helps users avoid undefined bahaviour by disallowing assigning through range adaptors that would invalidate those range adaptors in non-obvious ways.

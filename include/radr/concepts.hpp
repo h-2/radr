@@ -42,6 +42,7 @@ template <typename Range>
 concept const_iterable_range =
   std::ranges::forward_range<Range> && std::ranges::forward_range<detail::add_const_t<Range>>;
 
+//!\brief A range whose iterator_t / sentinel_t are the same types as its const_iterator_t / const_sentinel_t.
 template <typename Range>
 concept const_symmetric_range =
   const_iterable_range<Range> &&
