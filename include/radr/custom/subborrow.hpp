@@ -196,7 +196,7 @@ struct subborrow_impl_t
             using ret_t = decltype(tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s));
             static_assert(radr::borrowed_range_object<ret_t>,
                           "Your customisations of radr::subborrow must always return a radr::borrowed_range_object.");
-            return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e);
+            return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s);
         }
         else if constexpr (requires { tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e); })
         {
