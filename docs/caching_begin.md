@@ -57,20 +57,49 @@ auto rad = std::ref(vec) |       radr::filter(even);
 Let's say we have the above list (five 1s, five 2s, five 1s), and we want to filter it for even values.
 The point of caching begin() is to avoid reading over the first five 1s every time `begin()` is called.
 
-The first time we iterate over `vue` or `rad`, the predicate `even` will be invoked 15 times. The second time each is invoked 9 times. Note that since neither `std` nor `radr` cache the end, the *last* five 1s will always be parsed.
+We want to find out how many times the predicate is evaluated when using the adaptor, i.e. when creating the adaptor and iterating over it one or more times.
 
-|  `std::`                                                | # calls     |
-|---------------------------------------------------------|------------:|
-| `for (size_t i : vue) {}` (1st)                         | 15          |
-| `for (size_t i : vue) {}` (2nd)                         |  9          |
-| `for (size_t i : vue │ std::views::take(100)) {}` (3rd) | 15          |
-| **`radr::`**                                            |             |
-| `for (size_t i : rad) {}` (1st)                         | 15          |
-| `for (size_t i : rad) {}` (2nd)                         |  9          |
-| `for (size_t i : rad │ radr::take(100)) {}` (3rd)       |  9          |
+|  `std::`                                                   | # calls     |
+|------------------------------------------------------------|------------:|
+| `auto vue = vec │ std::views::filter(even);` (constr.)     |  0          |
+| `for (size_t i : vue) {}` (1st)                            | 15          |
+| `for (size_t i : vue) {}` (2nd+)                           |  9          |
+| `for (size_t i : vue │ std::views::take(100)) {}` (comb.)  | 15          |
+| **`radr::`**                                               |             |
+| `auto rad = std::ref(vec) │ radr::filter(even);` (constr.) |  6          |
+| `for (size_t i : rad) {}` (1st)                            |  9          |
+| `for (size_t i : rad) {}` (2nd+)                           |  9          |
+| `for (size_t i : rad │ radr::take(100)) {}` (comb.)        |  9          |
 
-We clearly see that the second iteration makes use of the cache. However, in the standard library, the third iteration *does not*.
-That's because the caching mechanism in the standard library is *non-propagating*, i.e. it is not preserved when being copied or moved.
+This tables illustrates the differences and similarities between the standard library and our library:
+  * Constructing the adaptor and iterating over it once adds up to 15 predicate calls.
+  * The second (and any further) iteration only performs 9 calls.
+  * Note that since neither `std` nor `radr` cache the end, the *last* five 1s will always be parsed. *More on this below*.
+
+Finally, we see that the libraries differ when the adaptor is combined with another one, e.g. `take(100)`.
+The standard library adaptor resets its cache when being moved or copied, because the caching mechanism in the standard library is *non-propagating*.
 This is not known to most users of `std::ranges::`, and it is even more surprising since "building up" ranges pipelines in multiple steps is a frequently recommended practice.
 
-The adaptors from this library don't suffer from this problem and can thus deliver a higher performance in certain use-cases.
+The adaptors from this library don't suffer from this problem, because they always cache begin and that cache remains valid on copy and move. They can thus deliver a higher performance in certain use-cases.
+
+
+### Caching end()
+
+Calling `end()` is required to be in O(1), and it always is (in the standard library and this library).
+However, the sentinel sometimes does not refer to the *actual* end in the underlying sequence, as the example above illustrates: The end of the filter could/should refer to the first `1` in the last block.
+But it refers to the end of the underlying range, and that is why the tail is parsed every time you iterate over the full range.
+
+Such an "algorithmic end" is typically indicated by a special type, and such ranges typically aren't so-called *common ranges* (`std::ranges::common_range` or `radr::common_range`).
+However, in the standard library, some ranges are implemented as common, although they show such behaviour; `std::views::filter` is one of them.
+In our library `radr::filter` is not common by default. This has the advantage that we can use `radr::to_common` to *make it common* **which will cache the actual end**.
+
+|  `radr::`                                                                    | # calls     |
+|------------------------------------------------------------------------------|------------:|
+| `auto rad = std::ref(vec) │ radr::filter(even) │ radr::to_common;` (constr.) |  15         |
+| `for (size_t i : rad) {}` (1st)                                              |  4          |
+| `for (size_t i : rad) {}` (2nd+)                                             |  4          |
+| `for (size_t i : rad │ radr::take(100)) {}` (comb.)                          |  4          |
+
+As you see, the range is parsed once completely on construction.
+After this, the adaptor needs to parse neither the head, nor the tail of the underlying range on a full iteration.
+The standard library does not offer such facilities.

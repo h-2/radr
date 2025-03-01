@@ -31,14 +31,15 @@ inline constexpr auto to_common_borrow = []<const_borrowable_range URange>(URang
     }
     else
     {
-        auto   b = radr::begin(urange);
-        auto   e = b;
-        size_t s = 0;
-        for (; e != radr::end(urange); ++e, ++s)
+        auto   b     = radr::begin(urange);
+        auto   old_e = radr::end(urange);
+        auto   new_e = b;
+        size_t s     = 0;
+        for (; new_e != old_e; ++new_e, ++s)
         {
         }
 
-        return subborrow(urange, b, e, s);
+        return subborrow(urange, b, new_e, s);
     }
 };
 

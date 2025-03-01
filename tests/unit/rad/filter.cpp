@@ -9,12 +9,11 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
+#include <radr/concepts.hpp>
 #include <radr/detail/detail.hpp>
 #include <radr/rad/filter.hpp>
 #include <radr/rad/take.hpp>
-
-#include "radr/concepts.hpp"
-#include "radr/detail/fwd.hpp"
+#include <radr/rad/to_common.hpp>
 
 // --------------------------------------------------------------------------
 // test data
@@ -93,7 +92,6 @@ struct filter_forward : public testing::Test
     }
 };
 
-//TODO: add non-common,
 using container_types = ::testing::Types<std::forward_list<size_t>, // unsized
                                          std::list<size_t>,         // sized without sized_sentinel
                                          std::deque<size_t>,
@@ -199,6 +197,42 @@ TEST(filter_forward_, noncommon_chained)
     auto ra = std::ref(in) | radr::filter(fn) | radr::filter(tru);
     EXPECT_RANGE_EQ(ra, comp);
     EXPECT_SAME_TYPE(decltype(ra), borrow_t);
+}
+
+TEST(filter_forward_, noncommon2common)
+{
+    /* construct container */
+    auto in           = std::list<size_t>{1, 1, 2, 2, 1, 1} | radr::take(6);
+    using container_t = decltype(in);
+    static_assert(!std::ranges::common_range<container_t>);
+
+    {
+        auto ra = std::ref(in) | radr::filter(fn);
+        auto e  = radr::begin(ra);
+        while (e != radr::end(ra))
+            ++e;
+
+        auto eager_e = std::ranges::next(in.begin(), 6); // past the underlying end
+#if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 12)
+        (void)eager_e; // bug libstdc++
+#else
+        EXPECT_EQ(e.base_iter(), eager_e);
+#endif
+    }
+
+    {
+        auto ra = std::ref(in) | radr::filter(fn) | radr::to_common;
+        auto e  = radr::begin(ra);
+        while (e != radr::end(ra))
+            ++e;
+
+        auto eager_e = std::ranges::next(in.begin(), 4); // first '1' in tail
+#if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 12)
+        (void)eager_e; // bug libstdc++
+#else
+        EXPECT_EQ(e.base_iter(), eager_e);
+#endif
+    }
 }
 
 // --------------------------------------------------------------------------

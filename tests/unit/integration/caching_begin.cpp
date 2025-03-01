@@ -12,7 +12,7 @@
 #include <radr/rad/take.hpp>
 #include <radr/rad/to_common.hpp>
 
-TEST(iterator_size, non_prop)
+TEST(caching_begin, non_prop)
 {
     size_t count = 0;
     auto   even  = [&count](size_t i)
@@ -25,6 +25,8 @@ TEST(iterator_size, non_prop)
 
     {
         auto v = vec | std::views::filter(even);
+        EXPECT_EQ(count, 0);
+        count = 0;
         for ([[maybe_unused]] size_t i : v)
         {
         }
@@ -38,6 +40,8 @@ TEST(iterator_size, non_prop)
         count = 0;
 
         auto v2 = v | std::views::take(100);
+        EXPECT_EQ(count, 0);
+        count = 0;
         for ([[maybe_unused]] size_t i : v2)
         {
         }
@@ -47,10 +51,12 @@ TEST(iterator_size, non_prop)
 
     {
         auto v = std::ref(vec) | radr::filter(even);
+        EXPECT_EQ(count, 6);
+        count = 0;
         for ([[maybe_unused]] size_t i : v)
         {
         }
-        EXPECT_EQ(count, 15);
+        EXPECT_EQ(count, 9);
         count = 0;
 
         for ([[maybe_unused]] size_t i : v)
@@ -72,5 +78,29 @@ TEST(iterator_size, non_prop)
         }
         EXPECT_EQ(count, 9);
         count = 0;
+    }
+
+    {
+        auto v = std::ref(vec) | radr::filter(even) | radr::to_common;
+        EXPECT_EQ(count, 15);
+        count = 0;
+        for ([[maybe_unused]] size_t i : v)
+        {
+        }
+        EXPECT_EQ(count, 4);
+        count = 0;
+
+        for ([[maybe_unused]] size_t i : v)
+        {
+        }
+        EXPECT_EQ(count, 4);
+        count = 0;
+
+        for ([[maybe_unused]] size_t i : v | radr::take(100))
+        {
+        }
+        EXPECT_EQ(count, 4);
+        count = 0;
+        EXPECT_EQ(std::ranges::distance(v), 5);
     }
 }
