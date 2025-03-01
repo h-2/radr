@@ -20,6 +20,7 @@
 #include "../detail/detail.hpp"
 #include "../detail/fwd.hpp"
 #include "rad_interface.hpp"
+#include "radr/concepts.hpp"
 #include "radr/range_access.hpp"
 
 namespace radr::detail
@@ -290,6 +291,16 @@ borrowing_rad(TValue *, TValue *, detail::not_size) -> borrowing_rad<TValue *>;
 
 template <typename TValue>
 borrowing_rad(TValue *, TValue *, std::integral auto) -> borrowing_rad<TValue *>;
+
+/* it, sen where it is already a const_iterator */
+template <constant_iterator TCIt, std::sentinel_for<TCIt> TCSen>
+borrowing_rad(TCIt, TCSen) -> borrowing_rad<TCIt, TCSen, TCIt, TCSen>;
+
+template <constant_iterator TCIt, std::sentinel_for<TCIt> TCSen>
+borrowing_rad(TCIt, TCSen, detail::not_size) -> borrowing_rad<TCIt, TCSen, TCIt, TCSen>;
+
+template <constant_iterator TCIt, std::sentinel_for<TCIt> TCSen>
+borrowing_rad(TCIt, TCSen, std::integral auto) -> borrowing_rad<TCIt, TCSen, TCIt, TCSen, borrowing_rad_kind::sized>;
 
 /* no guides for generic (it,sen) constructors, because const versions cannot be deduced */
 
