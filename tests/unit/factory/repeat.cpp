@@ -381,8 +381,8 @@ TYPED_TEST(repeat_rng, subborrow_infinite_size)
 
         auto sub = radr::subborrow(r, r.begin() + 1, std::unreachable_sentinel, 2);
 
-        EXPECT_SAME_TYPE(decltype(sub), typename TestFixture::infinite_subborrow_t);
-        EXPECT_FALSE(std::ranges::sized_range<decltype(sub)>);
+        EXPECT_SAME_TYPE(decltype(sub), typename TestFixture::subborrow_t);
+        EXPECT_TRUE(std::ranges::sized_range<decltype(sub)>);
         EXPECT_EQ(sub[0], 3);
         if constexpr (!TestFixture::is_const)
         {
