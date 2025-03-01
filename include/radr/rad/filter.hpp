@@ -77,6 +77,39 @@ class filter_iterator : public filter_iterator_category<Iter>
         return it;
     }
 
+    template <typename Size>
+    static constexpr auto subborrow_impl(filter_iterator it, filter_iterator sen, Size s)
+    {
+        using RIt     = filter_iterator<Iter, Iter, Func>;
+        Iter new_uend = sen.base_iter();
+
+        if constexpr (std::bidirectional_iterator<Iter> && !std::same_as<Iter, Sent>)
+        {
+            if (it != sen)
+            {
+                /* For filter iterators on non-common ranges, sen might not represent the "real"
+                 * underlying end, because the "caching mechanism" implemented in operator++
+                 * does not take effect.
+                 * For these ranges, we do the tiny hack of creating a "filter_iterator-on-common",
+                 * and then we decrement which will move onto the last valid underlying element.
+                 * The we increment that to get the real underlying past-the-end iterator.
+                 *
+                 * A cleaner solution would be to introduce a `to_common` customisation point.
+                 * This would allow avoiding the back and forth.
+                 * We might do this in the future!
+                 */
+                RIt rsen{sen.func(), new_uend, new_uend};
+                --rsen;
+                new_uend = std::move(rsen).base_iter();
+                ++new_uend;
+            }
+        }
+
+        RIt rit{std::move(it).func(), std::move(it).base_iter(), new_uend};
+        RIt rsen{std::move(sen).func(), new_uend, new_uend};
+        return borrowing_rad{std::move(rit), std::move(rsen), s};
+    }
+
 public:
     // clang-format off
     using iterator_concept =
@@ -113,7 +146,17 @@ public:
 
     constexpr filter_iterator & operator++()
     {
-        current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*func_));
+        if constexpr (std::same_as<Iter, Sent>)
+        {
+            if (auto tmp = std::ranges::find_if(++current_, end_, std::ref(*func_)); tmp != end_)
+                current_ = std::move(tmp);
+            else // cache the real underlying end
+                end_ = current_;
+        }
+        else
+        {
+            current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*func_));
+        }
         return *this;
     }
 
@@ -165,6 +208,29 @@ public:
     {
         std::ranges::iter_swap(x.current_, y.current_);
         std::ranges::iter_swap(x.end_, y.end_);
+    }
+
+    /*!\brief Customisation for subranges.
+     * \details
+     *
+     * This potentially returns a range of different filter_iterators. In particular, the returned
+     * ones are always built on iterator-sentinel of the same type.
+     */
+    template <const_borrowable_range R>
+    constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, filter_iterator it, filter_iterator sen)
+    {
+        return subborrow_impl(it, sen, not_size{});
+    }
+
+    //!\overload
+    template <const_borrowable_range R>
+    constexpr friend auto tag_invoke(custom::subborrow_tag,
+                                     R &&,
+                                     filter_iterator it,
+                                     filter_iterator sen,
+                                     size_t const    s)
+    {
+        return subborrow_impl(it, sen, s);
     }
 };
 
