@@ -185,7 +185,7 @@ Well-formed; our owning adaptors are ( $O(n)$ ).
 See [the page on fundamental range properties](./range_properties.md) for more details.
 
 
-## Dangling references
+## ✂️ Dangling references
 
 <table>
 <tr>
@@ -307,7 +307,7 @@ This library's syntax explicitly forces you to choose between `std::move()`-ing 
 into adaptors. This avoids unintendedly creating dangling references.
 
 
-## Const
+## 🪨 Const
 
 <table>
 <tr>
@@ -489,7 +489,7 @@ Ill-formed; can't write through `const`.
 * Standard library views allow writing through `const`; all our adaptors on containers forbid it.
 * See [the page on const](./const.md) for more details.
 
-## Undefined behaviour
+## 💥 Undefined behaviour
 
 <table>
 <tr>
@@ -529,7 +529,7 @@ auto b = vue.begin(); // on first '2'
 *b = 1; // no longer satisfies predicate
 ```
 
-Undefined bahaviour 💣
+Undefined behaviour 💣
 
 </td>
 
@@ -544,9 +544,62 @@ auto b = vue.begin(); // on first '2'
 // *b = 1;
 ```
 
-Our filter disallows changing vec.
+Ill-formed; our filter prevents changes to vec.
 </td>
 </tr>
+
+<tr>
+<td>
+
+**undefined behaviour**
+
+</td>
+<td>
+
+**no undefined behaviour**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```cpp
+std::vector vec{1,2,2,3}
+auto plusCount = [count=0] (int i) mutable
+{
+  return i + count++;
+};
+
+auto vue = vec | std::view::transform(plusCount);
+std::print("{}", vue[0]); // "1"
+std::print("{}", vue[0]); // "2"
+```
+
+Violates the multi-pass guarantee.
+Undefined behaviour 💣
+
+</td>
+
+<td>
+
+```cpp
+std::vector vec{1,2,2,3}
+auto plusCount = [count=0] (int i) mutable
+{
+  return i + count++;
+};
+
+// auto rad = std::ref(vec) | radr::transform(plusCount);
+```
+
+Mutable function object is rejected; no undefined behaviour.[^multipass]
+</td>
+</tr>
+
+
 </table>
 
-This library helps users avoid undefined bahaviour by disallowing assigning through range adaptors that would invalidate those range adaptors in non-obvious ways.
+See the [page on undefined behaviour](./safety.md#undefined-behaviour).
+
+[^multipass]: Note that we cannot prevent all violations of the multi-pass guarantee, e.g. if the count variable is captured from outside, the functor need not be mutable to violate the guarantee. But catching some is better than catching none :wink: .

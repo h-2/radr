@@ -18,7 +18,7 @@ These are good reasons to make *range adaptors* also (semi-)regular, if possible
 
 [^references]: e.g. https://www.modernescpp.com/index.php/regular-type/ , https://www.stepanovpapers.com/DeSt98.pdf
 
-[^container_exceptions]: All containers are semi-regular if the element type is semi-regular, and all containers are regular if the element type is regular. Many containers even model these properties if element type does not meet all requirements.
+[^container_exceptions]: All containers are semi-regular if the element type is semi-regular, and all containers are regular if the element type is regular. Many containers even model these properties if the element type does not meet all requirements.
 
 
 ## Semantics
@@ -59,7 +59,7 @@ Furthermore, generic code often has to accommodate these special cases.
 
 [^no_compare]: Non-owning range adaptors were considered to be more like pointers-to-containers than containers, so the committee didn't want `==` to compare elements. This is the same design reason behind making them *shallow const* (see [the page on const](./const.md) ). However, one was (rightfully) afraid users wouldn't understand if `==` compared the underlying addresses instead of the elements, so we ended up with no `==`. RADR embraces the example of `std::string_view` and always compares elements for all adaptors.
 
-[^no_deafult]: Since `std::ranges::ref_view` (the basis for non-owning standard library adaptors) does not store iterators (but a pointer to the range), a default-initialised object would not be an empty range but an invalid range, and it wouldn't be possible to invoke a zero-overhead implementation of `empty()` without undefined behaviour. RADR always stores iterators and default-initialised multi-pass iterators are valid and compare equal, so our default-initialised adaptors are always valid and calling `empty()` is well-defined and returns true.
+[^no_default]: Since `std::ranges::ref_view` (the basis for non-owning standard library adaptors) does not store iterators (but a pointer to the range), a default-initialised object would not be an empty range but an invalid range, and it wouldn't be possible to invoke a zero-overhead implementation of `empty()` without undefined behaviour. RADR always stores iterators and default-initialised multi-pass iterators are valid and compare equal, so our default-initialised adaptors are always valid and calling `empty()` is well-defined and returns true.
 
 [^no_copy]: `std::ranges::owning_view` (the basis for owning standard library adaptors) is not copyable, because of the way owning adaptors were introduced into the ranges machinery. Because not all non-owning adaptors in the standard are borrowed ranges, copyability is used as a marker for "owning" vs "non-owning". RADR is not affected by this limitation, because we use the `borrowed_range` concept to differentiate between "owning" and "non-owning".
 

@@ -1,5 +1,9 @@
 # Implementation status
 
+This library is a **work-in-progress**.
+We try to stay close to standard library interfaces, but we neither promise full API compatibility with `std::ranges::` nor do we currently promise stability between releases of this library.
+The latter will likely change at some point.
+
 ## Range adaptor classes
 
 

@@ -28,9 +28,18 @@ Our library tries to avoid nesting templates when possible, so this is not gener
 We believe that the benefits of simpler types greatly outweigh the usefulness of this feature.
 It should also be noted that not all standard library adaptors provide `.base()` and that not all standard library adaptors stack all the time, so you cannot rely on this feature in a generic context to reliably reproduce all intermediate steps. For non-generic contexts, on the other hand, you know the combination of applied adaptors and can just recreate intermediate states if desired.
 
-Note that, `radr::owning_rad` provides a `.container()` member. This allows you to directly observe/extract the value-storing range at the root of a (chained) owning adaptor, which may be useful in certain contexts.
-
 ## Stricter constraints on functors
 
-TODO
+Because this library stores invocables in the iterator and not the range (for multi-pass range adaptors), we have slightly stronger requirements on the invocables.
+In particular, they are invoked through a `const &`.
+This has the effect that, e.g. you cannot pass a `mutable` lambda expression.
 
+```cpp
+std::vector vec{1,2,3,4};
+auto plus1 = [] (int i) mutable { return i + 1; };
+auto vue = vec | std::views::transform(plus1);        // well-formed
+//auto rad = std::ref(vec) | radr::transform(plus1);  // ill-formed
+```
+
+Note that the `mutable` keyword has no effect in this particular spot and that invocables that actually do change on iteration are forbidden also in the standard library (they result in *undefined behaviour*).
+We thus believe that the usefulness of mutable invocables is niche, and that it may indeed be benificial that we prevent some undefined behaviour at compile-time.
