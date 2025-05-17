@@ -119,7 +119,7 @@ jobs:
 
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure APT (llvm)
         continue-on-error: true
@@ -148,7 +148,7 @@ jobs:
 
       - name: Load ccache
         if: matrix.build != 'documentation'
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: .ccache
           key: ${{ runner.os }}-${{ matrix.name }}-ccache-${{ github.ref }}-${{ github.run_number }}
