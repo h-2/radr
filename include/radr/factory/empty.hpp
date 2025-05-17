@@ -1,7 +1,8 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2025 Hannes Hauswedell
+// Copyright (c) 2023-2025 Hannes Hauswedell
+//
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception

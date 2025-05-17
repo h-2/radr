@@ -1,7 +1,8 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2025 Hannes Hauswedell
+// Copyright (c) 2023-2025 Hannes Hauswedell
+//
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
@@ -214,7 +215,7 @@ inline constexpr std::integral_constant<decltype(v), v> constant{};
 template <auto v>
 using constant_t = std::integral_constant<decltype(v), v>;
 
-/*!\brief A range of a (possibl infinitely) repeated value.
+/*!\brief A range of a (possibly infinitely) repeated value.
  * \tparam TVal The value type. Must be an object type (`const` allowed, reference not).
  * \tparam Bound Either `ptrdiff_t`, randr::constant_t or std::unreachable_sentinel_t.
  * \tparam storage Storage behaviour of the value; see radr::repeat_rng_storage.
