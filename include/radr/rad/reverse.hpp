@@ -64,6 +64,28 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Reverse the order of elements in a range.
+ * \param urange The underlying range.
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range, std::ranges::bidirectional_range
+ *
+ * This adaptor preserves:
+ *   * categories up to std::ranges::random_access_range
+ *   * std::ranges::sized_range
+ *   * std::ranges::borrowed_range
+ *   * radr::common_range (this is guaranteed independent of \p urange)
+ *   * radr::constant_range
+ *   * radr::mutable_range
+ *
+ * Two nested reverse adaptors cancel each other.
+ *
+ * ### Single-pass adaptor
+ *
+ * Ill-formed on single-pass ranges.
+ *
+ */
 inline constexpr auto reverse = detail::pipe_without_args_fn<void, decltype(detail::reverse_borrow)>{};
 } // namespace cpo
 } // namespace radr

@@ -236,7 +236,7 @@ using constant_t = std::integral_constant<decltype(v), v>;
  *  2. `std::integral_constant<ptrdiff_t, X>` (static/compile-time bound of value X)
  *  3. `std::unreachable_sentinel_t` (unbounded/infinite)
  *
- * The first two options lead to repeat_rng modelling std::ranges::sized_range and std::ranges::common_range;
+ * The first two options lead to repeat_rng modelling std::ranges::sized_range;
  * the third does not.
  *
  * ## Storage

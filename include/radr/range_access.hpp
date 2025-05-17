@@ -17,6 +17,7 @@
 
 #include "concepts.hpp"
 #include "detail/basic_const_iterator.hpp"
+#include "radr/detail/detail.hpp"
 
 namespace radr::detail
 {
@@ -63,7 +64,8 @@ inline constexpr auto end = []<std::ranges::range Rng>(Rng && rng)
 
 inline constexpr auto cbegin = []<borrowed_mp_range Rng>(Rng && rng)
 {
-    if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
+    using RngC = detail::add_const_t<Rng>;
+    if constexpr (std::ranges::contiguous_range<RngC> && std::ranges::sized_range<RngC>)
         return detail::ptr_to_const_ptr(std::to_address(std::ranges::begin(rng)));
     else
         return detail::cbegin_impl(rng);
@@ -71,10 +73,11 @@ inline constexpr auto cbegin = []<borrowed_mp_range Rng>(Rng && rng)
 
 inline constexpr auto cend = []<borrowed_mp_range Rng>(Rng && rng)
 {
-    if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
+    using RngC = detail::add_const_t<Rng>;
+    if constexpr (std::ranges::contiguous_range<RngC> && std::ranges::sized_range<RngC>)
         return cbegin(rng) + std::ranges::size(rng);
-    else if constexpr ((!std::ranges::common_range<Rng>)&&std::ranges::random_access_range<Rng> &&
-                       std::ranges::sized_range<Rng>)
+    else if constexpr ((!std::ranges::common_range<RngC>)&&std::ranges::random_access_range<RngC> &&
+                       std::ranges::sized_range<RngC>)
         return cbegin(rng) + std::ranges::size(rng);
     else
         return detail::cend_impl(rng);
@@ -92,6 +95,7 @@ using sentinel_t = decltype(radr::end(std::declval<T &>()));
 template <typename T>
 using const_sentinel_t = decltype(radr::cend(std::declval<T &>()));
 
+//!\brief Same as std::ranges::common_range, except that random_access+sized ranges are always common.
 template <typename R>
 concept common_range = std::same_as<iterator_t<R>, sentinel_t<R>>;
 

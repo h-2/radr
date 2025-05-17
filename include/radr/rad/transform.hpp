@@ -383,8 +383,8 @@ inline constexpr auto transform_borrow =
 };
 
 inline constexpr auto transform_coro =
-  []<std::ranges::input_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
+  []<std::ranges::input_range URange, std::move_constructible Fn>(URange && urange, Fn fn)
+    requires(std::invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
@@ -406,6 +406,37 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Transforms a range by applying an invocable on each element.
+ * \param urange The underlying range.
+ * \param[in] fn The invocable to apply
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range
+ * * Requirements on \p fn : std::copy_constructible, std::is_object_v, std::regular_invocable (`fn const &` with \p urange 's `reference_t` and `const_reference_t` )
+ *
+ * This adaptor preserves:
+ *   * categories up to std::ranges::random_access_range
+ *   * std::ranges::sized_range
+ *   * std::ranges::borrowed_range
+ *   * radr::common_range
+ *   * radr::constant_range
+ *   * radr::mutable_range (see below)
+ *
+ * Since transformers usually do not return references, mutability is lost anyway, and prefixing radr::as_const can
+ * result in simpler types.
+ *
+ * Multiple nested transform adaptors are folded into one.
+ *
+ * ### Single-pass adaptor
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ * * Requirements on \p fn : std::move_constructible, std::is_object_v, std::invocable (`fn &` with \p urange 's `reference_t`)
+ *
+ * The single-pass adaptor allows (observable) changes in the transformer (std::invocable instead of
+ * std::regular_invocable).
+ *
+ */
 inline constexpr auto transform = detail::pipe_with_args_fn{detail::transform_coro, detail::transform_borrow};
 } // namespace cpo
 } // namespace radr

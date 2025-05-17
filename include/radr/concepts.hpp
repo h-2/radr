@@ -46,8 +46,12 @@ concept const_symmetric_range =
   std::same_as<std::ranges::iterator_t<Range>, std::ranges::iterator_t<detail::add_const_t<Range>>> &&
   std::same_as<std::ranges::sentinel_t<Range>, std::ranges::sentinel_t<detail::add_const_t<Range>>>;
 
+//!\brief In contrast to std::ranges::constant_range, this also requires const-iterability.
 template <class Range>
 concept constant_range = const_symmetric_range<Range> && constant_iterator<std::ranges::iterator_t<Range>>;
+
+template <class Range>
+concept mutable_range = std::ranges::input_range<Range> && !constant_iterator<std::ranges::iterator_t<Range>>;
 
 /*
 template <typename Range>
