@@ -101,7 +101,7 @@ public:
     using iterator_concept  = std::conditional_t<bidi, std::bidirectional_iterator_tag, std::forward_iterator_tag>;
     using iterator_category = std::conditional_t<std::is_lvalue_reference_v<std::iter_reference_t<InnerIt>>,
                                                  iterator_concept,
-                                                 std::forward_iterator_tag>;
+                                                 std::input_iterator_tag>;
     using value_type        = std::iter_value_t<InnerIt>;
     using difference_type   = std::iter_difference_t<InnerIt>;
     //!\}
@@ -210,6 +210,7 @@ public:
     {
         // The center line check prevents us from looking at inner if either of the sides is at end
         // which would make inner invalid
+        //TODO do we really need to compare *_end and *_begin ?
         if constexpr (bidi)
         {
             return std::tie(lhs.outer_it, lhs.outer_end, lhs.outer_begin) ==
@@ -242,6 +243,7 @@ inline constexpr auto join_borrow = []<borrowed_mp_range URange>(URange && urang
     using CIt  = join_rad_iterator<const_iterator_t<URange>, const_sentinel_t<URange>>;
     using CSen = std::conditional_t<common_range<URange const>, CIt, std::default_sentinel_t>;
 
+    //TODO only preserve common if underlying is bidi; this will make unidirectional iteration faster
     if constexpr (common_range<URange>)
         return borrowing_rad<It, Sen, CIt, CSen>{
           It{radr::begin(urange), radr::begin(urange), radr::end(urange)},
@@ -285,28 +287,33 @@ inline namespace cpo
  *
  * ### Multi-pass adaptor
  *
- * The multi-pass range adaptor is a `bidirectional_range` if:
- *   * The underlying range is a `bidirectional_range`.
- *   * The `range_reference_t` of the underlying range is a `borrowed_mp_range`.
- *   * The `range_reference_t` of the underlying range is a `bidirectional_range` and a `common_range`.
- * Otherwise, the multi-pass range adaptor is a forward_range if:
- *   * The underlying range is a forward_range.
- *   * The `range_reference_t` of the underlying range is a `borrowed_mp_range`.
- *   * The `range_reference_t` of the underlying range is a `forward_range`.
- * Otherwise, the multi-pass range adaptor is ill-formed.
+ *  * Requirements on \p urange : radr::mp_range
+ *  * Requirements on \p urange 's `range_reference_t`: radr::borrowed_mp_range
  *
- * The multi-pass range adaptor is a `common_range` iff the underlying range is a `common_range`.
+ * The multi-pass range adaptor models std::ranges::bidirectional_range iff:
+ *   * \p urange models std::ranges:bidirectional_range.
+ *   * \p urange 's `range_reference_t` models std::ranges:bidirectional_range and radr::common_range.
+ *   * These requirements are less strict than for std::views::join.
  *
- * Note that the bidirectional adaptor's iterator is larger than that of the forward version (6 stored iterators VS
- * 4 stored iterators).
+ * The following concepts are preserved from \p urange :
+ *   * radr::common_range
+ *
+ * The following concepts mirror those of the range_reference_t of \p urange :
+ *   * radr::constant_range
+ *   * radr::mutable_range (see below)
+ *
+ * This range adaptor never models std::ranges::sized_range or radr::approximately_sized_range.
+ *
+ * Note that the bidirectional adaptor's iterator is larger than that of the forward-only version (6 stored iterators VS
+ * 4 stored iterators), so it may be beneficial to prefix the invocation like this
+ * `… | radr::to_uni | radr::join | …` if you don't need bidirectionality.
  *
  * ### Single-pass adaptor
  *
- * The single-pass range adaptor is well-formed iff:
- *  * The underlying range is an `input_range`.
- *  * The `range_reference_t` of the underlying range is an `input_range`.
+ *  * Requirements on \p urange : std::ranges::input_range
+ *  * Requirements on \p urange 's `range_reference_t`: std::ranges::input_range
  *
- * It is not required that the `range_reference_t` of the underlying range be a `borrowed_range`.
+ * It is not required that the `range_reference_t` of \p urange be a `borrowed_range`.
  *
  */
 inline constexpr auto join = detail::pipe_without_args_fn{detail::join_coro, detail::join_borrow};

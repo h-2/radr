@@ -70,6 +70,39 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Drop up to `n` elements from the prefix of a range.
+ * \param urange The underlying range.
+ * \param[in] n The number of elements to drop (at most).
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range
+ *
+ * Construction time:
+ *   * O(1) if \p urange models std::ranges::random_access_range and std::ranges::size_range.
+ *   * O(n) otherwise
+ *
+ * Unlike std::views::drop, this adaptor searches for begin on construction. This preserves more concepts (see
+ * below).
+ *
+ * This adaptor always invokes the radr::subborrow customisation point.
+ *
+ * Unless customised otherwise, this adaptor preserves:
+ *   * categories up to std::ranges::contiguous_range
+ *   * std::ranges::borrowed_range
+ *   * std::ranges::sized_range
+ *   * radr::common_range
+ *   * radr::constant_range
+ *   * radr::mutable_range
+ *
+ * Unless customised otherwise, this adaptor is transparent, i.e. radr::iterator_t and radr::sentinel_t are preserved.
+ *
+ * ### Single-pass adaptor
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ *
+ */
+
 inline constexpr auto drop = detail::pipe_with_args_fn{detail::drop_coro, detail::drop_borrow};
 } // namespace cpo
 } // namespace radr

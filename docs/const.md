@@ -120,6 +120,29 @@ However, we believe that "shallow const" for ranges provides few practical benef
 
 Thus, we have chosen to follow the principle of least surprise and make all multi-pass ranges and range adaptors in our library behave like containers ("deep const").
 
+### Copies of borrowing adaptors
+
+
+As elaborated above, `radr::borrowing_rad<int*>` is deep const (in contrast to e.g. `std::span`), which means it prevents changes to the elements.
+However, copying a constant of this type, removes the protection:
+
+```cpp
+void write1(radr::borrowing_rad<int *> const & s)
+{
+    // s[0] = 42;  // change prevented
+
+    auto copy = s;
+    copy[0] = 42;  // change NOT prevented
+}
+```
+
+We could prohibit certain copies, but this would make our types not be `std::regular` which has other drawbacks (see also [Ranges and std::regular](./regular.md)).
+More on this problem—and a possible language solution are discussed in [P1974](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p1974r0.pdf) (in particular *3.2 Writing deep-const types safely* and *8 Extension: const-qualified constructors*).
+
+While the current situation is not perfect, we don't see this as a general argument against deep const range adaptors.
+Preventing some pitfalls is better than preventing none.
+
+
 ## Footnotes
 
 

@@ -96,6 +96,34 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Turns a range of lvalues into a range of rvalues.
+ * \param urange The underlying range.
+ *
+ * If the std::ranges::range_reference_t of \p urange is `T &`, it will become `T &&`. Otherwise, no change
+ * happens.
+ *
+ * Attention: in C++20 mode, this adaptor is ill-formed on multi-pass ranges. You can demote the range and use the
+ * single-pass version of the adaptor (`… | radr::to_single_pass | radr::as_rvalue …`) or switch to C++ >= 23.
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range
+ *
+ * This adaptor preserves:
+ *   * categories up to std::ranges::contiguous_range
+ *   * radr::common_range
+ *   * std::ranges::borrowed_range
+ *   * radr::constant_range
+ *
+ * It does not preserve:
+ *   * radr::mutable_range
+ *
+ * ### Single-pass adaptor
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ *
+ */
+
 inline constexpr auto as_rvalue = detail::pipe_without_args_fn{detail::as_rvalue_coro, detail::as_rvalue_borrow};
 } // namespace cpo
 } // namespace radr

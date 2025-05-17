@@ -77,6 +77,39 @@ namespace radr
 
 inline namespace cpo
 {
+
+/*!\brief Drop elements from the prefix of a range while the filter predicate holds true.
+ * \param urange The underlying range.
+ * \param[in] predicate The predicate to filter by.
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range
+ * * Requirements on \p predicate : std::move_constructible, std::is_object_v, std::indirect_unary_invocable on \p urange 's iterator_t
+ *
+ * Construction of the adaptor is in O(n), because the first matching element is searched and cached.
+ * Unlike radr::filter and radr::take_while and unlike std::views::drop_while, this adaptor evaluates its predicate
+ * completely on construction. This allows for state changes within \p predicate and preserves more concepts (see
+ * below).
+ *
+ * This adaptor always invokes the radr::subborrow customisation point.
+ *
+ * Unless customised otherwise, this adaptor preserves:
+ *   * categories up to std::ranges::contiguous_range
+ *   * std::ranges::borrowed_range
+ *   * std::ranges::sized_range
+ *   * radr::common_range
+ *   * radr::constant_range
+ *   * radr::mutable_range
+ *
+ * Unless customised otherwise, this adaptor is transparent, i.e. radr::iterator_t and radr::sentinel_t are preserved.
+ *
+ * ### Single-pass adaptor
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ * * Requirements on \p predicate : std::move_constructible, std::is_object_v, std::indirect_unary_invocable on \p urange 's iterator_t
+ *
+ */
 inline constexpr auto drop_while = detail::pipe_with_args_fn{detail::drop_while_coro, detail::drop_while_borrow};
 } // namespace cpo
 } // namespace radr
