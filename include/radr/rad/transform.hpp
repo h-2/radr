@@ -34,7 +34,7 @@ struct nest_fn
     [[no_unique_address]] Invoc2 in2;
 
     template <typename Val>
-    constexpr decltype(auto) operator()(Val && val) const noexcept(noexcept(in2(in1(std::forward<Val>(val)))))
+    constexpr decltype(auto) operator()(Val && val) const noexcept(noexcept(in1(std::forward<Val>(val))) && noexcept(in2(in1(std::forward<Val>(val)))))
     {
         return in2(in1(std::forward<Val>(val)));
     }
