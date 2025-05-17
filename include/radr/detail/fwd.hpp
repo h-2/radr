@@ -1,8 +1,7 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2023 The LLVM Project
-// Copyright (c) 2023 Hannes Hauswedell
+// Copyright (c) 2023-2025 Hannes Hauswedell
 //
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
@@ -12,7 +11,7 @@
 
 #pragma once
 
-#include <ranges>
+#include <iterator>
 
 namespace radr
 {
