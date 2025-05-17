@@ -46,7 +46,7 @@ struct subborrow_impl_t
      * \param e End of the subrange.
      * \pre (b, e) denotes a valid range.
      */
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
     static constexpr auto default_(URange && /*r*/, It const b, Sen const e)
     {
         // contiguous to pointer
@@ -98,7 +98,7 @@ struct subborrow_impl_t
      * \pre (b, e) denotes a valid range.
      * \pre s is equal to std::ranges::distance(b, e)
      */
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
     static constexpr auto default_(URange && /*r*/, It const b, Sen const e, size_t const s)
     {
         if constexpr (std::sized_sentinel_for<Sen, It>)
@@ -149,14 +149,14 @@ struct subborrow_impl_t
         }
     }
 
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, std::sized_sentinel_for<It> Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, std::sized_sentinel_for<It> Sen>
         requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<It>, char const &>)
     static constexpr auto default_(URange &&, It const b, Sen const e)
     {
         return std::string_view{b, e};
     }
 
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
         requires(std::contiguous_iterator<It> && std::same_as<std::iter_reference_t<It>, char const &>)
     static constexpr auto default_(URange &&, It const b, [[maybe_unused]] Sen const e, size_t const s)
     {
@@ -170,14 +170,15 @@ struct subborrow_impl_t
      */
 
     //!\brief Call tag_invoke if possible; call default otherwise. [it, sen]
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
     constexpr auto operator()(URange && urange, It const b, Sen const e) const
     {
         if constexpr (requires { tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e); })
         {
             using ret_t = decltype(tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e));
-            static_assert(radr::borrowed_range_object<ret_t>,
-                          "Your customisations of radr::subborrow must always return a radr::borrowed_range_object.");
+            static_assert(radr::borrowed_mp_range_object<ret_t>,
+                          "Your customisations of radr::subborrow must always return a "
+                          "radr::borrowed_mp_range_object.");
             return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e);
         }
         else
@@ -187,14 +188,15 @@ struct subborrow_impl_t
     }
 
     //!\brief Call tag_invoke if possible (even without size); call default otherwise. [it, sen, size]
-    template <const_borrowable_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
     constexpr auto operator()(URange && urange, It const b, Sen const e, size_t const s) const
     {
         if constexpr (requires { tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s); })
         {
             using ret_t = decltype(tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s));
-            static_assert(radr::borrowed_range_object<ret_t>,
-                          "Your customisations of radr::subborrow must always return a radr::borrowed_range_object.");
+            static_assert(radr::borrowed_mp_range_object<ret_t>,
+                          "Your customisations of radr::subborrow must always return a "
+                          "radr::borrowed_mp_range_object.");
             return tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e, s);
         }
         else if constexpr (requires { tag_invoke(custom::subborrow_tag{}, std::forward<URange>(urange), b, e); })
@@ -208,7 +210,7 @@ struct subborrow_impl_t
     }
 
     //!\brief Call tag_invoke if possible; call default otherwise. [i, j]
-    template <const_borrowable_range URange>
+    template <borrowed_mp_range URange>
         requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
     constexpr auto operator()(URange && urange, size_t const start, size_t const end) const
     {
@@ -232,7 +234,7 @@ using subborrow_t = decltype(subborrow(std::declval<Args>()...));
 
 // clang-format off
 inline constexpr auto borrow =
-  detail::overloaded{[]<const_borrowable_range URange>(URange && urange)
+  detail::overloaded{[]<borrowed_mp_range URange>(URange && urange)
 {
     if constexpr (std::ranges::sized_range<URange>)
     {
@@ -248,8 +250,8 @@ inline constexpr auto borrow =
 },
     // if a range is already borrowed and copyable, just copy it (we assume O(1) copy)
     // BUT do not do this if a copy would result in a constant_range becoming a mutable range
-    []<const_borrowable_range URange>(URange && urange)
-        requires(radr::borrowed_range_object<std::remove_cvref_t<URange>> &&
+    []<borrowed_mp_range URange>(URange && urange)
+        requires(radr::borrowed_mp_range_object<std::remove_cvref_t<URange>> &&
                  std::same_as<std::ranges::range_reference_t<URange>,
                               std::ranges::range_reference_t<std::remove_cvref_t<URange>>>)
 {
@@ -269,9 +271,9 @@ using borrow_t = decltype(borrow(std::declval<R>()));
 //TODO nothing uses this at the moment
 
 inline constexpr auto range_fwd = []<std::ranges::range Range>(Range && range) -> decltype(auto)
-    requires const_borrowable_range<Range> || movable_range<Range>
+    requires borrowed_mp_range<Range> || movable_range<Range>
 {
-    if constexpr (const_borrowable_range<Range>)
+    if constexpr (borrowed_mp_range<Range>)
         return borrow(std::forward<Range>(range));
     else
         return std::forward<Range>(range);

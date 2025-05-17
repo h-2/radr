@@ -28,10 +28,6 @@ namespace radr
 template <typename T>
 concept movable_range = std::ranges::input_range<T> && std::movable<T>;
 
-template <typename Range>
-concept unqualified_forward_range =
-  std::ranges::forward_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>>;
-
 template <std::indirectly_readable T>
 using iter_const_reference_t = std::common_reference_t<std::iter_value_t<T> const &&, std::iter_reference_t<T>>;
 
@@ -39,14 +35,14 @@ template <class It>
 concept constant_iterator =
   std::forward_iterator<It> && std::same_as<iter_const_reference_t<It>, std::iter_reference_t<It>>;
 
+//!\brief A multi-pass range is a forward range that is also const-iterable.
 template <typename Range>
-concept const_iterable_range =
-  std::ranges::forward_range<Range> && std::ranges::forward_range<detail::add_const_t<Range>>;
+concept mp_range = std::ranges::forward_range<Range> && std::ranges::forward_range<detail::add_const_t<Range>>;
 
 //!\brief A range whose iterator_t / sentinel_t are the same types as its const_iterator_t / const_sentinel_t.
 template <typename Range>
 concept const_symmetric_range =
-  const_iterable_range<Range> &&
+  mp_range<Range> &&
   std::same_as<std::ranges::iterator_t<Range>, std::ranges::iterator_t<detail::add_const_t<Range>>> &&
   std::same_as<std::ranges::sentinel_t<Range>, std::ranges::sentinel_t<detail::add_const_t<Range>>>;
 
@@ -55,14 +51,16 @@ concept constant_range = const_symmetric_range<Range> && constant_iterator<std::
 
 /*
 template <typename Range>
-concept complete_forward_range = const_iterable_range<Range> && std::semiregular<Range>;*/
+concept complete_forward_range = mp_range<Range> && std::semiregular<Range>;*/
 
+//!\brief A multi-pass range that is borrowed.
 template <typename Range>
-concept const_borrowable_range = const_iterable_range<Range> && std::ranges::borrowed_range<Range>;
+concept borrowed_mp_range = mp_range<Range> && std::ranges::borrowed_range<Range>;
 
+//!\brief A multi-pass range that is borrowed & is a cv-unqualified object type & is semiregular.
 template <typename Range>
-concept borrowed_range_object = std::ranges::borrowed_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> &&
-                                std::semiregular<Range> && const_iterable_range<Range>;
+concept borrowed_mp_range_object =
+  borrowed_mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> && std::semiregular<Range>;
 
 //!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
 template <typename T>

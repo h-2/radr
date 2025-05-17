@@ -51,7 +51,7 @@ public:
 };
 
 inline constexpr auto take_borrow =
-  overloaded{[]<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
+  overloaded{[]<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
 {
     if constexpr (std::ranges::sized_range<URange>)
         n = std::min(n, std::ranges::size(urange));
@@ -98,7 +98,7 @@ inline constexpr auto take_borrow =
                             make_sentinel(radr::begin(urange), radr::end(urange))};
     }
 },
-             []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
+             []<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
                  requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
 {
     return subborrow(std::forward<URange>(urange), 0ull, n);

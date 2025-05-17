@@ -59,7 +59,7 @@ struct pipe_fwd_base
         requires(arg_count<non_empty_args, Args...>)
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
     {
-        static_assert(const_iterable_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
+        static_assert(mp_range<Range>, RADR_ASSERTSTRING_CONST_ITERABLE);
 
         /* borrowing_rad */
         if constexpr (std::ranges::borrowed_range<std::remove_reference_t<Range>>)

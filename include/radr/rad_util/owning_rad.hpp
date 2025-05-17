@@ -34,18 +34,14 @@ namespace radr::detail
 
 template <typename Range>
 concept owned_range_constraints =
-  unqualified_forward_range<Range> && const_iterable_range<Range> && std::copyable<Range>;
-
-template <typename Range>
-concept borrowed_range_constraints =
-  owned_range_constraints<Range> && std::default_initializable<Range> && std::ranges::borrowed_range<Range>;
+  mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> && std::copyable<Range>;
 
 } // namespace radr::detail
 
 namespace radr
 {
 
-template <detail::owned_range_constraints URange, detail::borrowed_range_constraints BorrowedRange>
+template <detail::owned_range_constraints URange, borrowed_mp_range_object BorrowedRange>
 class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 {
     [[no_unique_address]] detail::indirect<URange> base_{};
@@ -53,7 +49,7 @@ class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 
     static constexpr bool const_symmetric = const_symmetric_range<BorrowedRange>;
 
-    template <detail::owned_range_constraints URange_, detail::borrowed_range_constraints BorrowedRange_>
+    template <detail::owned_range_constraints URange_, borrowed_mp_range_object BorrowedRange_>
     friend class owning_rad;
 
 public:

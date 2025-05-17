@@ -21,7 +21,7 @@
 namespace radr::detail
 {
 
-inline constexpr auto as_const_borrow = []<const_borrowable_range URange>(URange && urange)
+inline constexpr auto as_const_borrow = []<borrowed_mp_range URange>(URange && urange)
 {
     if constexpr (std::ranges::sized_range<URange>)
     {

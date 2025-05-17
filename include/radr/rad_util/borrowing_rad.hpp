@@ -155,7 +155,7 @@ public:
      */
     //!\brief Range
     template <detail::different_from<borrowing_rad> Range>
-        requires(const_borrowable_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
+        requires(borrowed_mp_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
                  std::convertible_to<radr::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range)
         requires(MustProvideSizeAtConstruction || std::ranges::sized_range<Range>)
@@ -164,7 +164,7 @@ public:
 
     //!\brief Range + NotSize
     template <typename Range>
-        requires(const_borrowable_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
+        requires(borrowed_mp_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
                  std::convertible_to<radr::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range, detail::not_size)
         requires(MustProvideSizeAtConstruction || std::ranges::sized_range<Range>)
@@ -173,7 +173,7 @@ public:
 
     //!\brief Range + Size
     template <typename Range>
-        requires(const_borrowable_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
+        requires(borrowed_mp_range<Range> && detail::convertible_to_non_slicing<radr::iterator_t<Range>, Iter> &&
                  std::convertible_to<radr::sentinel_t<Range>, Sent>)
     constexpr borrowing_rad(Range && range, std::make_unsigned_t<std::iter_difference_t<Iter>> n)
         requires(Kind == borrowing_rad_kind::sized)
@@ -316,7 +316,7 @@ borrowing_rad(TIt, TSen, TCIt, TCSen, std::integral auto)
   -> borrowing_rad<TIt, TSen, TCIt, TCSen, borrowing_rad_kind::sized>;
 
 /* range guides */
-template <const_borrowable_range Range>
+template <borrowed_mp_range Range>
 borrowing_rad(Range &&)
   -> borrowing_rad<radr::iterator_t<Range>,
                    radr::sentinel_t<Range>,
@@ -324,7 +324,7 @@ borrowing_rad(Range &&)
                    radr::const_sentinel_t<Range>,
                    (std::ranges::sized_range<Range> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized)>;
 
-template <const_borrowable_range Range>
+template <borrowed_mp_range Range>
 borrowing_rad(Range &&, detail::not_size)
   -> borrowing_rad<radr::iterator_t<Range>,
                    radr::sentinel_t<Range>,
@@ -332,7 +332,7 @@ borrowing_rad(Range &&, detail::not_size)
                    radr::const_sentinel_t<Range>,
                    (std::ranges::sized_range<Range> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized)>;
 
-template <const_borrowable_range Range>
+template <borrowed_mp_range Range>
 borrowing_rad(Range &&, std::integral auto) -> borrowing_rad<radr::iterator_t<Range>,
                                                              radr::sentinel_t<Range>,
                                                              radr::const_iterator_t<Range>,
