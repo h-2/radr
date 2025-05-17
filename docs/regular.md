@@ -81,7 +81,9 @@ For this library we chose to provide a consistent behaviour:
 
 For owning adaptors, the semantics are modelled after containers. And for borrowing adaptors, they are modelled after `std::string_view`.
 In particular, we always compare elements, and default-initialised range adaptors are fully-formed, valid, empty ranges.
-Copying an owning adaptor copies the elements.
+Copying an owning adaptor copies the elements.[^copycontainer]
+
+[^container]: There is a surprising complexity to implementing this generically. It works for all our adaptors on arbitrary containers, but it may not work on user-defined adaptor types unless they implement one of our customisation points. More documentation on this will be added in the future.
 
 We realise that having an abstraction that covers both owning and non-owning ranges does not fit every type and use-case perfectly.
 However, we also believe that not providing default-construction or copyability provides few benefits, and we generally prefer a consistent, predictable behaviour.

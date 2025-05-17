@@ -70,21 +70,6 @@ struct iterator_concept<Iter>
     using type = std::forward_iterator_tag;
 };
 
-template <class, class>
-struct iterator_category_base
-{};
-
-template <std::forward_iterator Iter, class Fn>
-struct iterator_category_base<Iter, Fn>
-{
-    using Cat = typename std::iterator_traits<Iter>::iterator_category;
-
-    using iterator_category = std::conditional_t<
-      std::is_reference_v<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>,
-      std::conditional_t<std::derived_from<Cat, std::contiguous_iterator_tag>, std::random_access_iterator_tag, Cat>,
-      std::input_iterator_tag>;
-};
-
 } // namespace radr::detail::transform
 
 namespace radr::detail
@@ -96,7 +81,7 @@ class transform_sentinel;
 
 template <std::forward_iterator Iter, typename Fn>
     requires detail::transform::fn_constraints<Iter, Fn>
-class transform_iterator : public detail::transform::iterator_category_base<Iter, Fn>
+class transform_iterator
 {
     [[no_unique_address]] semiregular_box<Fn> func_;
     [[no_unique_address]] Iter                current_ = Iter();
@@ -120,8 +105,12 @@ class transform_iterator : public detail::transform::iterator_category_base<Iter
 
 public:
     using iterator_concept = typename detail::transform::iterator_concept<Iter>::type;
-    using value_type       = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
-    using difference_type  = std::iter_difference_t<Iter>;
+    using iterator_category =
+      std::conditional_t<std::is_reference_v<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>,
+                         iterator_concept,
+                         std::input_iterator_tag>;
+    using value_type      = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
+    using difference_type = std::iter_difference_t<Iter>;
 
     transform_iterator() = default;
 
@@ -383,8 +372,8 @@ inline constexpr auto transform_borrow =
 };
 
 inline constexpr auto transform_coro =
-  []<std::ranges::input_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(std::regular_invocable<Fn &, std::ranges::range_reference_t<URange>> &&
+  []<std::ranges::input_range URange, std::move_constructible Fn>(URange && urange, Fn fn)
+    requires(std::invocable<Fn &, std::ranges::range_reference_t<URange>> &&
              can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
@@ -406,6 +395,37 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Transforms a range by applying an invocable on each element.
+ * \param urange The underlying range.
+ * \param[in] fn The invocable to apply
+ *
+ * ### Multi-pass adaptor
+ *
+ * * Requirements on \p urange : radr::mp_range
+ * * Requirements on \p fn : std::copy_constructible, std::is_object_v, std::regular_invocable (`fn const &` with \p urange 's `reference_t` and `const_reference_t` )
+ *
+ * This adaptor preserves:
+ *   * categories up to std::ranges::random_access_range
+ *   * std::ranges::sized_range
+ *   * std::ranges::borrowed_range
+ *   * radr::common_range
+ *   * radr::constant_range
+ *   * radr::mutable_range (see below)
+ *
+ * Since transformers usually do not return references, mutability is lost anyway, and prefixing radr::as_const can
+ * result in simpler types.
+ *
+ * Multiple nested transform adaptors are folded into one.
+ *
+ * ### Single-pass adaptor
+ *
+ * * Requirements on \p urange : std::ranges::input_range
+ * * Requirements on \p fn : std::move_constructible, std::is_object_v, std::invocable (`fn &` with \p urange 's `reference_t`)
+ *
+ * The single-pass adaptor allows (observable) changes in the transformer (std::invocable instead of
+ * std::regular_invocable).
+ *
+ */
 inline constexpr auto transform = detail::pipe_with_args_fn{detail::transform_coro, detail::transform_borrow};
 } // namespace cpo
 } // namespace radr

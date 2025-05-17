@@ -39,28 +39,12 @@ struct and_fn
     }
 };
 
-template <class Iter>
-struct filter_iterator_category
-{};
-
-template <std::forward_iterator Iter>
-struct filter_iterator_category<Iter>
-{
-    using Cat = typename std::iterator_traits<Iter>::iterator_category;
-    // clang-format off
-    using iterator_category =
-        std::conditional_t<std::derived_from<Cat, std::bidirectional_iterator_tag>, std::bidirectional_iterator_tag,
-        std::conditional_t<std::derived_from<Cat, std::forward_iterator_tag>,       std::forward_iterator_tag,
-                           /*else*/                                                 Cat>>;
-    // clang-format on
-};
-
 template <typename Func, typename Iter>
 concept filter_func_constraints =
   std::is_object_v<Func> && std::copy_constructible<Func> && std::indirect_unary_predicate<Func const, Iter>;
 
 template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
-class filter_iterator : public filter_iterator_category<Iter>
+class filter_iterator
 {
     [[no_unique_address]] semiregular_box<Func> func_;
     [[no_unique_address]] Iter                  current_{};
@@ -111,14 +95,11 @@ class filter_iterator : public filter_iterator_category<Iter>
     }
 
 public:
-    // clang-format off
     using iterator_concept =
-        std::conditional_t<std::bidirectional_iterator<Iter>, std::bidirectional_iterator_tag,
-        std::conditional_t<std::forward_iterator<Iter>,       std::forward_iterator_tag,
-                           /* else */                         std::input_iterator_tag>>;
-    // clang-format on
+      std::conditional_t<std::bidirectional_iterator<Iter>, std::bidirectional_iterator_tag, std::forward_iterator_tag>;
 
-    // using iterator_category = inherited;
+    using iterator_category = std::
+      conditional_t<std::is_lvalue_reference_v<std::iter_reference_t<Iter>>, iterator_concept, std::input_iterator_tag>;
     using value_type      = std::iter_value_t<Iter>;
     using difference_type = std::iter_difference_t<Iter>;
 
@@ -300,28 +281,37 @@ inline namespace cpo
  *
  * ## Multi-pass ranges
  *
- * * Requirements on \p urange : radr::const_iterable
+ * * Requirements on \p urange : radr::mp_range
  * * Requirements on \p predicate : std::copy_constructible, std::is_object_v, std::indirect_unary_predicate (const predicate with urange's const iterator)
  *
- * This adaptor preserves categories up to std::ranges::bidirectional_range, and it preserves std::ranges::borrowed_range.
+ * This adaptor preserves:
+ *   * categories up to std::ranges::bidirectional_range
+ *   * std::ranges::borrowed_range
+ *   * radr::constant_range
  *
- * **It contrast to std::views::filter, it preserves neither radr::common_range nor mutability,
- * i.e. the returned range is always a radr::constant_range!**
+ * It does not preserve:
+ *  * std::ranges::sized_range
+ *
+ * **In contrast to std::views::filter, it DOES NOT PRESERVE:**
+ *   * radr::common_range
+ *   * radr::mutable_range
+ *
+ * To prevent UB, the returned range is always a radr::constant_range.
  *
  * Use `radr::filter(Fn) | radr::to_common` to make the range common, and use
  * `radr::to_single_pass | radr::filter(Fn)`, create a mutable range (see below).
  *
  * Construction of the adaptor is in O(n), because the first matching element is searched and cached.
  *
+ * Multiple nested filter adaptors are folded into one.
+ *
  * ## Single-pass ranges
  *
  * * Requirements on \p urange : std::ranges::input_range
  * * Requirements on \p predicate : std::move_constructible, std::is_object_v, std::indirect_unary_invocable (mutable predicate with urange's non-const iterator)
  *
- * Always returns a radr::generator, i.e. a move-only, single-pass range.
- *
  * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's elements.
- * It also allows (observable) changes to the predicate.
+ * It also allows (observable) changes in the predicate.
  *
  */
 inline constexpr auto filter = detail::pipe_with_args_fn{detail::filter_coro, detail::filter_borrow};
