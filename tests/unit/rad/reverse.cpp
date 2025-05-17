@@ -47,7 +47,7 @@ struct reverse_forward : public testing::Test
     static void type_checks()
     {
         /* for all our forward range adaptors */
-        EXPECT_TRUE(radr::const_iterable_range<in_t>);
+        EXPECT_TRUE(radr::mp_range<in_t>);
         EXPECT_TRUE(std::regular<in_t>);
 
         /* preserved for all reverse adaptors */

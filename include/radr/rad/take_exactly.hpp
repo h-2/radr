@@ -17,7 +17,7 @@ namespace radr::detail
 {
 
 inline constexpr auto take_exactly_borrow =
-  []<const_borrowable_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
+  []<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
 {
     if constexpr (std::ranges::sized_range<URange>)
         return take_borrow(borrowing_rad{urange}, n);

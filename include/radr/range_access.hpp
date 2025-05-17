@@ -21,7 +21,7 @@
 namespace radr::detail
 {
 
-inline constexpr auto cbegin_impl = []<const_borrowable_range Rng>(Rng && rng)
+inline constexpr auto cbegin_impl = []<borrowed_mp_range Rng>(Rng && rng)
 {
     if constexpr (constant_range<detail::add_const_t<Rng>>)
         return std::ranges::begin(std::as_const(rng));
@@ -29,7 +29,7 @@ inline constexpr auto cbegin_impl = []<const_borrowable_range Rng>(Rng && rng)
         return radr::make_const_iterator(std::ranges::begin(std::as_const(rng)));
 };
 
-inline constexpr auto cend_impl = []<const_borrowable_range Rng>(Rng && rng)
+inline constexpr auto cend_impl = []<borrowed_mp_range Rng>(Rng && rng)
 {
     if constexpr (constant_range<detail::add_const_t<Rng>>)
         return std::ranges::end(std::as_const(rng));
@@ -61,7 +61,7 @@ inline constexpr auto end = []<std::ranges::range Rng>(Rng && rng)
         return std::ranges::end(std::forward<Rng>(rng));
 };
 
-inline constexpr auto cbegin = []<const_borrowable_range Rng>(Rng && rng)
+inline constexpr auto cbegin = []<borrowed_mp_range Rng>(Rng && rng)
 {
     if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
         return detail::ptr_to_const_ptr(std::to_address(std::ranges::begin(rng)));
@@ -69,7 +69,7 @@ inline constexpr auto cbegin = []<const_borrowable_range Rng>(Rng && rng)
         return detail::cbegin_impl(rng);
 };
 
-inline constexpr auto cend = []<const_borrowable_range Rng>(Rng && rng)
+inline constexpr auto cend = []<borrowed_mp_range Rng>(Rng && rng)
 {
     if constexpr (std::ranges::contiguous_range<Rng> && std::ranges::sized_range<Rng>)
         return cbegin(rng) + std::ranges::size(rng);
@@ -148,7 +148,7 @@ using range_size_t_or_size_t = range_size_t_or_size<R>::type;
 struct not_size
 {};
 
-inline constexpr auto size_or_not = []<const_borrowable_range Rng>(Rng && rng)
+inline constexpr auto size_or_not = []<borrowed_mp_range Rng>(Rng && rng)
 {
     if constexpr (std::ranges::sized_range<Rng>)
         return std::ranges::size(rng);

@@ -216,14 +216,14 @@ public:
      * This potentially returns a range of different filter_iterators. In particular, the returned
      * ones are always built on iterator-sentinel of the same type.
      */
-    template <const_borrowable_range R>
+    template <borrowed_mp_range R>
     constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, filter_iterator it, filter_iterator sen)
     {
         return subborrow_impl(it, sen, not_size{});
     }
 
     //!\overload
-    template <const_borrowable_range R>
+    template <borrowed_mp_range R>
     constexpr friend auto tag_invoke(custom::subborrow_tag,
                                      R &&,
                                      filter_iterator it,
@@ -253,7 +253,7 @@ inline constexpr auto filter_borrow_impl =
 };
 
 inline constexpr auto filter_borrow =
-  []<const_borrowable_range URange, filter_func_constraints<radr::const_iterator_t<URange>> Fn>(URange && urange, Fn fn)
+  []<borrowed_mp_range URange, filter_func_constraints<radr::const_iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
     // dispatch between generic case and chained case(s)
     return overloaded{

@@ -34,7 +34,8 @@ struct nest_fn
     [[no_unique_address]] Invoc2 in2;
 
     template <typename Val>
-    constexpr decltype(auto) operator()(Val && val) const noexcept(noexcept(in1(std::forward<Val>(val))) && noexcept(in2(in1(std::forward<Val>(val)))))
+    constexpr decltype(auto) operator()(Val && val) const
+      noexcept(noexcept(in1(std::forward<Val>(val))) && noexcept(in2(in1(std::forward<Val>(val)))))
     {
         return in2(in1(std::forward<Val>(val)));
     }
@@ -339,7 +340,7 @@ inline constexpr auto transform_borrow_impl =
 };
 
 inline constexpr auto transform_borrow =
-  []<const_borrowable_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
+  []<borrowed_mp_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
     requires(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn>)
 {
     // dispatch between generic case and chained case(s)

@@ -15,7 +15,7 @@ inline void generic_adaptor_checks()
     using crad_t = rad_t const;
 
     //TODO add type printing to improve diagnostics in case of failure
-    EXPECT_TRUE(radr::const_iterable_range<rad_t>);
+    EXPECT_TRUE(radr::mp_range<rad_t>);
     EXPECT_TRUE(!radr::const_symmetric_range<container_t> || radr::const_symmetric_range<rad_t>);
     EXPECT_TRUE(std::default_initializable<rad_t>);
     EXPECT_TRUE(std::equality_comparable<rad_t>);

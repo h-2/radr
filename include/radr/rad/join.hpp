@@ -23,7 +23,7 @@
 namespace radr::detail
 {
 template <std::forward_iterator UIt, std::sentinel_for<UIt> USen>
-    requires const_borrowable_range<std::iter_reference_t<UIt>>
+    requires borrowed_mp_range<std::iter_reference_t<UIt>>
 class join_rad_iterator
 {
 private:
@@ -66,7 +66,7 @@ private:
     }
 
     template <std::forward_iterator UIt2, std::sentinel_for<UIt2> USen2>
-        requires const_borrowable_range<std::iter_reference_t<UIt2>>
+        requires borrowed_mp_range<std::iter_reference_t<UIt2>>
     friend class join_rad_iterator;
 
     template <typename Container>
@@ -233,8 +233,8 @@ public:
     //!\}
 };
 
-inline constexpr auto join_borrow = []<const_borrowable_range URange>(URange && urange)
-    requires const_borrowable_range<std::ranges::range_reference_t<URange>> &&
+inline constexpr auto join_borrow = []<borrowed_mp_range URange>(URange && urange)
+    requires borrowed_mp_range<std::ranges::range_reference_t<URange>> &&
              std::semiregular<borrow_t<std::ranges::range_reference_t<URange>>>
 {
     using It   = join_rad_iterator<iterator_t<URange>, sentinel_t<URange>>;
@@ -287,11 +287,11 @@ inline namespace cpo
  *
  * The multi-pass range adaptor is a `bidirectional_range` if:
  *   * The underlying range is a `bidirectional_range`.
- *   * The `range_reference_t` of the underlying range is a `const_borrowable_range`.
+ *   * The `range_reference_t` of the underlying range is a `borrowed_mp_range`.
  *   * The `range_reference_t` of the underlying range is a `bidirectional_range` and a `common_range`.
  * Otherwise, the multi-pass range adaptor is a forward_range if:
  *   * The underlying range is a forward_range.
- *   * The `range_reference_t` of the underlying range is a `const_borrowable_range`.
+ *   * The `range_reference_t` of the underlying range is a `borrowed_mp_range`.
  *   * The `range_reference_t` of the underlying range is a `forward_range`.
  * Otherwise, the multi-pass range adaptor is ill-formed.
  *

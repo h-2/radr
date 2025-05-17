@@ -23,7 +23,7 @@
 
 namespace radr::detail
 {
-template <const_borrowable_range Borrow, const_borrowable_range Pattern>
+template <borrowed_mp_range Borrow, borrowed_mp_range Pattern>
     requires std::indirectly_comparable<std::ranges::iterator_t<Borrow>,
                                         std::ranges::iterator_t<Pattern>,
                                         std::ranges::equal_to> &&
@@ -55,7 +55,7 @@ private:
         pattern_match_end = match_e;
     }
 
-    template <const_borrowable_range Borrow2, const_borrowable_range Pattern2>
+    template <borrowed_mp_range Borrow2, borrowed_mp_range Pattern2>
         requires std::indirectly_comparable<std::ranges::iterator_t<Borrow2>,
                                             std::ranges::iterator_t<Pattern2>,
                                             std::ranges::equal_to> &&
@@ -182,7 +182,7 @@ public:
 };
 
 inline constexpr auto split_borrow_impl =
-  []<const_borrowable_range URange, const_borrowable_range Pattern>(URange && urange, Pattern && pattern)
+  []<borrowed_mp_range URange, borrowed_mp_range Pattern>(URange && urange, Pattern && pattern)
     requires std::
       indirectly_comparable<std::ranges::iterator_t<URange>, std::ranges::iterator_t<Pattern>, std::ranges::equal_to>
 {
@@ -208,22 +208,22 @@ concept comparable_ranges =
 // clang-format off
 inline constexpr auto split_borrow = overloaded{
 /* split by lvalue range */
-[]<const_borrowable_range URange, typename Pattern>(URange && urange, std::reference_wrapper<Pattern> const & val)
+[]<borrowed_mp_range URange, typename Pattern>(URange && urange, std::reference_wrapper<Pattern> const & val)
     requires comparable_ranges<URange, Pattern>
 {
     return split_borrow_impl(std::forward<URange>(urange), static_cast<Pattern &>(val));
 },
 /* split by rvalue range */
-[]<const_borrowable_range URange, typename Pattern>(URange && urange, Pattern const & val)
+[]<borrowed_mp_range URange, typename Pattern>(URange && urange, Pattern const & val)
     requires comparable_ranges<URange, Pattern>
 {
-    static_assert(const_borrowable_range<std::remove_cvref_t<Pattern>>,
+    static_assert(borrowed_mp_range<std::remove_cvref_t<Pattern>>,
                   "The Pattern must be a const-iterable, borrowed range. "
                   "Did you forgot to wrap it in std::ref or std::cref?");
     return split_borrow_impl(std::forward<URange>(urange), val);
 },
 /* split by lvalue element */
-[]<const_borrowable_range URange, typename Pattern>(URange &&                               urange,
+[]<borrowed_mp_range URange, typename Pattern>(URange &&                               urange,
                                                     std::reference_wrapper<Pattern> const & val)
     requires(!comparable_ranges<URange, Pattern> &&
              std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>)
@@ -231,7 +231,7 @@ inline constexpr auto split_borrow = overloaded{
     return split_borrow_impl(std::forward<URange>(urange), single_rng<Pattern, repeat_rng_storage::indirect>(val));
 },
 /* split by rvalue element */
-[]<const_borrowable_range URange, typename Pattern>(URange && urange, Pattern const & val)
+[]<borrowed_mp_range URange, typename Pattern>(URange && urange, Pattern const & val)
     requires(!comparable_ranges<URange, Pattern> &&
              std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>)
 {
@@ -313,7 +313,7 @@ inline namespace cpo
  *
  * The pattern can be one of:
  *   * a std::ref-wrapped lvalue of a range whose elements are comparable to the underlying range.
- *   * an rvalue of a range whose elements are comparable to the underlying range (only if the pattern is a const_borrowable_range).
+ *   * an rvalue of a range whose elements are comparable to the underlying range (only if the pattern is a borrowed_mp_range).
  *   * a std::ref-wrapped lvalue of a delimiter element that is comparable to elements of the underlying range.
  *   * an rvalue of a delimiter element that is comparable to elements of the underlying range (only if that value is default constructible and copyable without throwing).
  *

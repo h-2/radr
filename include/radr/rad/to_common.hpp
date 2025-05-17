@@ -23,7 +23,7 @@
 
 namespace radr::detail
 {
-inline constexpr auto to_common_borrow = []<const_borrowable_range URange>(URange && urange)
+inline constexpr auto to_common_borrow = []<borrowed_mp_range URange>(URange && urange)
 {
     if constexpr (common_range<URange>)
     {

@@ -21,7 +21,7 @@
 
 namespace radr::detail
 {
-inline constexpr auto reverse_borrow = []<const_borrowable_range URange>(URange && urange)
+inline constexpr auto reverse_borrow = []<borrowed_mp_range URange>(URange && urange)
     requires std::ranges::bidirectional_range<URange>
 {
     //TODO we need proper radr::rbegin, radr::rend, radr::crbegin and radr::crend
