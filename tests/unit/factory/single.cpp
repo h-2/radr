@@ -183,7 +183,7 @@ TEST(single_in_range, members)
 
 TEST(single_in_range, members_const)
 {
-    radr::repeat_rng<int const, radr::constant_t<1>, radr::repeat_rng_storage::in_range> c{3};
+    in_cr_t c{3};
     EXPECT_EQ(*c.begin(), 3);
     EXPECT_EQ(*c.data(), 3);
     EXPECT_EQ(c.size(), 1ull);
@@ -202,7 +202,7 @@ TEST(single_in_range, default_)
 
 TEST(single_in_range, default_const)
 {
-    radr::repeat_rng<int const, radr::constant_t<1>, radr::repeat_rng_storage::in_range> c{};
+    in_cr_t c{};
 
     EXPECT_EQ(*c.begin(), 0);
     EXPECT_EQ(*c.data(), 0);

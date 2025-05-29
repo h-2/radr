@@ -340,7 +340,7 @@ class repeat_rng : public rad_interface<repeat_rng<TVal, Bound, storage>>
     using storage_type = std::conditional_t<
       static_size() == 0,
       empty_t,
-      std::conditional_t<storage == repeat_rng_storage::indirect, TVal *, detail::semiregular_box<TVal>>>;
+      std::conditional_t<storage == repeat_rng_storage::indirect, TVal *, detail::semiregular_box<TValNoConst>>>;
 
     [[no_unique_address]] storage_type  value{};
     [[no_unique_address]] IteratorBound bound_ = Bound();
