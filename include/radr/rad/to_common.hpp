@@ -70,5 +70,10 @@ inline namespace cpo
  */
 
 inline constexpr auto to_common = detail::pipe_without_args_fn<void, decltype(detail::to_common_borrow)>{};
+
+[[deprecated(
+  "Use radr::to_common instead of std::views::common, but see the docs regarding semantic "
+  "differences.")]] inline constexpr auto common = to_common;
+
 } // namespace cpo
 } // namespace radr

@@ -56,6 +56,10 @@ inline constexpr auto to_single_pass = detail::range_adaptor_closure_t{
                      }}
 };
 
-}
+[[deprecated(
+  "Use radr::to_single_pass instead of std::views::to_input, but see the docs regarding semantic "
+  "differences.")]] inline constexpr auto to_input = to_single_pass;
+
+} // namespace cpo
 
 } // namespace radr
