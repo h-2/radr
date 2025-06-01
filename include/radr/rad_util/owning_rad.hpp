@@ -23,12 +23,6 @@
 #include "rad_interface.hpp"
 #include "radr/custom/subborrow.hpp"
 
-/* TODO add version that stores offsets for RA+sized uranges
- * this avoids unique_ptr and BorrowedRange
- * NO; THIS WILL BE SEPARATE
- *
- */
-
 namespace radr::detail
 {
 
@@ -61,6 +55,11 @@ public:
 
     owning_rad & operator=(owning_rad const & rhs)
     {
+        static_assert(rebindable_iterator_to<iterator_t<BorrowedRange>, URange> &&
+                        rebindable_iterator_to<sentinel_t<BorrowedRange>, URange>,
+                      "This owning range adaptor is not copyable, because no working rebind-strategy could be deduced. "
+                      "See radr/custom/rebind_iterator.hpp and the respective documentation; or open an issue.");
+
         if (this != &rhs)
         {
             base_ = rhs.base_;

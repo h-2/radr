@@ -24,7 +24,7 @@
     "wrap it in std::ref(), e.g.:\nauto a = std::ref(lvalue) | radr::take(3);"
 
 #define RADR_ASSERTSTRING_CONST_ITERABLE                                                                               \
-    "RADR adaptors created on forward ranges require those ranges to be radr::const_iterable, i.e. they need to "      \
+    "RADR adaptors created on forward ranges require those ranges to be const-iterable, i.e. they need to "            \
     "provide ´.begin() const`.\n"                                                                                     \
     "FIX: do not mix std:: adaptors and radr:: adaptors.\n"                                                            \
     "WORKAROUND: non-conforming ranges can also be downgraded to single-pass, e.g.\n"                                  \
@@ -43,7 +43,7 @@
     "accept it, but radr's single-pass take does."
 
 #define RADR_ASSERTSTRING_NOBORROW_SINGLEPASS                                                                          \
-    "RADR adaptors only borrow from (complete) forward ranges. Single-pass input ranges can only be adapted "          \
+    "RADR adaptors only borrow from forward ranges. Single-pass input ranges can only be adapted "                     \
     "by moving them into the adaptor, e.g.\nauto a = std::move(streamrange) | radr::take(3);"
 
 namespace radr::detail
@@ -151,24 +151,18 @@ concept decays_to = std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<T2>
 template <typename T, typename T2>
 concept different_from = !decays_to<T, T2>;
 
-/*
-template <typename T>
-using iterator_category_tag = decltype([]()
-{
-    if constexpr (requires { typename std::ranges::iterator_traits<T>::iterator_category; })
-        return typename std::ranges::iterator_traits<T>::iterator_category{};
-    else
-        std::input_iterator_tag{};
-}());
+//=============================================================================
+// iterator category
+//=============================================================================
 
-template <typename T>
-using iterator_concept_tag = decltype([]()
-{
-    if constexpr (requires { typename std::ranges::iterator_traits<T>::iterator_concept; })
-        return typename std::ranges::iterator_traits<T>::iterator_concept{};
-    else
-        return iterator_category_tag<T>{};
-}());*/
+template <std::input_iterator It>
+// clang-format off
+using iterator_tag_t = std::conditional_t<std::contiguous_iterator<It>,     std::contiguous_iterator_tag,
+                       std::conditional_t<std::random_access_iterator<It>,  std::random_access_iterator_tag,
+                       std::conditional_t<std::bidirectional_iterator<It>,  std::bidirectional_iterator_tag,
+                       std::conditional_t<std::forward_iterator<It>,        std::forward_iterator_tag,
+                                                                            std::input_iterator_tag>>>>;
+// clang-format on
 
 //=============================================================================
 // tuple_like
@@ -199,31 +193,6 @@ concept tuple_like = tuple_like_impl<std::remove_cvref_t<_Tp>>::value;
 
 template <class _Tp>
 concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>::value == 2;
-
-//=============================================================================
-// tuple_like
-//=============================================================================
-
-// template <typename T>
-// struct const_bounds
-// {
-//     using it_type  = std::nullptr_t;
-//     using sen_type = std::nullptr_t;
-// };
-//
-// template <typename T>
-//     requires std::ranges::forward_range<T const>
-// struct const_bounds<T>
-// {
-//     using it_type  = std::ranges::iterator_t<T const>;
-//     using sen_type = std::ranges::sentinel_t<T const>;
-// };
-//
-// template <typename Range>
-// using const_it_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::it_type;
-//
-// template <typename Range>
-// using const_sen_or_nullptr_t = typename const_bounds<std::remove_reference_t<Range>>::sen_type;
 
 //=============================================================================
 // add_const_t
