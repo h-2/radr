@@ -34,6 +34,8 @@ private:
     static constexpr bool bidi =
       std::bidirectional_iterator<UIt> && std::ranges::bidirectional_range<Inner> && common_range<Inner>;
 
+    static constexpr bool bidi_common = bidi && std::same_as<UIt, USen>;
+
     //!\brief If we use empty_t defined in detail/detail.hpp, it is not optimised out ¯\_(ツ)_/¯
     struct empty_t
     {
@@ -119,6 +121,20 @@ public:
     constexpr join_rad_iterator(UIt uit_, UIt ubeg_, USen usen_) :
       outer_begin{std::move(ubeg_)}, outer_it{std::move(uit_)}, outer_end{std::move(usen_)}
     {
+        if constexpr (bidi_common)
+        {
+            /* | Sentinel construction of non-empty outer range |
+             * When constructing this, inner_it is usually not initialised. This makes operator== more expensive.
+             * For the bidi_common case, we can initialise it to make operator== cheaper
+             */
+            if (outer_it == outer_end && outer_begin != outer_end)
+            {
+                auto outer_back = outer_end;
+                --outer_back;
+                inner_it    = radr::end(*outer_back);
+                inner_begin = inner_it; // necessary to allow proper operator-- on sentinel
+            }
+        }
         update_inner();
     }
 
@@ -208,23 +224,10 @@ public:
      */
     friend bool operator==(join_rad_iterator const & lhs, join_rad_iterator const & rhs)
     {
-        // The center line check prevents us from looking at inner if either of the sides is at end
-        // which would make inner invalid
-        //TODO do we really need to compare *_end and *_begin ?
-        if constexpr (bidi)
-        {
-            return std::tie(lhs.outer_it, lhs.outer_end, lhs.outer_begin) ==
-                     std::tie(rhs.outer_it, rhs.outer_end, rhs.outer_begin) &&
-                   ((lhs.outer_it == lhs.outer_end) || // both are at end
-                    std::tie(lhs.inner_it, lhs.inner_end, lhs.inner_begin) ==
-                      std::tie(rhs.inner_it, rhs.inner_end, rhs.inner_begin));
-        }
-        else
-        {
-            return std::tie(lhs.outer_it, lhs.outer_end) == std::tie(rhs.outer_it, rhs.outer_end) &&
-                   ((lhs.outer_it == lhs.outer_end) || // both are at end
-                    std::tie(lhs.inner_it, lhs.inner_end) == std::tie(rhs.inner_it, rhs.inner_end));
-        }
+        if constexpr (bidi_common)
+            return lhs.outer_it == rhs.outer_it && lhs.inner_it == rhs.inner_it;
+        else // inner_it of sentinel may not be initialised
+            return lhs.outer_it == rhs.outer_it && (lhs.outer_it == lhs.outer_end || lhs.inner_it == rhs.inner_it);
     }
 
     friend bool operator==(join_rad_iterator const & lhs, std::default_sentinel_t)
@@ -295,13 +298,13 @@ namespace radr
 inline namespace cpo
 {
 
-/*!\brief Flattens a range-of-range into a range.
+/*!\brief Flattens a range-of-ranges into a range.
  * \param urange The underlying range.
  *
  * ### Multi-pass adaptor
  *
- *  * Requirements on \p urange : radr::mp_range
- *  * Requirements on \p urange 's `range_reference_t`: radr::borrowed_mp_range
+ *  * Requirements on \p urange ("outer range type"): radr::mp_range
+ *  * Requirements on \p urange 's `range_reference_t` ("inner range type"): radr::borrowed_mp_range
  *
  * The multi-pass range adaptor models std::ranges::bidirectional_range iff:
  *   * \p urange models std::ranges:bidirectional_range.
