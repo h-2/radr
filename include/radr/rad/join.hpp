@@ -232,6 +232,19 @@ public:
         return lhs.outer_it == lhs.outer_end;
     }
     //!\}
+
+    friend constexpr decltype(auto) iter_move(join_rad_iterator const & i) noexcept(
+      noexcept(std::ranges::iter_move(i.inner_it)))
+    {
+        return std::ranges::iter_move(i.inner_it);
+    }
+
+    friend constexpr void iter_swap(join_rad_iterator const & x, join_rad_iterator const & y) noexcept(
+      noexcept(std::ranges::iter_swap(x.inner_it, y.inner_it)))
+        requires std::indirectly_swappable<InnerIt>
+    {
+        std::ranges::iter_swap(x.inner_it, y.inner_it);
+    }
 };
 
 inline constexpr auto join_borrow = []<borrowed_mp_range URange>(URange && urange)

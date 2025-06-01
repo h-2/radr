@@ -46,30 +46,6 @@ concept fn_constraints = std::is_object_v<Fn> && std::copy_constructible<Fn> &&
                          std::regular_invocable<Fn const &, std::iter_reference_t<Iter>> &&
                          can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
 
-template <class Iter>
-struct iterator_concept
-{
-    using type = std::input_iterator_tag;
-};
-
-template <std::random_access_iterator Iter>
-struct iterator_concept<Iter>
-{
-    using type = std::random_access_iterator_tag;
-};
-
-template <std::bidirectional_iterator Iter>
-struct iterator_concept<Iter>
-{
-    using type = std::bidirectional_iterator_tag;
-};
-
-template <std::forward_iterator Iter>
-struct iterator_concept<Iter>
-{
-    using type = std::forward_iterator_tag;
-};
-
 } // namespace radr::detail::transform
 
 namespace radr::detail
@@ -104,7 +80,8 @@ class transform_iterator
     }
 
 public:
-    using iterator_concept = typename detail::transform::iterator_concept<Iter>::type;
+    using iterator_concept =
+      std::conditional_t<std::contiguous_iterator<Iter>, std::random_access_iterator_tag, iterator_tag_t<Iter>>;
     using iterator_category =
       std::conditional_t<std::is_reference_v<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>,
                          iterator_concept,

@@ -176,19 +176,17 @@ public:
         return x.current_ == x.end_;
     }
 
-    //TODO what do we do with this
-    // friend constexpr std::ranges::range_rvalue_reference_t<URangeC> iter_move(filter_iterator const & it) noexcept(
-    //   noexcept(std::ranges::iter_move(it.current_)))
-    // {
-    //     return std::ranges::iter_move(it.current_);
-    // }
+    friend constexpr std::iter_rvalue_reference_t<Iter> iter_move(filter_iterator const & it) noexcept(
+      noexcept(std::ranges::iter_move(it.current_)))
+    {
+        return std::ranges::iter_move(it.current_);
+    }
 
     friend constexpr void iter_swap(filter_iterator const & x, filter_iterator const & y) noexcept(
       noexcept(std::ranges::iter_swap(x.current_, y.current_)))
         requires std::indirectly_swappable<Iter>
     {
         std::ranges::iter_swap(x.current_, y.current_);
-        std::ranges::iter_swap(x.end_, y.end_);
     }
 
     /*!\brief Customisation for subranges.
