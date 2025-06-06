@@ -40,8 +40,7 @@ struct and_fn
 };
 
 template <typename Func, typename Iter>
-concept filter_func_constraints =
-  std::is_object_v<Func> && std::copy_constructible<Func> && std::indirect_unary_predicate<Func const, Iter>;
+concept filter_func_constraints = object<Func> && std::indirect_unary_predicate<Func const, Iter>;
 
 template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
 class filter_iterator
@@ -247,13 +246,13 @@ inline constexpr auto filter_borrow =
     }}(radr::cbegin(urange), radr::cend(urange), std::move(fn));
 };
 
-inline constexpr auto filter_coro =
-  []<std::ranges::input_range URange, std::indirectly_unary_invocable<std::ranges::iterator_t<URange>> Fn>(
-    URange && urange,
-    Fn        fn)
+inline constexpr auto filter_coro = []<std::ranges::input_range URange, typename Fn>(URange && urange, Fn fn)
 {
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
+
+    static_assert(weak_indirect_unary_invocable<Fn, std::ranges::iterator_t<URange>>,
+                  "The constraints for radr::take_while's functor are not satisfied.");
 
     // we need to create inner functor so that it can take by value
     return [](auto urange_,
@@ -274,13 +273,17 @@ inline namespace cpo
 /*!\brief Take only those elements from the underlying range that satisfy a predicate.
  * \param[in] urange The underlying range.
  * \param[in] predicate The predicate.
+ * \tparam URange Type of \p urange.
+ * \tparam Predicate Type of \p predicate.
  *
  * \details
  *
  * ## Multi-pass ranges
  *
- * * Requirements on \p urange : radr::mp_range
- * * Requirements on \p predicate : std::copy_constructible, std::is_object_v, std::indirect_unary_predicate (const predicate with urange's const iterator)
+ * Requirements:
+ *   * `radr::mp_range<URange>`
+ *   * `std::indirect_unary_predicate<Predicate const &, radr::iterator_t<URange>>`
+ *   * `std::indirect_unary_predicate<Predicate const &, radr::const_iterator_t<URange>>`
  *
  * This adaptor preserves:
  *   * categories up to std::ranges::bidirectional_range
@@ -305,8 +308,9 @@ inline namespace cpo
  *
  * ## Single-pass ranges
  *
- * * Requirements on \p urange : std::ranges::input_range
- * * Requirements on \p predicate : std::move_constructible, std::is_object_v, std::indirect_unary_invocable (mutable predicate with urange's non-const iterator)
+ * Requirements:
+ *   * `std::ranges::input_range<URange>`
+ *   * `radr::weak_indirect_unary_invocable<Predicate, radr::iterator_t<URange>>`
  *
  * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's elements.
  * It also allows (observable) changes in the predicate.

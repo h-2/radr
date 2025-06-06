@@ -15,6 +15,7 @@
 | `radr::split(pat)`         | always         | input   | fwd      |  -    |  ⊝        |                                          |
 | `radr::take(n)`            |                | input   | contig   |  =    |  ra+sized |                                          |
 | `radr::take_exactly(n)`    |                | input   | contig   |  +    |  ra+sized | turns unsized into size of n             |
+| `radr::take_while(fn)`     |                | input   | contig   |  -    |  -        |                                          |
 | `radr::to_common`          | !(common)      | fwd     | contig   |  ⊕    |  +        |                                          |
 | `radr::to_single_pass`     |                | input   | input    |  -    |  -        | demotes range category to single-pass    |
 | `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
