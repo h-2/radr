@@ -71,6 +71,15 @@ template <typename T>
 concept small_type = std::regular<T> && std::is_nothrow_default_constructible_v<T> &&
                      std::is_nothrow_copy_constructible_v<T> && sizeof(T) <= 3 * sizeof(ptrdiff_t);
 
+//!\brief The same as std::indirect_unary_invocable, but only requires move-construction instead of copy_construction.
+template <class F, class I>
+concept weak_indirect_unary_invocable =
+  std::indirectly_readable<I> && std::move_constructible<F> && std::invocable<F &, std::iter_value_t<I>> &&
+  std::invocable<F &, std::iter_reference_t<I>> &&
+  std::common_reference_with<std::invoke_result_t<F &, std::iter_value_t<I>>,
+                             std::invoke_result_t<F &, std::iter_reference_t<I>>>;
+//TODO implement P2609
+
 } // namespace radr
 
 namespace radr::detail
