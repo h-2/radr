@@ -41,7 +41,7 @@ struct and_fn
 
 template <typename Func, typename Iter>
 concept filter_func_constraints =
-  std::is_object_v<Func> && std::copy_constructible<Func> && std::indirect_unary_predicate<Func const, Iter>;
+  object<Func> && std::copy_constructible<Func> && std::indirect_unary_predicate<Func const, Iter>;
 
 template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
 class filter_iterator
