@@ -168,16 +168,20 @@ using iterator_tag_t = std::conditional_t<std::contiguous_iterator<It>,     std:
 // tuple_like
 //=============================================================================
 
-template <class _Tp>
+template <class Tp>
 struct tuple_like_impl : std::false_type
 {};
 
-template <class _T1, class _T2>
-struct tuple_like_impl<std::pair<_T1, _T2>> : std::true_type
+template <class... Args>
+struct tuple_like_impl<std::tuple<Args...>> : std::true_type
 {};
 
-template <class _Tp, size_t _Size>
-struct tuple_like_impl<std::array<_Tp, _Size>> : std::true_type
+template <class T1, class T2>
+struct tuple_like_impl<std::pair<T1, T2>> : std::true_type
+{};
+
+template <class Tp, size_t _Size>
+struct tuple_like_impl<std::array<Tp, _Size>> : std::true_type
 {};
 
 template <class _Ip, class _Sp, std::ranges::subrange_kind _Kp>
@@ -188,11 +192,11 @@ template <class _Ip, class _Sp, class _CIp, class _CSp, borrowing_rad_kind _Kp>
 struct tuple_like_impl<borrowing_rad<_Ip, _Sp, _CIp, _CSp, _Kp>> : std::true_type
 {};
 
-template <class _Tp>
-concept tuple_like = tuple_like_impl<std::remove_cvref_t<_Tp>>::value;
+template <class Tp>
+concept tuple_like = tuple_like_impl<std::remove_cvref_t<Tp>>::value;
 
-template <class _Tp>
-concept pair_like = tuple_like<_Tp> && std::tuple_size<std::remove_cvref_t<_Tp>>::value == 2;
+template <class Tp>
+concept pair_like = tuple_like<Tp> && std::tuple_size<std::remove_cvref_t<Tp>>::value == 2;
 
 //=============================================================================
 // add_const_t

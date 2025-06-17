@@ -24,14 +24,17 @@ namespace radr::detail
 inline constexpr auto to_single_pass_coro = detail::overloaded{
   []<std::ranges::forward_range URange>(URange && urange)
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
-    static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
+    static_assert((!std::is_lvalue_reference_v<URange> && std::movable<URange>) ||
+                    (std::ranges::borrowed_range<std::remove_reference_t<URange>> &&
+                     std::copyable<std::remove_reference_t<URange>>),
+                  "You may pass any movable rvalue-to-range or copyable lvalues-to-borrowed_range to "
+                  "radr::single_pass.");
 
     return
       [](auto urange_) -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
         co_yield elements_of(urange_);
-    }(std::move(urange));
+    }(std::forward<URange>(urange));
 },
   []<std::ranges::input_range URange>(URange && urange) -> decltype(auto) // forward single-pass ranges as-is
 {

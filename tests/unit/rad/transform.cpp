@@ -32,7 +32,7 @@ TEST(transform, input)
     auto ra = radr::test::iota_input_range(1, 7) | radr::transform(fn);
 
     EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_SAME_TYPE(decltype(ra), radr::generator<size_t>);
+    EXPECT_SAME_TYPE(decltype(ra), (radr::generator<size_t, size_t>));
 }
 
 // --------------------------------------------------------------------------

@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <functional>
 #include <iterator>
@@ -42,8 +43,7 @@ struct nest_fn
 };
 
 template <class Iter, class Fn>
-concept fn_constraints = std::is_object_v<Fn> && std::copy_constructible<Fn> &&
-                         std::regular_invocable<Fn const &, std::iter_reference_t<Iter>> &&
+concept fn_constraints = std::is_object_v<Fn> && std::regular_invocable<Fn const &, std::iter_reference_t<Iter>> &&
                          can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<Iter>>>;
 
 } // namespace radr::detail::transform
@@ -280,85 +280,98 @@ public:
     }
 };
 
-inline constexpr auto transform_borrow_impl =
-  []<typename UIt, typename USen, typename UCIt, typename UCSen, typename Fn, typename Size>(UIt  it,
-                                                                                             USen sen,
-                                                                                             UCIt,
-                                                                                             UCSen,
-                                                                                             Size size,
-                                                                                             Fn   fn)
+inline constexpr auto transform_borrow = []<typename URange, typename Fn>(URange && urange, Fn fn)
 {
-    using iterator_t = transform_iterator<UIt, Fn>;
-    using sentinel_t = std::conditional_t<std::same_as<UIt, USen>, iterator_t, transform_sentinel<UIt, USen, Fn>>;
+    static_assert(borrowed_mp_range<URange>, "The constraints for radr::transform's underlying range are not met.");
+    static_assert(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn> &&
+                    detail::transform::fn_constraints<radr::const_iterator_t<URange>, Fn>,
+                  "The constraints for radr::transform's functor are not met.");
 
-    using const_iterator_t = transform_iterator<UCIt, Fn>;
-    using const_sentinel_t =
-      std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, transform_sentinel<UCIt, UCSen, Fn>>;
-
-    static constexpr auto kind = decays_to<Size, not_size> ? borrowing_rad_kind::unsized : borrowing_rad_kind::sized;
-
-    using BorrowingRad = borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, kind>;
-    return BorrowingRad{
-      iterator_t{fn,  it},
-      sentinel_t{fn, sen},
-      size
-    };
-};
-
-inline constexpr auto transform_borrow =
-  []<borrowed_mp_range URange, std::copy_constructible Fn>(URange && urange, Fn fn)
-    requires(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn>)
-{
-    // dispatch between generic case and chained case(s)
-    return overloaded{
-      transform_borrow_impl,
-      []<typename UIt, typename UCIt, typename UFn, typename Size, typename Fn_>(transform_iterator<UIt, UFn>  iter,
-                                                                                 transform_iterator<UIt, UFn>  sen,
-                                                                                 transform_iterator<UCIt, UFn> citer,
-                                                                                 transform_iterator<UCIt, UFn> csen,
-                                                                                 Size                          size,
-                                                                                 Fn_                           new_fn)
+    constexpr auto impl =
+      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename Fn_, typename Size>(UIt  it,
+                                                                                                  USen sen,
+                                                                                                  UCIt,
+                                                                                                  UCSen,
+                                                                                                  Size size,
+                                                                                                  Fn_  fn)
     {
-        return transform_borrow_impl(std::move(iter).base(),
-                                     std::move(sen).base(),
-                                     std::move(citer).base(),
-                                     std::move(csen).base(),
-                                     size,
-                                     transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+        using iterator_t = transform_iterator<UIt, Fn_>;
+        using sentinel_t = std::conditional_t<std::same_as<UIt, USen>, iterator_t, transform_sentinel<UIt, USen, Fn>>;
+
+        using const_iterator_t = transform_iterator<UCIt, Fn_>;
+        using const_sentinel_t =
+          std::conditional_t<std::same_as<UCIt, UCSen>, const_iterator_t, transform_sentinel<UCIt, UCSen, Fn_>>;
+
+        static constexpr auto kind =
+          decays_to<Size, not_size> ? borrowing_rad_kind::unsized : borrowing_rad_kind::sized;
+
+        using BorrowingRad = borrowing_rad<iterator_t, sentinel_t, const_iterator_t, const_sentinel_t, kind>;
+        return BorrowingRad{
+          iterator_t{fn,  it},
+          sentinel_t{fn, sen},
+          size
+        };
+    };
+
+    /* dispatch between generic case and chained case(s) */
+    // clang-format off
+    return overloaded{
+    /* generic */
+    impl,
+    /* nested common */
+    []<typename UIt, typename UCIt, typename UFn, typename Size>(
+        transform_iterator<UIt, UFn>  iter,
+        transform_iterator<UIt, UFn>  sen,
+        transform_iterator<UCIt, UFn> citer,
+        transform_iterator<UCIt, UFn> csen,
+        Size                          size,
+        Fn                            new_fn)
+    {
+        return decltype(impl){}(std::move(iter).base(),
+                                std::move(sen).base(),
+                                std::move(citer).base(),
+                                std::move(csen).base(),
+                                size,
+                                transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
     },
-      []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Size, typename Fn_>(
+    /* nested non-common */
+    []<typename UIt, typename USen, typename UCIt, typename UCSen, typename UFn, typename Size>(
         transform_iterator<UIt, UFn>         iter,
         transform_sentinel<UIt, USen, UFn>   sen,
         transform_iterator<UCIt, UFn>        citer,
         transform_sentinel<UCIt, UCSen, UFn> csen,
         Size                                 size,
-        Fn_                                  new_fn)
+        Fn                                   new_fn)
     {
-        return transform_borrow_impl(std::move(iter).base(),
-                                     std::move(sen).base(),
-                                     std::move(citer).base(),
-                                     std::move(csen).base(),
-                                     size,
-                                     transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
+        return decltype(impl){}(std::move(iter).base(),
+                                std::move(sen).base(),
+                                std::move(citer).base(),
+                                std::move(csen).base(),
+                                size,
+                                transform::nest_fn{std::move(iter).func(), std::move(new_fn)});
     }}(radr::begin(urange),
        radr::end(urange),
        radr::cbegin(urange),
        radr::cend(urange),
        detail::size_or_not(urange),
        std::move(fn));
+    // clang-format on
 };
 
-inline constexpr auto transform_coro =
-  []<std::ranges::input_range URange, std::move_constructible Fn>(URange && urange, Fn fn)
-    requires(std::invocable<Fn &, std::ranges::range_reference_t<URange>> &&
-             can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>)
+inline constexpr auto transform_coro = []<std::ranges::input_range URange, typename Fn>(URange && urange, Fn fn)
 {
+    static_assert(std::move_constructible<Fn> && std::invocable<Fn &, std::ranges::range_reference_t<URange>>,
+                  "The constraints for radr::transform's functor are not met.");
+
+    using ref_t = std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>;
+    static_assert(can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>,
+                  "The constraints for radr::transform's functor are not met.");
+
     static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can take by value
-    return
-      [](auto urange_, Fn fn) -> radr::generator<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>
+    return [](auto urange_, Fn fn) -> radr::generator<ref_t, std::remove_cvref_t<ref_t>>
     {
         for (auto && elem : urange_)
             co_yield fn(std::forward<decltype(elem)>(elem));
