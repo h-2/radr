@@ -8,8 +8,10 @@
 | `radr::as_rvalue`          |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
 | `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
 | `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
+| `radr::elements<I>`        |                | input   | ra       |  =    |  =        |                                          |
 | `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
 | `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
+| `radr::keys`               |                | input   | ra       |  =    |  =        |                                          |
 | `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
 | `radr::split(pat)`         | always         | input   | fwd      |  -    |  ⊝        |                                          |
@@ -19,6 +21,7 @@
 | `radr::to_common`          | !(common)      | fwd     | contig   |  ⊕    |  +        |                                          |
 | `radr::to_single_pass`     |                | input   | input    |  -    |  -        | demotes range category to single-pass    |
 | `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
+| `radr::values`             |                | input   | ra       |  =    |  =        |                                          |
 
 **min cat** underlying range required to be at least input (`input_range`), fwd (`forward_range`), bidi (`bidirectional_range`),
 ra (`random_access_range`) or contig (`contiguous_range`)<br>

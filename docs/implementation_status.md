@@ -26,8 +26,10 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::as_rvalue`        | C++20 | | `std::views::as_rvalue`        | **C++23** | *returns only input ranges in C++20      |
 | `radr::drop(n)`          | C++20 | | `std::views::drop`             | C++20     |                                          |
 | `radr::drop_while(fn)`   | C++20 | | `std::views::drop_while`       | C++20     |                                          |
+| `radr::elements<I>`      | C++20 | | `std::views::elements`         | C++20     |                                          |
 | `radr::filter(fn)`       | C++20 | | `std::views::filter`           | C++20     |                                          |
 | `radr::join`             | C++20 | | `std::views::join`             | C++20     |                                          |
+| `radr::keys`             | C++20 | | `std::views::keys`             | C++20     |                                          |
 | `radr::reverse`          | C++20 | | `std::views::reverse`          | C++20     |                                          |
 | `radr::slice(m, n)`      | C++20 | | *not yet available*            |           | get subrange between m and n             |
 | `radr::split(pat)`       | C++20 | | `std::views::split`            | C++20     |                                          |
@@ -37,6 +39,8 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::to_common`        | C++20 | | `std::views::common`[^diff]    | C++20     | turns non-common into common             |
 | `radr::to_single_pass`   | C++20 | | `std::views::to_input`[^diff]  | **C++26** | demotes range category to input          |
 | `radr::transform(fn)`    | C++20 | | `std::views::transform`        | C++20     |                                          |
+| `radr::values`           | C++20 | | `std::views::values`           | C++20     |                                          |
+
 
 All range adaptors from this library are available in C++20, although `radr::as_rvalue` behaves slightly different between modes.
 
