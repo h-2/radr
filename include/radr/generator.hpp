@@ -502,7 +502,7 @@ private:
     using coroutine_handle = std::coroutine_handle<promise_type>;
 
 public:
-    generator() noexcept = default;
+    generator() noexcept = delete;
 
     generator(generator && other) noexcept :
       coro_(std::exchange(other.coro_, {})), started_(std::exchange(other.started_, false))
@@ -607,7 +607,7 @@ class generator<Ref, Value, detail::use_allocator_arg>
     using promise_base = detail::generator_promise_base<Ref>;
 
 public:
-    generator() noexcept : promise_(nullptr), coro_(), started_(false) {}
+    generator() = delete;
 
     generator(generator && other) noexcept :
       promise_(std::exchange(other.promise_, nullptr)),
