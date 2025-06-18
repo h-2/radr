@@ -51,8 +51,11 @@ All range adaptors from this library are available in C++20, although `radr::as_
 | Range factories               | Equivalent in `std::`   | Remarks                                              |
 |-------------------------------|-------------------------|------------------------------------------------------|
 | `radr::empty<T>`              | `std::views::empty`     |                                                      |
+| `radr::iota(val[, bound])`    | `std::views::iota`      | multi-pass version of iota                           |
+| `radr::iota_sp(val[, bound])` | `std::views::iota`      | single-pass version of iota                          |
 | `radr::istream<Val>`          | `std::views::istream`   |                                                      |
-| `radr::repeat(val, bound)`    | `std::views::repeat`    | allows indirect storage and static bounds            |
+| `radr::istream<Val>`          | `std::views::istream`   |                                                      |
+| `radr::repeat(val[, bound])`  | `std::views::repeat`    | allows indirect storage and static bounds            |
 | `radr::single(val)`           | `std::views::single`    | allows indirect storage                              |
 
 ## Notable functions
