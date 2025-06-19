@@ -31,14 +31,12 @@ using wider_signed_t = std::conditional_t<sizeof(Int) < sizeof(short), short,
                                                                        long long>>>;
 // clang-format on
 
-// iota_diff_t
 template <class Start>
 using iota_diff_t =
   std::conditional_t<(!std::is_integral_v<Start> || sizeof(std::iter_difference_t<Start>) > sizeof(Start)),
                      std::iter_difference_t<Start>,
                      wider_signed_t<Start>>;
 
-// __decrementable, __advanceable
 template <class Iter>
 concept decrementable = std::incrementable<Iter> && requires(Iter i) {
     {
@@ -66,18 +64,18 @@ concept advanceable =
       } -> std::convertible_to<iota_diff_t<Iter>>;
   };
 
-// Iterator
 template <std::incrementable Start>
 class iota_iterator
 {
+private:
     Start value_{};
 
 public:
-    using value_type      = Start;
-    using difference_type = iota_diff_t<value_type>;
-
+    using value_type        = Start;
+    using difference_type   = iota_diff_t<value_type>;
+    using iterator_category = std::input_iterator_tag;
     // clang-format off
-    using iterator_concept =
+    using iterator_concept  =
       std::conditional_t<advanceable<value_type>,   std::random_access_iterator_tag,
       std::conditional_t<decrementable<value_type>, std::bidirectional_iterator_tag,
                                                     std::forward_iterator_tag>>;
@@ -228,26 +226,27 @@ public:
     }
 };
 
-template <typename Start, typename BoundSentinel>
+template <typename Start, typename Bound>
 class iota_sentinel
 {
-    BoundSentinel bound_{};
+private:
+    Bound bound_{};
 
 public:
     constexpr iota_sentinel() = default;
-    constexpr explicit iota_sentinel(BoundSentinel b) : bound_(std::move(b)) {}
+    constexpr explicit iota_sentinel(Bound b) : bound_(std::move(b)) {}
 
     friend constexpr bool operator==(iota_iterator<Start> const & it, iota_sentinel const & sent)
     {
         return *it == sent.bound_;
     }
     friend constexpr auto operator-(iota_iterator<Start> const & it, iota_sentinel const & sent)
-        requires std::sized_sentinel_for<BoundSentinel, Start>
+        requires std::sized_sentinel_for<Bound, Start>
     {
         return *it - sent.bound_;
     }
     friend constexpr auto operator-(iota_sentinel const & sent, iota_iterator<Start> const & it)
-        requires std::sized_sentinel_for<BoundSentinel, Start>
+        requires std::sized_sentinel_for<Bound, Start>
     {
         return -(it - sent);
     }
@@ -266,15 +265,12 @@ struct iota_fn
         using It  = detail::iota_iterator<Value>;
         using Sen = std::conditional_t<std::same_as<Value, Bound>, It, detail::iota_sentinel<Value, Bound>>;
 
-        if constexpr ((std::random_access_iterator<It> && std::same_as<It, Sen>) ||
-                      std::sized_sentinel_for<Bound, Value>)
-        {
-            return borrowing_rad<It, Sen, It, Sen, borrowing_rad_kind::sized>{It{val}, It{bound}};
-        }
-        else
-        {
-            return borrowing_rad<It, Sen, It, Sen, borrowing_rad_kind::unsized>{It{val}, Sen{bound}};
-        }
+        constexpr borrowing_rad_kind kind =
+          ((std::random_access_iterator<It> && std::same_as<It, Sen>) || std::sized_sentinel_for<Bound, Value>)
+            ? borrowing_rad_kind::sized
+            : borrowing_rad_kind::unsized;
+
+        return borrowing_rad<It, Sen, It, Sen, kind>{It{val}, Sen{bound}};
     }
 };
 
@@ -310,7 +306,7 @@ inline constexpr detail::iota_fn iota{};
  * The requirements on the types are weaker than for radr::iota.
  */
 inline constexpr auto iota_sp =
-  detail::overloaded{[]<typename Value, typename Bound>(Value val, Bound bound) -> radr::generator<Value>
+  []<typename Value, typename Bound = std::unreachable_sentinel_t>(Value val, Bound bound = {})->radr::generator<Value>
 {
     static_assert(std::weakly_incrementable<Value>,
                   "The Value type to radr::iota_sp needs to satisfy std::weakly_incrementable.");
@@ -322,14 +318,6 @@ inline constexpr auto iota_sp =
         co_yield val;
         ++val;
     }
-},
-                     []<typename Value>(Value val) -> radr::generator<Value>
-{
-    while (true)
-    {
-        co_yield val;
-        ++val;
-    }
-}};
+};
 
 } // namespace radr
