@@ -4,6 +4,7 @@ This library is a **work-in-progress**.
 We try to stay close to standard library interfaces, but we neither promise full API compatibility with `std::ranges::` nor do we currently promise stability between releases of this library.
 The latter will likely change at some point.
 
+
 ## Range adaptor classes
 
 
@@ -15,6 +16,7 @@ The latter will likely change at some point.
 
 There are no distinct type templates per adaptor (like e.g. `std::ranges::transform_view` for `std::views::transform` in the standard library).
 Instead all range adaptor objects in this library (see below) return a specialisation of one of the above type templates.
+
 
 ## Range adaptor objects
 
@@ -41,22 +43,22 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::transform(fn)`    | C++20 | | `std::views::transform`        | C++20     |                                          |
 | `radr::values`           | C++20 | | `std::views::values`           | C++20     |                                          |
 
-
 All range adaptors from this library are available in C++20, although `radr::as_rvalue` behaves slightly different between modes.
 
 [^diff]: These range adaptors have relevant differences between `std::` and `radr::`. Usually the names have been chosen differently to highlight this.
 
+
 ## Range factory objects
 
-| Range factories               | Equivalent in `std::`   | Remarks                                              |
-|-------------------------------|-------------------------|------------------------------------------------------|
-| `radr::empty<T>`              | `std::views::empty`     |                                                      |
-| `radr::iota(val[, bound])`    | `std::views::iota`      | multi-pass version of iota                           |
-| `radr::iota_sp(val[, bound])` | `std::views::iota`      | single-pass version of iota                          |
-| `radr::istream<Val>`          | `std::views::istream`   |                                                      |
-| `radr::istream<Val>`          | `std::views::istream`   |                                                      |
-| `radr::repeat(val[, bound])`  | `std::views::repeat`    | allows indirect storage and static bounds            |
-| `radr::single(val)`           | `std::views::single`    | allows indirect storage                              |
+| Range factories (objects)     | C++XY | | Equivalent in `std::`   | C++XY     | Remarks                                   |
+|-------------------------------|-------|-|-------------------------|-----------|-------------------------------------------|
+| `radr::empty<T>`              | C++20 | | `std::views::empty`     | C++20     |                                           |
+| `radr::iota(val[, bound])`    | C++20 | | `std::views::iota`      | C++20     | multi-pass version of iota                |
+| `radr::iota_sp(val[, bound])` | C++20 | | `std::views::iota`      | C++20     | single-pass version of iota               |
+| `radr::istream<Val>`          | C++20 | | `std::views::istream`   | C++20     |                                           |
+| `radr::repeat(val[, bound])`  | C++20 | | `std::views::repeat`    | **C++23** | allows indirect storage and static bounds |
+| `radr::single(val)`           | C++20 | | `std::views::single`    | C++20     | allows indirect storage                   |
+
 
 ## Notable functions
 
