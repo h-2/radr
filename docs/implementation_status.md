@@ -35,6 +35,7 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::reverse`          | C++20 | | `std::views::reverse`          | C++20     |                                          |
 | `radr::slice(m, n)`      | C++20 | | *not yet available*            |           | get subrange between m and n             |
 | `radr::split(pat)`       | C++20 | | `std::views::split`            | C++20     |                                          |
+| *not planned*            | C++20 | | `std::views::lazy_split`       | C++20     | use `radr::to_single_pass | radr::split` |
 | `radr::take(n)`          | C++20 | | `std::views::take`             | C++20     |                                          |
 | `radr::take_exactly(n)`  | C++20 | | *not yet available*            |           | turns unsized into sized                 |
 | `radr::take_while(fn)`   | C++20 | | `std::views::take_while`       | C++20     |                                          |
@@ -52,6 +53,8 @@ All range adaptors from this library are available in C++20, although `radr::as_
 
 | Range factories (objects)     | C++XY | | Equivalent in `std::`   | C++XY     | Remarks                                   |
 |-------------------------------|-------|-|-------------------------|-----------|-------------------------------------------|
+| `radr::counted(it, n)`        | C++20 | | `std::views::counted`   | C++20     | multi-pass version of counted             |
+| `radr::counted_sp(it, n)`     | C++20 | | `std::views::counted`   | C++20     | single-pass version of counted            |
 | `radr::empty<T>`              | C++20 | | `std::views::empty`     | C++20     |                                           |
 | `radr::iota(val[, bound])`    | C++20 | | `std::views::iota`      | C++20     | multi-pass version of iota                |
 | `radr::iota_sp(val[, bound])` | C++20 | | `std::views::iota`      | C++20     | single-pass version of iota               |

@@ -1,3 +1,4 @@
+radr_unit_test(counted)
 radr_unit_test(empty)
 radr_unit_test(iota)
 radr_unit_test(istream)

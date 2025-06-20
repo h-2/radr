@@ -88,7 +88,7 @@ private:
     }
 
 public:
-    borrowing_rad() = default;
+    constexpr borrowing_rad() = default;
 
     /*!\name Constructors: Iterator, Sentinel
      * \{
