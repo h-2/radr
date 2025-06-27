@@ -16,6 +16,7 @@
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
 #include "../rad_util/borrowing_rad.hpp"
+#include "radr/concepts.hpp"
 
 namespace radr::detail
 {
@@ -99,7 +100,7 @@ inline constexpr auto take_borrow =
     }
 },
              []<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
-                 requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+                 requires(safely_indexable_range<URange>)
 {
     return subborrow(std::forward<URange>(urange), 0ull, n);
 }};

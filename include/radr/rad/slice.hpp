@@ -24,7 +24,7 @@ namespace radr::detail
 inline constexpr auto slice_borrow =
   []<std::ranges::borrowed_range URange>(URange && urange, size_t const start, size_t const end)
 {
-    if constexpr (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+    if constexpr (safely_indexable_range<URange>)
     {
         return subborrow(std::forward<URange>(urange), start, end);
     }

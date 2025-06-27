@@ -395,3 +395,16 @@ TYPED_TEST(repeat_rng, subborrow_infinite_size)
         }
     }
 }
+
+TYPED_TEST(repeat_rng, take)
+{
+    int i = 3;
+
+    TypeParam r{i, TestFixture::get_bound()};
+
+    auto rad = std::move(r) | radr::take(2);
+
+    EXPECT_TRUE(std::ranges::sized_range<decltype(rad)>);
+    EXPECT_TRUE(radr::common_range<decltype(rad)>);
+    EXPECT_EQ(std::ranges::size(rad), 2);
+}
