@@ -8,6 +8,7 @@
 #include <radr/test/gtest_helpers.hpp>
 
 #include <radr/factory/iota.hpp>
+#include <radr/rad/take.hpp>
 #include <radr/rad/take_while.hpp>
 #include <radr/rad/transform.hpp>
 
@@ -71,6 +72,20 @@ TEST(iota, InfiniteRange)
     EXPECT_FALSE(std::ranges::sized_range<decltype(v)>);
     EXPECT_TRUE(std::ranges::random_access_range<decltype(v)>);
     EXPECT_FALSE(std::ranges::common_range<decltype(v)>);
+    EXPECT_TRUE(std::ranges::borrowed_range<decltype(v)>);
+}
+
+TEST(iota, InfiniteRangeTake)
+{
+    auto v  = radr::iota(0) | radr::take(5);
+    auto it = v.begin();
+    EXPECT_EQ(*it, 0);
+    EXPECT_EQ(*(++it), 1);
+    EXPECT_EQ(*(++it), 2);
+
+    EXPECT_TRUE(std::ranges::sized_range<decltype(v)>);
+    EXPECT_TRUE(std::ranges::random_access_range<decltype(v)>);
+    EXPECT_TRUE(std::ranges::common_range<decltype(v)>);
     EXPECT_TRUE(std::ranges::borrowed_range<decltype(v)>);
 }
 

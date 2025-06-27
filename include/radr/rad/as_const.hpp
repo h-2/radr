@@ -17,20 +17,14 @@
 #include "../custom/subborrow.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
+#include "radr/range_access.hpp"
 
 namespace radr::detail
 {
 
 inline constexpr auto as_const_borrow = []<borrowed_mp_range URange>(URange && urange)
 {
-    if constexpr (std::ranges::sized_range<URange>)
-    {
-        return radr::subborrow(urange, radr::cbegin(urange), radr::cend(urange), std::ranges::size(urange));
-    }
-    else
-    {
-        return radr::subborrow(urange, radr::cbegin(urange), radr::cend(urange));
-    }
+    return radr::subborrow(urange, radr::cbegin(urange), radr::cend(urange), detail::size_or_not(urange));
 };
 
 } // namespace radr::detail
