@@ -226,7 +226,7 @@ using constant_t = std::integral_constant<decltype(v), v>;
  * dimensions: \p Bound and \p storage.
  *
  * All instantiations of `repeat_rng` model at least std::semiregular, std::ranges::random_access_range and
- * radr::const_iterable.
+ * radr::mp_range.
  *
  * ## Bound
  *
