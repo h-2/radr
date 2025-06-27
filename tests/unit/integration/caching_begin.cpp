@@ -82,7 +82,7 @@ TEST(caching_begin, non_prop)
 
     {
         auto v = std::ref(vec) | radr::filter(even) | radr::to_common;
-        EXPECT_EQ(count, 15);
+        EXPECT_EQ(count, 12);
         count = 0;
         for ([[maybe_unused]] size_t i : v)
         {

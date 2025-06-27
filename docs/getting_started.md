@@ -45,6 +45,7 @@ We fundamentally differentiate three types of ranges:
 
 Multi-pass ranges can be accessed multiple times while single-pass ranges cannot generally be read again from the beginning.
 See [Range properties](./range_properties.md) for formal definitions.
+Many types and concepts in the library use the abbreviation `mp` for "multi-pass" or `sp` for "single-pass".
 
 A *range adaptor* is a range that is created on top of another range, typically referred to as the *underlying range* or
 the *original range*.

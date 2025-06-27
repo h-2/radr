@@ -14,10 +14,13 @@
 namespace radr::custom
 {
 
+struct rebind_iterator_tag
+{};
+
 struct subborrow_tag
 {};
 
-struct rebind_iterator_tag
+struct find_common_end_tag
 {};
 
 } // namespace radr::custom

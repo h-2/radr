@@ -71,12 +71,13 @@ We want to find out how many times the predicate is evaluated when using the ada
 | `for (size_t i : rad) {}` (2nd+)                           |  9          |
 | `for (size_t i : rad │ radr::take(100)) {}` (comb.)        |  9          |
 
-This tables illustrates the differences and similarities between the standard library and our library:
+This tables illustrates the similarities between the standard library and our library:
   * Constructing the adaptor and iterating over it once adds up to 15 predicate calls.
   * The second (and any further) iteration only performs 9 calls.
   * Note that since neither `std` nor `radr` cache the end, the *last* five 1s will always be parsed. *More on this below*.
 
-Finally, we see that the libraries differ when the adaptor is combined with another one, e.g. `take(100)`.
+They differ in that some of the work happens on construction in RADR.
+And finally, we see that the libraries differ when the adaptor is combined with another one, e.g. `take(100)`.
 The standard library adaptor resets its cache when being moved or copied, because the caching mechanism in the standard library is *non-propagating*.
 This is not known to most users of `std::ranges::`, and it is even more surprising since "building up" ranges pipelines in multiple steps is a frequently recommended practice.
 
@@ -95,11 +96,11 @@ In our library `radr::filter` is not common by default. This has the advantage t
 
 |  `radr::`                                                                    | # calls     |
 |------------------------------------------------------------------------------|------------:|
-| `auto rad = std::ref(vec) │ radr::filter(even) │ radr::to_common;` (constr.) |  15         |
+| `auto rad = std::ref(vec) │ radr::filter(even) │ radr::to_common;` (constr.) |  12         |
 | `for (size_t i : rad) {}` (1st)                                              |  4          |
 | `for (size_t i : rad) {}` (2nd+)                                             |  4          |
 | `for (size_t i : rad │ radr::take(100)) {}` (comb.)                          |  4          |
 
-As you see, the range is parsed once completely on construction.
+The head of the range is parsed on construction of `filter` (6 calls), and the tail is parsed on construction of `to_common` (reverse find, also 6 calls).
 After this, the adaptor needs to parse neither the head, nor the tail of the underlying range on a full iteration.
 The standard library does not offer such facilities.
