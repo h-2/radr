@@ -209,6 +209,13 @@ struct subborrow_impl_t
         }
     }
 
+    //!\brief Call tag_invoke if possible (even without size); call default otherwise. [it, sen, not_size]
+    template <borrowed_mp_range URange, detail::is_iterator_of<URange> It, typename Sen>
+    constexpr auto operator()(URange && urange, It const b, Sen const e, detail::not_size const) const
+    {
+        return operator()(std::forward<URange>(urange), b, e);
+    }
+
     //!\brief Call tag_invoke if possible; call default otherwise. [i, j]
     template <borrowed_mp_range URange>
         requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)

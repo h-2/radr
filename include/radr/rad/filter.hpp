@@ -23,6 +23,7 @@
 #include "../detail/semiregular_box.hpp"
 #include "../generator.hpp"
 #include "../range_access.hpp"
+#include "radr/custom/tags.hpp"
 
 namespace radr::detail
 {
@@ -66,31 +67,78 @@ class filter_iterator
         using RIt     = filter_iterator<Iter, Iter, Func>;
         Iter new_uend = sen.base_iter();
 
-        if constexpr (std::bidirectional_iterator<Iter> && !std::same_as<Iter, Sent>)
-        {
-            if (it != sen)
-            {
-                /* For filter iterators on non-common ranges, sen might not represent the "real"
-                 * underlying end, because the "caching mechanism" implemented in operator++
-                 * does not take effect.
-                 * For these ranges, we do the tiny hack of creating a "filter_iterator-on-common",
-                 * and then we decrement which will move onto the last valid underlying element.
-                 * The we increment that to get the real underlying past-the-end iterator.
-                 *
-                 * A cleaner solution would be to introduce a `to_common` customisation point.
-                 * This would allow avoiding the back and forth.
-                 * We might do this in the future!
-                 */
-                RIt rsen{sen.func(), new_uend, new_uend};
-                --rsen;
-                new_uend = std::move(rsen).base_iter();
-                ++new_uend;
-            }
-        }
-
         RIt rit{std::move(it).func(), std::move(it).base_iter(), new_uend};
         RIt rsen{std::move(sen).func(), new_uend, new_uend};
         return borrowing_rad{std::move(rit), std::move(rsen), s};
+    }
+
+    /*!\brief Customisation for subranges.
+     * \details
+     *
+     * This potentially returns a range of different filter_iterators. In particular, the returned
+     * ones are always built on iterator-sentinel of the same type.
+     */
+    template <borrowed_mp_range R>
+    constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, filter_iterator it, filter_iterator sen)
+    {
+        return subborrow_impl(it, sen, not_size{});
+    }
+
+    //!\overload
+    template <borrowed_mp_range R>
+    constexpr friend auto tag_invoke(custom::subborrow_tag,
+                                     R &&,
+                                     filter_iterator it,
+                                     filter_iterator sen,
+                                     size_t const    s)
+    {
+        return subborrow_impl(it, sen, s);
+    }
+
+    //!\brief Customisation to create common sentinel with actual underlying end.
+    constexpr friend filter_iterator tag_invoke(custom::find_common_end_tag,
+                                                filter_iterator it,
+                                                std::default_sentinel_t)
+    {
+        Iter ubeg = std::move(it).base_iter();
+        Sent uend = std::move(it).base_sent();
+        Func fn   = std::move(it).func();
+
+        Iter it_end{};
+
+        /* search backwards from end if possible */
+        if constexpr (std::bidirectional_iterator<Iter> && std::same_as<Iter, Sent>)
+        {
+            it_end = uend;
+            while (it_end != ubeg)
+            {
+                --it_end;
+                if (std::invoke(std::cref(fn), *it_end))
+                {
+                    ++it_end;
+                    break;
+                }
+            }
+        }
+        /* search from beginning but store element behind last matching instead of underlying end */
+        else
+        {
+            bool empty = true;
+
+            for (auto it = ubeg; it != uend; ++it)
+            {
+                if (std::invoke(std::cref(fn), *it))
+                {
+                    it_end = it;
+                    empty  = false;
+                }
+            }
+
+            if (!empty)
+                ++it_end;
+        }
+
+        return {std::move(fn), std::move(it_end), std::move(uend)};
     }
 
 public:
@@ -126,17 +174,8 @@ public:
 
     constexpr filter_iterator & operator++()
     {
-        if constexpr (std::same_as<Iter, Sent>)
-        {
-            if (auto tmp = std::ranges::find_if(++current_, end_, std::ref(*func_)); tmp != end_)
-                current_ = std::move(tmp);
-            else // cache the real underlying end
-                end_ = current_;
-        }
-        else
-        {
-            current_ = std::ranges::find_if(std::move(++current_), end_, std::ref(*func_));
-        }
+        current_ = std::ranges::find_if(std::move(++current_), end_, std::cref(*func_));
+
         return *this;
     }
 
@@ -186,29 +225,6 @@ public:
         requires std::indirectly_swappable<Iter>
     {
         std::ranges::iter_swap(x.current_, y.current_);
-    }
-
-    /*!\brief Customisation for subranges.
-     * \details
-     *
-     * This potentially returns a range of different filter_iterators. In particular, the returned
-     * ones are always built on iterator-sentinel of the same type.
-     */
-    template <borrowed_mp_range R>
-    constexpr friend auto tag_invoke(custom::subborrow_tag, R &&, filter_iterator it, filter_iterator sen)
-    {
-        return subborrow_impl(it, sen, not_size{});
-    }
-
-    //!\overload
-    template <borrowed_mp_range R>
-    constexpr friend auto tag_invoke(custom::subborrow_tag,
-                                     R &&,
-                                     filter_iterator it,
-                                     filter_iterator sen,
-                                     size_t const    s)
-    {
-        return subborrow_impl(it, sen, s);
     }
 };
 
@@ -291,20 +307,28 @@ inline namespace cpo
  *   * radr::constant_range
  *
  * It does not preserve:
- *  * std::ranges::sized_range
- *
- * **In contrast to std::views::filter, it DOES NOT PRESERVE:**
+ *   * std::ranges::sized_range
  *   * radr::common_range
  *   * radr::mutable_range
  *
  * To prevent UB, the returned range is always a radr::constant_range.
  *
- * Use `radr::filter(Fn) | radr::to_common` to make the range common, and use
- * `radr::to_single_pass | radr::filter(Fn)`, create a mutable range (see below).
- *
  * Construction of the adaptor is in O(n), because the first matching element is searched and cached.
  *
  * Multiple nested filter adaptors are folded into one.
+ *
+ * ### Notable differences to std::views::filter
+ *
+ * Like all our multi-pass adaptors (but unlike std::views::filter), this adaptor is const-iterable.
+ *
+ * Does not preserve radr::common_range. Use `… | radr::filter(Fn) | radr::to_common` if you want a common range.
+ * This has the added benefit that the real underlying end is used and the tail of the underlying range is not searched repeatedly.
+ * See [caching end](docs/caching_begin.md#caching-end) for more details.
+ *
+ * Does not preserve radr::mutable_range, i.e. it always returns radr::constant_range.
+ * This prevents undefined behaviour by accidentally changing values that invalidate the predicate.
+ * If you want a mutable range, use the single pass adaptor like this:
+ * `… | radr::to_single_pass | radr::filter(fn)`
  *
  * ## Single-pass ranges
  *
@@ -314,6 +338,13 @@ inline namespace cpo
  *
  * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's elements.
  * It also allows (observable) changes in the predicate.
+ *
+ * ### Notable differences to std::views::filter
+ *
+ * In C++26 the single-pass version of std::views::filter was made const-iterable (but not the multi-pass version).
+ * This is counter to any consistency in the range concepts.
+ *
+ * All our multi-pass adaptors are const-iterable, but non of our single-pass adaptors are.
  *
  */
 inline constexpr auto filter = detail::pipe_with_args_fn{detail::filter_coro, detail::filter_borrow};

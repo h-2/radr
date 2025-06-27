@@ -44,6 +44,5 @@ TEST(to_common, filter)
     auto ra2 = std::ref(ra) | radr::to_common;
 
     EXPECT_TRUE(radr::common_range<decltype(ra2)>);
-    EXPECT_TRUE(std::ranges::sized_range<decltype(ra2)>);
-    EXPECT_EQ(std::ranges::size(ra2), 3);
+    EXPECT_FALSE(std::ranges::sized_range<decltype(ra2)>);
 }

@@ -11,13 +11,9 @@
 
 #pragma once
 
-#include <functional>
-#include <ranges>
-
 #include "../concepts.hpp"
-#include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
-#include "../rad_util/borrowing_rad.hpp"
+#include "radr/custom/find_common_end.hpp"
 #include "radr/custom/subborrow.hpp"
 #include "radr/range_access.hpp"
 
@@ -31,15 +27,10 @@ inline constexpr auto to_common_borrow = []<borrowed_mp_range URange>(URange && 
     }
     else
     {
-        auto   b     = radr::begin(urange);
-        auto   old_e = radr::end(urange);
-        auto   new_e = b;
-        size_t s     = 0;
-        for (; new_e != old_e; ++new_e, ++s)
-        {
-        }
-
-        return subborrow(urange, b, new_e, s);
+        return subborrow(urange,
+                         radr::begin(urange),
+                         radr::find_common_end(radr::begin(urange), radr::end(urange)),
+                         size_or_not(urange));
     }
 };
 
@@ -54,16 +45,55 @@ inline namespace cpo
  * \param urange The underlying range.
  * \details
  *
- * ## Multi-pass ranges
+ * This range adaptor only affects the concepts modelled; the range elements are the same.
  *
- * For ranges that model radr::common_range: returns an identity/NOOP adaptor.
+ * ## Multi-pass adaptor
  *
- * For ranges that do not model radr::common_range:
- *  * Returns a range adaptor that models radr::common_range.
- *  * The end is determined by searching linearly from the beginning.
- *  * The returned adaptor also caches the size and models std::ranges::sized_range.
+ * Requirements:
+ *   * `radr::mp_range<URange>`
  *
- * ## Single-pass ranges
+ * For ranges that already model radr::common_range:
+ *   * returns an identity/NOOP adaptor.
+ *
+ * This adaptor preserves:
+ *   * all underlying range concepts
+ *   * radr::iterator_t and radr::const_iterator_t
+ *
+ * It does not preserve:
+ *   * radr::sentinel_t and radr::const_sentinel_t (because they become the respective iterator types).
+ *
+ * The end is determined by invoking the radr::find_common_end customisation point.
+ * Construction of the adaptor is in O(n), because, by default,
+ * **the end is searched linearly from the beginning.**
+ * Customisations may provider faster implementations.
+ *
+ * ### Notable differences to std::views::common
+ *
+ * |               | std::views::common                          |              radr::to_common  |
+ * |---------------|---------------------------------------------|-------------------------------|
+ * | construction  | O(1)                                        | O(n)                          |
+ * | `.begin()`    | O(1)                                        | O(1)                          |
+ * | itarator_t    | different from underlying                   | same as underlying            |
+ * | iteration     | slower than underlying                      | no overhead                   |
+ *
+ * Like with our other adaptors, you potentially pay a higher up-front cost for lower overhead later on and
+ * simpler types.
+ *
+ * ### Example
+ *
+ * ```cpp
+ * std::string_view str = "foo bar";
+ *
+ * auto rad1 = str | radr::take_while([] (char c) { return c != ' ';});
+ * // the type of rad1 is borrowing_rad<…take_while_sentinel<…>…>
+ *
+ * auto rad2 = rad1 | radr::to_common;
+ * // the type of rad2 is just std::string_view again
+ * ```
+ *
+ * This is not possible with std::views::common, because the range type gets even more complicated.
+ *
+ * ## Single-pass adaptor
  *
  * This adaptor cannot be created on single-pass ranges.
  *

@@ -209,8 +209,7 @@ TEST(filter_forward_, noncommon2common)
     {
         auto ra = std::ref(in) | radr::filter(fn);
         auto e  = radr::begin(ra);
-        while (e != radr::end(ra))
-            ++e;
+        std::ranges::advance(e, radr::end(ra));
 
         auto eager_e = std::ranges::next(in.begin(), 6); // past the underlying end
 #if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 12)
@@ -223,8 +222,7 @@ TEST(filter_forward_, noncommon2common)
     {
         auto ra = std::ref(in) | radr::filter(fn) | radr::to_common;
         auto e  = radr::begin(ra);
-        while (e != radr::end(ra))
-            ++e;
+        std::ranges::advance(e, radr::end(ra));
 
         auto eager_e = std::ranges::next(in.begin(), 4); // first '1' in tail
 #if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE <= 12)
