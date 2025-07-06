@@ -1,3 +1,4 @@
+radr_unit_test(all_)
 radr_unit_test(as_const)
 radr_unit_test(as_rvalue)
 radr_unit_test(to_common)
