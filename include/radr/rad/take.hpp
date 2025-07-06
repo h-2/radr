@@ -142,6 +142,53 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Take up to n elements from the underlying range.
+ * \param[in] urange The underlying range.
+ * \param[in] n Number of elements.
+ * \tparam URange Type of \p urange.
+ * \details
+ *
+ * Takes \p n elements from \p urange, or all elements if \p urange is smaller than \p n.
+ *
+ * ## Multi-pass ranges
+ *
+ * Requirements:
+ *   * `radr::mp_range<URange>`
+ *
+ * For underlying ranges that are radr::safely_indexable_range, this adaptor invokes the radr::subborrow
+ * customisation point.
+ * Unless customised otherwise and if the range was sized, it will preserve all range concepts and be
+ * transparent (same iterator and senintel types as \p urange).
+ * If it was infinite, it will become sized and common.
+ *
+ * For underlying ranges that are not radr::safely_indexable_range, this adaptors preserves:
+ *   * categories up to std::ranges::contiguous_range
+ *   * std::ranges::borrowed_range
+ *   * radr::mutable_range
+ *   * radr::constant_range
+ *   * std::ranges::sized_range
+ *
+ * It does not preserve:
+ *   * radr::common_range
+ *
+ * ### Notable differences to std::views::take
+ *
+ *   * Subrange customisation through radr::subborrow.
+ *   * Returns sized, common ranges for infinite inputs like radr::iota and radr::repeat.
+ *
+ * ## Single-pass ranges
+ *
+ * Requirements:
+ *   * `std::ranges::input_range<URange>`
+ *
+ * ### Notable difference std::views::take
+ *
+ * std::views::take takes \p n elements from the underlying range but then silently advances over the `n+1`-th element,
+ * resulting in unexpected behaviour (e.g. skipped/missing elements in a stream).
+ * See https://www.youtube.com/watch?v=dvi0cl8ccNQ for an explenation.
+ *
+ * We **fixed this bug** for radr::take on single-pass ranges.
+ */
 inline constexpr auto take = detail::pipe_with_args_fn{detail::take_coro, detail::take_borrow};
 } // namespace cpo
 } // namespace radr
