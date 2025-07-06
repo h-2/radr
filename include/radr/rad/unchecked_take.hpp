@@ -16,7 +16,7 @@
 namespace radr::detail
 {
 
-inline constexpr auto take_exactly_borrow =
+inline constexpr auto unchecked_take_borrow =
   []<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> const n)
 {
     if constexpr (std::ranges::sized_range<URange>)
@@ -31,6 +31,6 @@ namespace radr
 
 inline namespace cpo
 {
-inline constexpr auto take_exactly = detail::pipe_with_args_fn{detail::take_coro, detail::take_exactly_borrow};
+inline constexpr auto unchecked_take = detail::pipe_with_args_fn{detail::take_coro, detail::unchecked_take_borrow};
 } // namespace cpo
 } // namespace radr
