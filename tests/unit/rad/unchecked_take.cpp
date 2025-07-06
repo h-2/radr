@@ -11,7 +11,7 @@
 
 #include <radr/detail/detail.hpp>
 #include <radr/detail/fwd.hpp>
-#include <radr/rad/take_exactly.hpp>
+#include <radr/rad/unchecked_take.hpp>
 
 /* This test is very similar to radr::take's test, search for "DIFFERENT" */
 
@@ -25,9 +25,9 @@ inline std::vector<size_t> const comp{1, 2, 3};
 // input test
 // --------------------------------------------------------------------------
 
-TEST(take_exactly, input)
+TEST(unchecked_take, input)
 {
-    auto ra = radr::test::iota_input_range(1, 7) | radr::take_exactly(3);
+    auto ra = radr::test::iota_input_range(1, 7) | radr::unchecked_take(3);
 
     EXPECT_RANGE_EQ(ra, comp);
 #ifdef __cpp_lib_generator
@@ -44,7 +44,7 @@ TEST(take_exactly, input)
 template <typename ra_t, typename container_t>
 void type_checks_impl()
 {
-    /* preserved for all take_exactly adaptors */
+    /* preserved for all unchecked_take adaptors */
     EXPECT_EQ(std::ranges::bidirectional_range<ra_t>, std::ranges::bidirectional_range<container_t>);
     EXPECT_EQ(std::ranges::random_access_range<ra_t>, std::ranges::random_access_range<container_t>);
     EXPECT_EQ(std::ranges::contiguous_range<ra_t>, std::ranges::contiguous_range<container_t>);
@@ -53,7 +53,7 @@ void type_checks_impl()
     EXPECT_EQ(std::ranges::common_range<ra_t>,
               std::ranges::random_access_range<container_t> && std::ranges::sized_range<container_t>);
 
-    /* gained for all take_exactly adaptors THIS IS DIFFERENT FROM radr::take */
+    /* gained for all unchecked_take adaptors THIS IS DIFFERENT FROM radr::take */
     EXPECT_TRUE(std::ranges::sized_range<ra_t>);
 }
 
@@ -76,7 +76,7 @@ void forward_range_test()
 
     /* lvalue */
     {
-        auto ra = std::ref(container) | radr::take_exactly(3);
+        auto ra = std::ref(container) | radr::unchecked_take(3);
 
         EXPECT_RANGE_EQ(ra, comp);
         EXPECT_SAME_TYPE(decltype(ra), borrow_t);
@@ -84,7 +84,7 @@ void forward_range_test()
 
     /* lvalue, folding */
     {
-        auto ra = std::ref(container) | radr::take_exactly(4) | radr::take_exactly(3);
+        auto ra = std::ref(container) | radr::unchecked_take(4) | radr::unchecked_take(3);
 
         EXPECT_RANGE_EQ(ra, comp);
         EXPECT_SAME_TYPE(decltype(ra), borrow_t);
@@ -92,7 +92,7 @@ void forward_range_test()
 
     /* rvalue */
     {
-        auto ra = std::move(container) | radr::take_exactly(3);
+        auto ra = std::move(container) | radr::unchecked_take(3);
 
         EXPECT_RANGE_EQ(ra, comp);
         EXPECT_SAME_TYPE(decltype(ra), (radr::owning_rad<container_t, borrow_t>));
@@ -105,7 +105,7 @@ void forward_range_test()
 // forward_list test (in particular, THIS IS DIFFERENT FROM radr::take and now the same as for std::list)
 // --------------------------------------------------------------------------
 
-TEST(take_exactly, forward_list)
+TEST(unchecked_take, forward_list)
 {
     using container_t = std::forward_list<size_t>;
 
@@ -123,7 +123,7 @@ TEST(take_exactly, forward_list)
 // list test (in particular, this tests the sized-but-not-RA codepath)
 // --------------------------------------------------------------------------
 
-TEST(take_exactly, list)
+TEST(unchecked_take, list)
 {
     using container_t = std::list<size_t>;
 
@@ -141,7 +141,7 @@ TEST(take_exactly, list)
 // RandomAccess+Sized test (delegates to subborrow)
 // --------------------------------------------------------------------------
 
-TEST(take_exactly, deque)
+TEST(unchecked_take, deque)
 {
     using container_t = std::deque<size_t>;
 
@@ -155,7 +155,7 @@ TEST(take_exactly, deque)
     forward_range_test<container_t, borrow_t>();
 }
 
-TEST(take_exactly, vector)
+TEST(unchecked_take, vector)
 {
     using container_t = std::vector<size_t>;
 
