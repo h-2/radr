@@ -114,9 +114,24 @@ inline constexpr auto take_coro = []<std::ranges::input_range URange>(URange && 
     return [](auto urange_, std::size_t const n)
              -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
-        std::size_t i = 0;
-        for (auto it = radr::begin(urange_); it != radr::end(urange_) && i < n; ++it, ++i)
+        size_t i  = 0;
+        auto   it = radr::begin(urange_);
+        if (i == n || it == radr::end(urange_))
+            co_return;
+
+        while (true)
+        {
             co_yield *it;
+
+            ++i;
+            if (i == n)
+                break;
+
+            /* checks are split up to prevent iterating further than necessary */
+            ++it;
+            if (it == radr::end(urange_))
+                break;
+        }
     }(std::move(urange), n);
 };
 
