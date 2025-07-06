@@ -13,12 +13,14 @@
 #pragma once
 
 #include <iterator>
+#include <ranges>
 
 #include "radr/custom/subborrow.hpp"
 #include "radr/detail/detail.hpp"
 #include "radr/detail/pipe.hpp"
 #include "radr/factory/single.hpp"
 #include "radr/rad/as_const.hpp"
+#include "radr/rad/to_single_pass.hpp"
 #include "radr/range_access.hpp"
 
 namespace radr::detail
@@ -305,9 +307,14 @@ inline namespace cpo
 {
 
 /*!\brief radr::split(urange, pattern)
+ * \tparam URange Type of \p urange.
+ * \tparam Patttern Type of \p pattern.
  * \param urange The underlying range.
  * \param pattern The pattern to split by.
  * \details
+ *
+ * Turns a range into a range-of-ranges, by splitting on the provided pattern.
+ * The pattern will not be included in the output.
  *
  * ## Multi-pass ranges
  *
@@ -316,14 +323,55 @@ inline namespace cpo
  *   * an rvalue of a range whose elements are comparable to the underlying range (only if the pattern is a borrowed_mp_range).
  *   * a std::ref-wrapped lvalue of a delimiter element that is comparable to elements of the underlying range.
  *   * an rvalue of a delimiter element that is comparable to elements of the underlying range (only if that value is default constructible and copyable without throwing).
+ *   * Note that string-literal patterns (`"foobar"`) are not supported. Use string_views instead (`"foobar"sv`).
  *
- * Note that string-literal patterns (`"foobar"`) are not supported. Use string_views instead (`"foobar"sv`).
+ * Requirements:
+ *   * `radr::mp_range<URange>`
+ *   * for Pattern, see above.
+ *
+ * The returned "outer range"-type models radr::mp_range and preserves std::ranges::borrowed_range.
+ * It is never bidirectional, common, sized or mutable.
+ *
+ * The returned "inner range"-type is created via the radr::subborrow customisation point.
+ * Unless customised otherwise, it always models:
+ *   * std::ranges::borrowed_range
+ *   * std::ranges::sized_range
+ *   * radr::common_range
+ *
+ * It preserves from the underlying range:
+ *   * categories up to std::ranges::contiguous_range
+ *   * radr::mutable_range
+ *   * radr::constant_range
+ *
+ * Construction of the adaptor is in O(n), because the first inner range is searched on construction
+ * (which could be the full range).
+ *
+ * ### Notable differences to std::views::split
+ *
+ * Due to radr::subborrow being used, splitting a string_view results in string_views:
+ *
+ * ```cpp
+ * auto subs = "foo bar bax"sv | radr::split(' ');
+ * auto frst = *subs.begin(); // this is a string_view, too
+ * ```
  *
  * ## Single-pass ranges
  *
- * The pattern can be delimiter element (rvalue or lvalue) comparable to the elements of the underlying range.
+ * The pattern must be delimiter element (rvalue or lvalue) comparable to the elements of the underlying range.
+ * Ranges as patterns are not supported for single-pass inputs.
+ *
+ * Requirements:
+ *   * `std::ranges::input_range<URange>`
+ *   * `std::equality_comparable_with<std::ranges::range_reference_t<URange>, Pattern>`
+ *
+ * Both, the "outer range"-type and the "inner range"-type are a radr::generator.
+ * This design is fully lazy; no read-ahead happens.
  *
  */
 inline constexpr auto split = detail::pipe_with_args_fn{detail::split_coro, detail::split_borrow};
+
+[[deprecated(
+  "Instead of radr::lazy_split, just use radr::split. Or use `radr::to_single_pass | radr::split` which is lazier, but "
+  "does not support range-as-a-pattern.")]] inline constexpr auto lazy_split = split;
 } // namespace cpo
 } // namespace radr
