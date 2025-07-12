@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "radr/version.hpp"
+
 namespace radr::custom
 {
 
