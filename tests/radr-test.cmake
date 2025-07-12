@@ -1,7 +1,7 @@
 # -*- CMake -*-
 #===----------------------------------------------------------------------===//
 #
-# Copyright (c) 2023 Hannes Hauswedell
+# Copyright (c) 2023-2025 Hannes Hauswedell
 #
 # Licensed under the Apache License v2.0 with LLVM Exceptions.
 # See the LICENSE file for details.
@@ -9,14 +9,15 @@
 #
 #===----------------------------------------------------------------------===//
 
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.12)
 
 # ----------------------------------------------------------------------------
 # RADR SETUP
 # ----------------------------------------------------------------------------
 
-find_path (RADR_INCLUDE_DIR NAMES radr/rad/as_const.hpp HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../../include/" REQUIRED)
-find_path (RADR_TEST_INCLUDE_DIR NAMES radr/test/gtest_helpers.hpp HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../include/" REQUIRED)
+find_package(radr REQUIRED HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/")
+
+find_path (RADR_TEST_INCLUDE_DIR NAMES radr/test/gtest_helpers.hpp HINTS "${RADR_CLONE_DIR}/tests/include/" REQUIRED)
 
 # ----------------------------------------------------------------------------
 # GoogleTest
@@ -35,31 +36,29 @@ FetchContent_MakeAvailable(googletest)
 # Pseudo library to ease target definition
 # ----------------------------------------------------------------------------
 
-add_library (radr_test_unit INTERFACE)
-target_link_libraries (radr_test_unit INTERFACE  gtest_main gtest pthread)
-target_include_directories (radr_test_unit INTERFACE "${RADR_INCLUDE_DIR}" "${RADR_TEST_INCLUDE_DIR}")
-target_compile_options (radr_test_unit INTERFACE -pedantic  -Wall -Wextra -Werror)
-add_library (radr::test::unit ALIAS radr_test_unit)
+add_library (radr_test_base INTERFACE)
+target_link_libraries (radr_test_base INTERFACE  radr::radr gtest_main gtest pthread)
+target_include_directories (radr_test_base INTERFACE "${RADR_TEST_INCLUDE_DIR}")
+target_compile_options (radr_test_base INTERFACE -pedantic  -Wall -Wextra -Werror)
+add_library (radr::test::base ALIAS radr_test_base)
 
 # ----------------------------------------------------------------------------
-# add_subdirectories
+# radr_add_test macro
 # ----------------------------------------------------------------------------
 
-macro (add_subdirectories_of directory)
-    file (GLOB ENTRIES
-          RELATIVE ${directory}
-          ${directory}/[!.]*)
+macro (radr_add_test unit_test_cpp)
+    get_filename_component (target_dir "${unit_test_cpp}" DIRECTORY)
+    get_filename_component (target "${unit_test_cpp}" NAME_WLE)
 
-    foreach (ENTRY ${ENTRIES})
-        if (IS_DIRECTORY ${directory}/${ENTRY})
-            if (EXISTS ${directory}/${ENTRY}/CMakeLists.txt)
-                add_subdirectory (${directory}/${ENTRY} ${CMAKE_CURRENT_BINARY_DIR}/${ENTRY})
-            endif ()
-        endif ()
-    endforeach ()
-    unset (ENTRIES)
-endmacro ()
+    add_executable (${target} "${unit_test_cpp}")
+    target_link_libraries (${target} radr::test::base)
 
-macro (add_subdirectories)
-    add_subdirectories_of(${CMAKE_CURRENT_SOURCE_DIR})
+    file (MAKE_DIRECTORY ${target_dir})
+    set_target_properties(${target} PROPERTIES
+                          RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${target_dir}")
+
+    add_test (NAME "${target_dir}/${target}" COMMAND "${target_dir}/${target}")
+
+    unset (target)
+    unset (target_dir)
 endmacro ()

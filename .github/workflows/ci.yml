@@ -54,6 +54,14 @@ jobs:
             build: unit
             build_type: Debug
 
+          - name: "Unit clang19 (libc++) c++23"
+            cxx: "clang++-19"
+            cc: "clang-19"
+            pkg: "clang-19 libc++-19-dev libc++abi-19-dev libc++1-19 libc++abi1-19"
+            cxx_flags: "-std=c++23 -stdlib=libc++"
+            build: unit
+            build_type: Debug
+
           - name: "Unit gcc11 Release"
             cxx: "g++-11"
             cc: "gcc-11"
@@ -127,6 +135,7 @@ jobs:
         run: |
           sudo apt-add-repository --no-update --yes "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
           sudo apt-add-repository --no-update --yes "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+          sudo apt-add-repository --no-update --yes "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main"
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
 
       - name: Configure APT
