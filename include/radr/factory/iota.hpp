@@ -260,17 +260,26 @@ struct iota_fn
         static_assert(std::incrementable<Value>, "The Value type to radr::iota needs to satisfy std::incrementable.");
         static_assert(weakly_equality_comparable_with<Value, Bound>,
                       "The Value type to radr::iota needs to be comparable with the Bound type.");
-        static_assert(std::semiregular<Bound>, "The Bound type to radr::iota needs to satisfy std::regular.");
+        static_assert(std::semiregular<Bound>, "The Bound type to radr::iota needs to satisfy std::semiregular.");
 
-        using It  = detail::iota_iterator<Value>;
-        using Sen = std::conditional_t<std::same_as<Value, Bound>, It, detail::iota_sentinel<Value, Bound>>;
+        using It = detail::iota_iterator<Value>;
+        if constexpr (std::same_as<Bound, std::unreachable_sentinel_t>)
+        {
+            return borrowing_rad<It, std::unreachable_sentinel_t, It, std::unreachable_sentinel_t>{
+              It{val},
+              std::unreachable_sentinel};
+        }
+        else
+        {
+            using Sen = std::conditional_t<std::same_as<Value, Bound>, It, detail::iota_sentinel<Value, Bound>>;
 
-        constexpr borrowing_rad_kind kind =
-          ((std::random_access_iterator<It> && std::same_as<It, Sen>) || std::sized_sentinel_for<Bound, Value>)
-            ? borrowing_rad_kind::sized
-            : borrowing_rad_kind::unsized;
+            constexpr borrowing_rad_kind kind =
+              ((std::random_access_iterator<It> && std::same_as<It, Sen>) || std::sized_sentinel_for<Bound, Value>)
+                ? borrowing_rad_kind::sized
+                : borrowing_rad_kind::unsized;
 
-        return borrowing_rad<It, Sen, It, Sen, kind>{It{val}, Sen{bound}};
+            return borrowing_rad<It, Sen, It, Sen, kind>{It{val}, Sen{bound}};
+        }
     }
 };
 

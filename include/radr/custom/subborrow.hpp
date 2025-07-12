@@ -17,6 +17,7 @@
 #include "../detail/detail.hpp"
 #include "../rad_util/borrowing_rad.hpp"
 #include "../range_access.hpp"
+#include "radr/concepts.hpp"
 #include "tags.hpp"
 
 namespace radr::custom
@@ -218,10 +219,13 @@ struct subborrow_impl_t
 
     //!\brief Call tag_invoke if possible; call default otherwise. [i, j]
     template <borrowed_mp_range URange>
-        requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+        requires(safely_indexable_range<URange>)
     constexpr auto operator()(URange && urange, size_t const start, size_t const end) const
     {
-        size_t const e = std::min<size_t>(end, std::ranges::size(urange));
+        size_t e = end;
+        if constexpr (std::ranges::sized_range<URange>)
+            e = std::min<size_t>(e, std::ranges::size(urange));
+
         size_t const b = std::min<size_t>(start, e);
 
         return operator()(std::forward<URange>(urange), radr::begin(urange) + b, radr::begin(urange) + e);
@@ -243,17 +247,10 @@ using subborrow_t = decltype(subborrow(std::declval<Args>()...));
 inline constexpr auto borrow =
   detail::overloaded{[]<borrowed_mp_range URange>(URange && urange)
 {
-    if constexpr (std::ranges::sized_range<URange>)
-    {
-        return subborrow(std::forward<URange>(urange),
-                         radr::begin(urange),
-                         radr::end(urange),
-                         std::ranges::size(urange));
-    }
-    else
-    {
-        return subborrow(std::forward<URange>(urange), radr::begin(urange), radr::end(urange));
-    }
+    return subborrow(std::forward<URange>(urange),
+                     radr::begin(urange),
+                     radr::end(urange),
+                     detail::size_or_not(urange));
 },
     // if a range is already borrowed and copyable, just copy it (we assume O(1) copy)
     // BUT do not do this if a copy would result in a constant_range becoming a mutable range

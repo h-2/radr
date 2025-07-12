@@ -16,6 +16,7 @@
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
 #include "../rad_util/borrowing_rad.hpp"
+#include "radr/concepts.hpp"
 
 namespace radr::detail
 {
@@ -99,7 +100,7 @@ inline constexpr auto take_borrow =
     }
 },
              []<borrowed_mp_range URange>(URange && urange, range_size_t_or_size_t<URange> n)
-                 requires(std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+                 requires(safely_indexable_range<URange>)
 {
     return subborrow(std::forward<URange>(urange), 0ull, n);
 }};
@@ -113,9 +114,24 @@ inline constexpr auto take_coro = []<std::ranges::input_range URange>(URange && 
     return [](auto urange_, std::size_t const n)
              -> radr::generator<std::ranges::range_reference_t<URange>, std::ranges::range_value_t<URange>>
     {
-        std::size_t i = 0;
-        for (auto it = radr::begin(urange_); it != radr::end(urange_) && i < n; ++it, ++i)
+        size_t i  = 0;
+        auto   it = radr::begin(urange_);
+        if (i == n || it == radr::end(urange_))
+            co_return;
+
+        while (true)
+        {
             co_yield *it;
+
+            ++i;
+            if (i == n)
+                break;
+
+            /* checks are split up to prevent iterating further than necessary */
+            ++it;
+            if (it == radr::end(urange_))
+                break;
+        }
     }(std::move(urange), n);
 };
 
@@ -126,6 +142,53 @@ namespace radr
 
 inline namespace cpo
 {
+/*!\brief Take up to n elements from the underlying range.
+ * \param[in] urange The underlying range.
+ * \param[in] n Number of elements.
+ * \tparam URange Type of \p urange.
+ * \details
+ *
+ * Takes \p n elements from \p urange, or all elements if \p urange is smaller than \p n.
+ *
+ * ## Multi-pass ranges
+ *
+ * Requirements:
+ *   * `radr::mp_range<URange>`
+ *
+ * For underlying ranges that are radr::safely_indexable_range, this adaptor invokes the radr::subborrow
+ * customisation point.
+ * Unless customised otherwise and if the range was sized, it will preserve all range concepts and be
+ * transparent (same iterator and senintel types as \p urange).
+ * If it was infinite, it will become sized and common.
+ *
+ * For underlying ranges that are not radr::safely_indexable_range, this adaptors preserves:
+ *   * categories up to std::ranges::contiguous_range
+ *   * std::ranges::borrowed_range
+ *   * radr::mutable_range
+ *   * radr::constant_range
+ *   * std::ranges::sized_range
+ *
+ * It does not preserve:
+ *   * radr::common_range
+ *
+ * ### Notable differences to std::views::take
+ *
+ *   * Subrange customisation through radr::subborrow.
+ *   * Returns sized, common ranges for infinite inputs like radr::iota and radr::repeat.
+ *
+ * ## Single-pass ranges
+ *
+ * Requirements:
+ *   * `std::ranges::input_range<URange>`
+ *
+ * ### Notable difference std::views::take
+ *
+ * std::views::take takes \p n elements from the underlying range but then silently advances over the `n+1`-th element,
+ * resulting in unexpected behaviour (e.g. skipped/missing elements in a stream).
+ * See https://www.youtube.com/watch?v=dvi0cl8ccNQ for an explenation.
+ *
+ * We **fixed this bug** for radr::take on single-pass ranges.
+ */
 inline constexpr auto take = detail::pipe_with_args_fn{detail::take_coro, detail::take_borrow};
 } // namespace cpo
 } // namespace radr
