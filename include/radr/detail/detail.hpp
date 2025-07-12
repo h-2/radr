@@ -16,6 +16,7 @@
 #include <iterator>
 #include <ranges>
 
+#include "../version.hpp"
 #include "bind_back.hpp"
 #include "fwd.hpp"
 
