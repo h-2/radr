@@ -23,6 +23,7 @@
 | `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
 | `radr::values`             |                | input   | ra       |  =    |  =        |                                          |
 | `radr::uncheckd_take(n)`   |                | input   | contig   |  +    |  ra+sized | turns unsized into size of n             |
+| `radr::zip_with(w)`        |                | input   | ra       |  =    |  ra+sized |                                          |
 
 **min cat** underlying range required to be at least input (`input_range`), fwd (`forward_range`), bidi (`bidirectional_range`),
 ra (`random_access_range`) or contig (`contiguous_range`)<br>
@@ -31,5 +32,3 @@ ra (`random_access_range`) or contig (`contiguous_range`)<br>
 `=` means property is preserved<br>
 `+` means property is gained (this is rare)<br>
 Encircled symbols or categories in () indicate differences from the standard library adaptors
-
-

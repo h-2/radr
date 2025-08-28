@@ -17,6 +17,14 @@
 
 #include "detail/detail.hpp"
 
+namespace radr::detail
+{
+
+template <typename T>
+concept has_type_member_type = requires { typename T::type; };
+
+}
+
 namespace radr
 {
 
@@ -46,30 +54,72 @@ concept const_symmetric_range =
   std::same_as<std::ranges::iterator_t<Range>, std::ranges::iterator_t<detail::add_const_t<Range>>> &&
   std::same_as<std::ranges::sentinel_t<Range>, std::ranges::sentinel_t<detail::add_const_t<Range>>>;
 
-//!\brief In contrast to std::ranges::constant_range, this also requires const-iterability.
+//!\brief A range whose iterator_t is a constant_iterator and which doesn't change on iteration.
 template <class Range>
 concept constant_range = const_symmetric_range<Range> && constant_iterator<std::ranges::iterator_t<Range>>;
 
+//!\brief A range whose iterator_t is not a constant_iterator.
 template <class Range>
 concept mutable_range = std::ranges::input_range<Range> && !constant_iterator<std::ranges::iterator_t<Range>>;
-
-/*
-template <typename Range>
-concept complete_forward_range = mp_range<Range> && std::semiregular<Range>;*/
 
 //!\brief A multi-pass range that is borrowed.
 template <typename Range>
 concept borrowed_mp_range = mp_range<Range> && std::ranges::borrowed_range<Range>;
 
-//!\brief A multi-pass range that is borrowed & is a cv-unqualified object type & is semiregular.
+//---------------------------------------------------------------------------
+// objects and copying
+//---------------------------------------------------------------------------
+
+//!\brief A cvref-unqualified mp_range.
 template <typename Range>
-concept borrowed_mp_range_object =
-  borrowed_mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> && std::semiregular<Range>;
+concept range_object = mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>>;
+
+//!\brief A cvref-unqualified mp_range that is copyable in O(1).
+template <typename Range>
+concept o1copy_range_object =
+  range_object<Range> && std::copyable<Range> && (std::ranges::view<Range> || std::is_trivially_copyable_v<Range>);
+
+//!\brief A multi-pass range that is borrowed, cvref-unqualified, semiregular, and copyable in O(1).
+template <typename Range>
+concept borrowed_mp_range_object = borrowed_mp_range<Range> && std::semiregular<Range> && o1copy_range_object<Range>;
 
 //!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
 template <typename T>
 concept small_type = std::regular<T> && std::is_nothrow_default_constructible_v<T> &&
                      std::is_nothrow_copy_constructible_v<T> && sizeof(T) <= 3 * sizeof(ptrdiff_t);
+
+//---------------------------------------------------------------------------
+// indirection
+//---------------------------------------------------------------------------
+
+//!\brief A range wrapped in std::reference_wrapper.
+template <typename Range, typename RRange = std::remove_cvref_t<Range>>
+concept ref_wrapped_mp_range =
+  detail::has_type_member_type<RRange> && std::same_as<RRange, std::reference_wrapper<typename RRange::type>> &&
+  mp_range<typename RRange::type>;
+
+//!\brief A range that we can call radr::borrow() on without creating a new implicit indirection.
+template <typename Range>
+concept safe_indirect_mp_range = borrowed_mp_range<std::remove_reference_t<Range>> || ref_wrapped_mp_range<Range>;
+
+template <typename Range>
+concept container_lvalue = borrowed_mp_range<Range> && !std::ranges::enable_borrowed_range<std::remove_cvref_t<Range>>;
+
+template <typename Range>
+concept fwdable_range = borrowed_mp_range<Range> || ref_wrapped_mp_range<Range> || movable_range<Range>;
+
+//---------------------------------------------------------------------------
+// size
+//---------------------------------------------------------------------------
+
+template <typename Rng>
+concept infinite_mp_range = mp_range<Rng> && std::same_as<std::ranges::sentinel_t<Rng>, std::unreachable_sentinel_t>;
+
+template <typename Rng>
+concept weakly_sized_range = (mp_range<Rng> && std::ranges::sized_range<Rng>) || infinite_mp_range<Rng>;
+
+template <typename Rng>
+concept safely_indexable_range = std::ranges::random_access_range<Rng> && weakly_sized_range<Rng>;
 
 //!\brief The same as std::indirect_unary_invocable, but only requires move-construction instead of copy_construction.
 template <class F, class I>
@@ -79,13 +129,6 @@ concept weak_indirect_unary_invocable =
   std::common_reference_with<std::invoke_result_t<F &, std::iter_value_t<I>>,
                              std::invoke_result_t<F &, std::iter_reference_t<I>>>;
 //TODO implement P2609
-
-template <typename Rng>
-concept infinite_mp_range = mp_range<Rng> && std::same_as<std::ranges::sentinel_t<Rng>, std::unreachable_sentinel_t>;
-
-template <typename Rng>
-concept safely_indexable_range =
-  std::ranges::random_access_range<Rng> && (std::ranges::sized_range<Rng> || infinite_mp_range<Rng>);
 
 } // namespace radr
 

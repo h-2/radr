@@ -38,7 +38,7 @@ inline constexpr auto to_single_pass_coro = detail::overloaded{
 },
   []<std::ranges::input_range URange>(URange && urange) -> decltype(auto) // forward single-pass ranges as-is
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(!container_lvalue<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     return std::move(urange);

@@ -51,7 +51,7 @@ inline constexpr auto drop_while_coro =
     URange && urange,
     Fn        fn)
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(!container_lvalue<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can drop by value

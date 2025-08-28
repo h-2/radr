@@ -12,7 +12,6 @@
 #pragma once
 
 #include <cinttypes>
-#include <ciso646> // makes _LIBCPP_VERSION available
 #include <cstddef> // makes __GLIBCXX__ available
 
 // ============================================================================
@@ -36,6 +35,19 @@ static_assert(__cplusplus >= 201709, "RADR requires C++20 or later, make sure th
 
 #if !(defined(__clang_major__) && (__clang_major__ >= 16)) && !(defined(__GNUC__) && (__GNUC__ >= 11))
 #    pragma GCC warning "Only Clang >= 16 and GCC >= 11 are officially supported."
+#endif
+
+// ============================================================================
+//  Features
+// ============================================================================
+
+#ifndef RADR_FEATURE_ZIP
+#    if defined(__cpp_lib_ranges_zip) ||                                                                               \
+      (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION >= 160000) && (__cplusplus >= 202101))
+#        define RADR_FEATURE_ZIP 1
+#    else
+#        define RADR_FEATURE_ZIP 0
+#    endif
 #endif
 
 // ============================================================================

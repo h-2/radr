@@ -45,12 +45,9 @@ This library [fundamentally differentiates between multi-pass and single-pass ra
 * Compilers: GCC≥11 or Clang≥17
 * Standard libraries: both libstdc++ and libc++ are tested.
 * Progress: all std::views from C++20 are reimplemented and many later ones
-* (Only) C++20 required.[^std]
+* Many C++23 (and later) adaptors in this library require only C++20 required.
 
 [^boost]: The file `generator.hpp` is licensed under the Boost Software license. It is used only if your standard library does not provide `std::generator`.
-
-[^std]: A bonus of using this library is getting access to the equivalent of C++23 and C++26 adaptors in a C++20-based codebase.
-
 
 ## 📖 Further reading
 
@@ -71,5 +68,3 @@ One "innovation" is applying different rules to multi-pass and single-pass range
 This library uses code from the standard library implementation of the LLVM project. It also uses a draft implementation of `std::generator` from https://github.com/lewissbaker/generator.
 
 I want to thank various members of the DIN AK Programmiersprachen for thoughtful discussions on the topic.
-
-

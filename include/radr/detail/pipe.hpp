@@ -17,6 +17,7 @@
 #include "../custom/subborrow.hpp"
 #include "../rad_util/owning_rad.hpp"
 #include "detail.hpp"
+#include "radr/concepts.hpp"
 
 namespace radr::detail
 {
@@ -33,7 +34,7 @@ struct pipe_input_base
     [[nodiscard]] constexpr auto operator()(Range && range, Args &&... args) const
       noexcept(noexcept(CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...)))
     {
-        static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
+        static_assert(!container_lvalue<Range>, RADR_ASSERTSTRING_RVALUE);
         static_assert(std::movable<Range>, RADR_ASSERTSTRING_MOVABLE);
         return CoroFn{}(std::forward<Range>(range), std::forward<Args>(args)...);
     }
@@ -72,7 +73,7 @@ struct pipe_fwd_base
         }
         else /* owning rad */
         {
-            static_assert(!std::is_lvalue_reference_v<Range>, RADR_ASSERTSTRING_RVALUE);
+            static_assert(!container_lvalue<Range>, RADR_ASSERTSTRING_RVALUE);
             static_assert(std::copyable<Range>, RADR_ASSERTSTRING_COPYABLE);
             return owning_rad{std::forward<Range>(range), detail::bind_back(BorrowFn{}, std::forward<Args>(args)...)};
         }
