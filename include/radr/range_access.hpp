@@ -12,6 +12,7 @@
 #pragma once
 
 #include <concepts>
+#include <limits>
 #include <ranges>
 #include <utility>
 
@@ -117,6 +118,9 @@ using std_const_iterator_t = decltype(detail::cbegin_impl(std::declval<T &>()));
 template <typename T>
 using std_const_sentinel_t = decltype(detail::cend_impl(std::declval<T &>()));
 
+template <typename Range>
+using range_const_reference_t = std::iter_reference_t<const_iterator_t<Range>>;
+
 template <typename It, typename Range>
 concept is_iterator_of =
   one_of<It, iterator_t<Range>, const_iterator_t<Range>, std::ranges::iterator_t<Range>, std_const_iterator_t<Range>>;
@@ -158,6 +162,39 @@ inline constexpr auto size_or_not = []<borrowed_mp_range Rng>(Rng && rng)
         return std::ranges::size(rng);
     else
         return not_size{};
+};
+
+// --------------------------------------------------------------------------
+// min_range_size
+// --------------------------------------------------------------------------
+
+// inline constexpr auto weak_size = [] <weakly_sized_range Rng> (Rng && rng)
+// {
+//     if constexpr (std::ranges::sized_range<Rng>)
+//         return std::ranges::size(rng);
+//     else
+//         return std::numeric_limits<size_t>::max();
+// };
+
+inline constexpr auto min_range_weak_size = []<typename... Ranges>(Ranges &&... ranges)
+{
+    if constexpr ((weakly_sized_range<Ranges> && ...) && (sizeof...(Ranges) > 0))
+    {
+        using Size = std::common_type_t<range_size_t_or_size_t<Ranges>...>;
+
+        Size s  = std::numeric_limits<Size>::max();
+        auto fn = [&]<typename Rng>(Rng & rng)
+        {
+            if constexpr (std::ranges::sized_range<Rng>)
+                s = std::min<Size>(s, std::ranges::size(rng));
+        };
+        (fn(ranges), ...);
+        return s;
+    }
+    else
+    {
+        return not_size{};
+    }
 };
 
 } // namespace radr::detail

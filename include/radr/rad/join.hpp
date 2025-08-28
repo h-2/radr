@@ -275,7 +275,7 @@ inline constexpr auto join_borrow = []<borrowed_mp_range URange>(URange && urang
 inline constexpr auto join_coro = []<std::ranges::input_range URange>(URange && urange)
     requires std::ranges::input_range<std::ranges::range_reference_t<URange>>
 {
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(!container_lvalue<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     using Inner    = std::ranges::range_reference_t<URange>;

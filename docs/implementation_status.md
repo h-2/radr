@@ -9,7 +9,7 @@ The latter will likely change at some point.
 | Standard    | adaptors |factories | Comment                    |
 |-------------|---------:|---------:|----------------------------|
 | C++20       | 14/15    |   5/5    | `lazy_split` not planned   |
-| C++23       |  2/13    |   1/1    |                            |
+| C++23       |  3/13    |   1/1    |                            |
 | C++26       |  1/03    |   --     |                            |
 | C++29       |  1/??    |   --     |                            |
 | extra       |     1    |          |                            |
@@ -33,49 +33,60 @@ Instead all range adaptor objects in this library (see below) return a specialis
 
 We plan to add equivalent objects for all standard library adaptors.
 
-| Range adaptors (objects)  | C++XY | | Equivalent in `std::`          | C++XY     | Differences of `radr` objects            |
-|---------------------------|-------|-|--------------------------------|-----------|------------------------------------------|
-| `radr::all`               | C++20 | | `std::views::all`              | C++20     |                                          |
-| `radr::as_const`          | C++20 | | `std::views::as_const`         | **C++23** | make the range *and* its elements const  |
-| `radr::as_rvalue`         | C++20 | | `std::views::as_rvalue`        | **C++23** | *returns only input ranges in C++20      |
-| `radr::drop(n)`           | C++20 | | `std::views::drop`             | C++20     |                                          |
-| `radr::drop_while(fn)`    | C++20 | | `std::views::drop_while`       | C++20     |                                          |
-| `radr::elements<I>`       | C++20 | | `std::views::elements`         | C++20     |                                          |
-| `radr::filter(fn)`        | C++20 | | `std::views::filter`           | C++20     |                                          |
-| `radr::join`              | C++20 | | `std::views::join`             | C++20     |                                          |
-| `radr::keys`              | C++20 | | `std::views::keys`             | C++20     |                                          |
-| `radr::reverse`           | C++20 | | `std::views::reverse`          | C++20     |                                          |
-| `radr::slice(m, n)`       | C++20 | | *not yet available*            |           | get subrange between m and n             |
-| `radr::split(pat)`        | C++20 | | `std::views::split`            | C++20     |                                          |
-| *not planned*             | C++20 | | `std::views::lazy_split`       | C++20     | use `radr::to_single_pass ╎ radr::split` |
-| `radr::take(n)`           | C++20 | | `std::views::take`             | C++20     |                                          |
-| `radr::take_while(fn)`    | C++20 | | `std::views::take_while`       | C++20     |                                          |
-| `radr::to_common`         | C++20 | | `std::views::common`[^diff]    | C++20     | turns non-common into common             |
-| `radr::to_single_pass`    | C++20 | | `std::views::to_input`[^diff]  | **C++26** | demotes range category to input          |
-| `radr::transform(fn)`     | C++20 | | `std::views::transform`        | C++20     |                                          |
-| `radr::values`            | C++20 | | `std::views::values`           | C++20     |                                          |
-| `radr::unchecked_take(n)` | C++20 | | `std::views::unchecked_take`   | **C++29** | turns unsized into sized                 |
+| Range adaptors (objects)  | C++XY     | | Equivalent in `std::`          | C++XY     | Differences of `radr` objects            |
+|---------------------------|-----------|-|--------------------------------|-----------|------------------------------------------|
+| `radr::all`               | C++20     | | `std::views::all`              | C++20     |                                          |
+| `radr::as_const`          | C++20     | | `std::views::as_const`         | **C++23** | make the range *and* its elements const  |
+| `radr::as_rvalue`         | C++20     | | `std::views::as_rvalue`        | **C++23** | *returns only input ranges in C++20      |
+| `radr::drop(n)`           | C++20     | | `std::views::drop`             | C++20     |                                          |
+| `radr::drop_while(fn)`    | C++20     | | `std::views::drop_while`       | C++20     |                                          |
+| `radr::elements<I>`       | C++20     | | `std::views::elements`         | C++20     |                                          |
+| `radr::filter(fn)`        | C++20     | | `std::views::filter`           | C++20     |                                          |
+| `radr::join`              | C++20     | | `std::views::join`             | C++20     |                                          |
+| `radr::keys`              | C++20     | | `std::views::keys`             | C++20     |                                          |
+| `radr::reverse`           | C++20     | | `std::views::reverse`          | C++20     |                                          |
+| `radr::slice(m, n)`       | C++20     | | *not yet available*            |           | get subrange between m and n             |
+| `radr::split(pat)`        | C++20     | | `std::views::split`            | C++20     |                                          |
+| *not planned*             | C++20     | | `std::views::lazy_split`       | C++20     | use `radr::to_single_pass ╎ radr::split` |
+| `radr::take(n)`           | C++20     | | `std::views::take`             | C++20     |                                          |
+| `radr::take_while(fn)`    | C++20     | | `std::views::take_while`       | C++20     |                                          |
+| `radr::to_common`         | C++20     | | `std::views::common`[^diff]    | C++20     | turns non-common into common             |
+| `radr::to_single_pass`    | C++20     | | `std::views::to_input`[^diff]  | **C++26** | demotes range category to input          |
+| `radr::transform(fn)`     | C++20     | | `std::views::transform`        | C++20     |                                          |
+| `radr::values`            | C++20     | | `std::views::values`           | C++20     |                                          |
+| `radr::unchecked_take(n)` | C++20     | | `std::views::unchecked_take`   | **C++29** | turns unsized into sized                 |
+| `radr::zip_with(w)`       | **C++23** | | `std::views::zip`              | **C++23** | see also `radr::zip()` below             |
 
-All range adaptors from this library are available in C++20, although `radr::as_rvalue` behaves slightly different between modes.
+In this library, everything that "you can pipe into", is called an *adaptor*; everything else is called a *factory* (can only be at beginning of pipeline).
+This is different from the somewhat arbitrary use of the words in the standard.
 
 [^diff]: These range adaptors have relevant differences between `std::` and `radr::`. Usually the names have been chosen differently to highlight this.
 
 
 ## Range factory objects
 
-| Range factories (objects)     | C++XY | | Equivalent in `std::`   | C++XY     | Remarks                                   |
-|-------------------------------|-------|-|-------------------------|-----------|-------------------------------------------|
-| `radr::counted(it, n)`        | C++20 | | `std::views::counted`   | C++20     | multi-pass version of counted             |
-| `radr::counted_sp(it, n)`     | C++20 | | `std::views::counted`   | C++20     | single-pass version of counted            |
-| `radr::empty<T>`              | C++20 | | `std::views::empty`     | C++20     |                                           |
-| `radr::iota(val[, bound])`    | C++20 | | `std::views::iota`      | C++20     | multi-pass version of iota                |
-| `radr::iota_sp(val[, bound])` | C++20 | | `std::views::iota`      | C++20     | single-pass version of iota               |
-| `radr::istream<Val>`          | C++20 | | `std::views::istream`   | C++20     |                                           |
-| `radr::repeat(val[, bound])`  | C++20 | | `std::views::repeat`    | **C++23** | allows indirect storage and static bounds |
-| `radr::single(val)`           | C++20 | | `std::views::single`    | C++20     | allows indirect storage                   |
+| Range factories (objects)     | C++XY      | | Equivalent in `std::`   | C++XY     | Remarks                                   |
+|-------------------------------|------------|-|-------------------------|-----------|-------------------------------------------|
+| `radr::counted(it, n)`        | C++20      | | `std::views::counted`   | C++20     |                                           |
+| `radr::empty<T>`              | C++20      | | `std::views::empty`     | C++20     |                                           |
+| `radr::iota(val[, bound])`    | C++20      | | `std::views::iota`      | C++20     |                                           |
+| `radr::istream<Val>`          | C++20      | | `std::views::istream`   | C++20     |                                           |
+| `radr::repeat(val[, bound])`  | C++20      | | `std::views::repeat`    | **C++23** | allows indirect storage and static bounds |
+| `radr::single(val)`           | C++20      | | `std::views::single`    | C++20     | allows indirect storage                   |
+| `radr::zip(v, w)`             | **C++23**  | | `std::views::zip`       | **C++23** |                                           |
 
-The standard library groups `counted` with "range adaptors" and not "range factories", 
-although you create it on an iterator and not a range.
+The standard library groups `counted` and `zip` with "range adaptors" and not "range factories".
+
+For some factories, specialised single-pass versions exist:
+
+| Range factories (objects)     | C++XY      |
+|-------------------------------|------------|
+| `radr::counted_sp(it, n)`     | C++20      |
+| `radr::iota_sp(val[, bound])` | C++20      |
+| `radr::zip_sp(v, w)`          | **C++23**  |
+
+These might have weaker requirements or generate better code than using the multi-pass factory in combination with `radr::to_single_pass`.
+
 
 ## Notable functions
 

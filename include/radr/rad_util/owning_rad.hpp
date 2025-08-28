@@ -23,27 +23,22 @@
 #include "rad_interface.hpp"
 #include "radr/custom/subborrow.hpp"
 
-namespace radr::detail
-{
-
-template <typename Range>
-concept owned_range_constraints =
-  mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> && std::copyable<Range>;
-
-} // namespace radr::detail
-
 namespace radr
 {
 
-template <detail::owned_range_constraints URange, borrowed_mp_range_object BorrowedRange>
+template <typename URange, typename BorrowedRange>
 class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
 {
+    static_assert(range_object<URange>, "Underlying range in owning_rad needs to be an unqualified range type.");
+    static_assert(std::copyable<URange>, "Underlying range in owning_rad needs to be copyable.");
+    static_assert(borrowed_mp_range_object<BorrowedRange>, "Requirements for BorrowedRange in owning_rad not met.");
+
     [[no_unique_address]] detail::indirect<URange> base_{};
     [[no_unique_address]] BorrowedRange            bounds{};
 
     static constexpr bool const_symmetric = const_symmetric_range<BorrowedRange>;
 
-    template <detail::owned_range_constraints URange_, borrowed_mp_range_object BorrowedRange_>
+    template <typename URange_, typename BorrowedRange_>
     friend class owning_rad;
 
 public:
