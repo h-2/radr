@@ -244,24 +244,35 @@ using subborrow_t = decltype(subborrow(std::declval<Args>()...));
 //=============================================================================
 
 // clang-format off
-inline constexpr auto borrow =
-  detail::overloaded{[]<borrowed_mp_range URange>(URange && urange)
-{
-    return subborrow(std::forward<URange>(urange),
-                     radr::begin(urange),
-                     radr::end(urange),
-                     detail::size_or_not(urange));
-},
+inline constexpr auto borrow = detail::overloaded{
+    /* default case */
+    []<borrowed_mp_range URange>(URange && urange)
+    {
+        return subborrow(std::forward<URange>(urange),
+                         radr::begin(urange),
+                         radr::end(urange),
+                         detail::size_or_not(urange));
+    },
     // if a range is already borrowed and copyable, just copy it (we assume O(1) copy)
     // BUT do not do this if a copy would result in a constant_range becoming a mutable range
     []<borrowed_mp_range URange>(URange && urange)
-        requires(radr::borrowed_mp_range_object<std::remove_cvref_t<URange>> &&
+        requires(radr::borrowed_mp_range_object<URange> &&
                  std::same_as<std::ranges::range_reference_t<URange>,
                               std::ranges::range_reference_t<std::remove_cvref_t<URange>>>)
-{
-    // the last check is important, because we don't want to return URange for `URange const &` input
-    return std::forward<URange>(urange);
-}};
+    {
+        // the last check is important, because we don't want to return URange for `URange const &` input
+        return std::forward<URange>(urange);
+    },
+    /* handle wrapped ranges */
+    []<mp_range URange>(std::reference_wrapper<URange> const & wrapped_range)
+    {
+        URange & urange = static_cast<URange &>(wrapped_range);
+        return subborrow(std::forward<URange>(urange),
+                        radr::begin(urange),
+                        radr::end(urange),
+                        detail::size_or_not(urange));
+    }
+};
 // clang-format on
 
 template <typename R>

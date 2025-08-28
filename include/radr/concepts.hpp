@@ -17,6 +17,14 @@
 
 #include "detail/detail.hpp"
 
+namespace radr::detail
+{
+
+template <typename T>
+concept has_type_member_type = requires { typename T::type; };
+
+}
+
 namespace radr
 {
 
@@ -53,10 +61,6 @@ concept constant_range = const_symmetric_range<Range> && constant_iterator<std::
 template <class Range>
 concept mutable_range = std::ranges::input_range<Range> && !constant_iterator<std::ranges::iterator_t<Range>>;
 
-/*
-template <typename Range>
-concept complete_forward_range = mp_range<Range> && std::semiregular<Range>;*/
-
 //!\brief A multi-pass range that is borrowed.
 template <typename Range>
 concept borrowed_mp_range = mp_range<Range> && std::ranges::borrowed_range<Range>;
@@ -64,7 +68,11 @@ concept borrowed_mp_range = mp_range<Range> && std::ranges::borrowed_range<Range
 //!\brief A multi-pass range that is borrowed & is a cv-unqualified object type & is semiregular.
 template <typename Range>
 concept borrowed_mp_range_object =
-  borrowed_mp_range<Range> && std::same_as<Range, std::remove_cvref_t<Range>> && std::semiregular<Range>;
+  borrowed_mp_range<Range> && std::same_as<Range, std::remove_reference_t<Range>> && std::semiregular<std::remove_cvref_t<Range>>;
+
+//!\brief A borrowed_mp_range_object type or std::reference_wrapper around an mp_range.
+template <typename Range>
+concept explicitly_borrowed_range = borrowed_mp_range_object<Range> || (detail::has_type_member_type<Range> && std::same_as<Range, std::reference_wrapper<typename Range::type>> && mp_range<typename Range::type>);
 
 //!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
 template <typename T>
@@ -91,6 +99,7 @@ concept safely_indexable_range =
 
 namespace radr::detail
 {
+
 
 template <class B>
 concept boolean_testable = std::convertible_to<B, bool> && requires(B && b) {
