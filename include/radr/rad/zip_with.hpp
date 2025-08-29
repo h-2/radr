@@ -278,6 +278,7 @@ class zip_with_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 public:
     zip_with_sentinel() = default;
 
+    constexpr explicit zip_with_sentinel(zip_with_iterator<UIt...>, USen ... usen) : end{std::move(usen)...} {}
     constexpr explicit zip_with_sentinel(USen ... usen) : end{std::move(usen)...} {}
 
     template <typename ... UIt2, typename ... USen2>
@@ -313,7 +314,8 @@ public:
     }
 };
 
-
+template <typename ...UIt, typename ... USen>
+zip_with_sentinel(zip_with_iterator<UIt...>, USen ...) ->zip_with_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
 
 inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRanges>(URange && urange, OtherRanges && ... others)
 {
@@ -321,59 +323,59 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
 
     static_assert((explicitly_borrowed_range<OtherRanges> && ...), "All ranges passed to radr::zip_with after the first need to be explicitly borrowed. Do you forget to wrap one in std::ref() or std::cref()?");
 
-    constexpr auto impl = []<typename ... URanges>(URanges & ... rngs)
+    constexpr auto impl = []<typename ... URanges>(URanges && ... rngs)
     {
         auto beg  = zip_with_iterator{radr::begin(rngs)...};
         auto cbeg = zip_with_iterator{radr::cbegin(rngs)...};
 
+        static_assert(std::forward_iterator<decltype(beg)>);
+        static_assert(std::forward_iterator<decltype(cbeg)>);
+
         /* all infinite → result infinite */
-        if constexpr ((radr::infinite_mp_range<URanges> && ...))
+        if constexpr ((infinite_mp_range<URanges> && ...))
         {
-            return borrowing_rad{beg, cbeg, std::unreachable_sentinel, std::unreachable_sentinel};
+            return borrowing_rad{beg, std::unreachable_sentinel, cbeg, std::unreachable_sentinel};
         }
         /* all RA+sized or RA+infinite (but at least one non-infinite) → result RA+sized */
         else if constexpr ((safely_indexable_range<URanges> && ...))
         {
-            using Size   = std::common_type_t<std::ranges::range_size_t<URanges>...>;
-            Size const s = std::ranges::min({static_cast<Size>(capped_inf_size(rngs))...});
-
+            auto const s = min_range_weak_size(rngs...);
             auto end  = beg + s;
             auto cend = cbeg + s;
 
-            return borrowing_rad{beg, cbeg, end, cend, s};
+            // return borrowing_rad{beg, end, cbeg, cend, s};
+            return borrowing_rad<decltype(beg), decltype(end), decltype(cbeg), decltype(cend), borrowing_rad_kind::sized>{beg, end, cbeg, cend, s};
         }
         /* all common and at least one uni-directional → result common */
-        else if constexpr ((radr::common_range<URanges> && ...) && !(std::ranges::bidirectional_range<URanges> && ...))
+        else if constexpr ((common_range<URanges> && ...) && !(std::ranges::bidirectional_range<URanges> && ...))
         {
             auto end  = zip_with_iterator{radr::end(rngs)...};
             auto cend = zip_with_iterator{radr::cend(rngs)...};
 
             if constexpr ((std::ranges::sized_range<URanges> && ...))
             {
-                using Size = std::common_type_t<std::ranges::range_size_t<URanges>...>;
-                Size const s = std::ranges::min({static_cast<Size>(std::ranges::size(rngs))...});
-                return borrowing_rad{beg, cbeg, end, cend, s};
+                auto const s = min_range_weak_size(rngs...);
+                return borrowing_rad{beg, end, cbeg, cend, s};
             }
             else
             {
-                return borrowing_rad{beg, cbeg, end, cend, not_size{}};
+                return borrowing_rad{beg, end, cbeg, cend, not_size{}};
             }
         }
         /* all other cases */
         else
         {
-            auto end  = zip_with_sentinel{radr::end(rngs)...};
-            auto cend = zip_with_sentinel{radr::cend(rngs)...};
+            auto end  = zip_with_sentinel{beg, radr::end(rngs)...};
+            auto cend = zip_with_sentinel{cbeg, radr::cend(rngs)...};
 
             if constexpr ((std::ranges::sized_range<URanges> && ...))
             {
-                using Size   = std::common_type_t<std::ranges::range_size_t<URanges>...>;
-                Size const s = std::ranges::min({static_cast<Size>(std::ranges::size(rngs))...});
-                return borrowing_rad{beg, cbeg, end, cend, s};
+                auto const s = min_range_weak_size(rngs...);
+                return borrowing_rad{beg, end, cbeg, cend, s};
             }
             else
             {
-                return borrowing_rad{beg, cbeg, end, cend, not_size{}};
+                return borrowing_rad{beg, end, cbeg, cend, not_size{}};
             }
         }
     };

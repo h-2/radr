@@ -166,7 +166,7 @@ inline constexpr auto size_or_not = []<borrowed_mp_range Rng>(Rng && rng)
 // --------------------------------------------------------------------------
 
 
-inline constexpr auto capped_inf_size = [] <safely_indexable_range Rng> (Rng && rng)
+inline constexpr auto weak_size = [] <weakly_sized_range Rng> (Rng && rng)
 {
     if constexpr (std::ranges::sized_range<Rng>)
         return std::ranges::size(rng);
@@ -174,22 +174,19 @@ inline constexpr auto capped_inf_size = [] <safely_indexable_range Rng> (Rng && 
         return std::numeric_limits<size_t>::max();
 };
 
-inline constexpr auto min_range_size = [] <typename ...Ranges >(Ranges && ... ranges)
+inline constexpr auto min_range_weak_size = [] <typename ...Ranges >(Ranges && ... ranges)
+    requires ((weakly_sized_range<Ranges> && ...) && (sizeof...(Ranges) > 0))
 {
-    if constexpr (sizeof...(Ranges) == 0)
+    using Size = std::common_type_t<range_size_t_or_size_t<Ranges>...>;
+
+    Size s = std::numeric_limits<Size>::max();
+    auto fn = [&] <typename Rng> (Rng & rng)
     {
-        return not_size{};
-    }
-    else if constexpr ((std::ranges::sized_range<Ranges> || ...)) // at least one sized
-    {
-        using Size = std::common_type_t<range_size_t_or_size_t<Ranges>...>;
-
-        Size s = std::numeric_limits<Size>::max();
-
-
-
-    }
-
+        if constexpr (std::ranges::sized_range<Rng>)
+            s = std::min<Size>(s, std::ranges::size(rng));
+    };
+    (fn(ranges), ...);
+    return s;
 };
 
 } // namespace radr::detail

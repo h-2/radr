@@ -267,10 +267,10 @@ inline constexpr auto borrow = detail::overloaded{
     []<mp_range URange>(std::reference_wrapper<URange> const & wrapped_range)
     {
         URange & urange = static_cast<URange &>(wrapped_range);
-        return subborrow(std::forward<URange>(urange),
-                        radr::begin(urange),
-                        radr::end(urange),
-                        detail::size_or_not(urange));
+        return subborrow(urange,
+                         radr::begin(urange),
+                         radr::end(urange),
+                         detail::size_or_not(urange));
     }
 };
 // clang-format on
