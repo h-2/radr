@@ -88,6 +88,7 @@ class zip_with_iterator
     template <typename ... Args2>
     friend class zip_with_sentinel;
 
+    //TODO this overload should only be injected for the adaptor, not the factory/container
     template <typename Container>
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
                                      zip_with_iterator it,
@@ -122,12 +123,6 @@ public:
         requires ((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...))
       : current{std::move(other.current)}
     {}
-
-    // constexpr Iter const & base() const & noexcept { return current_; }
-    // constexpr Iter         base() && { return std::move(current_); }
-    //
-    // constexpr Fn const & func() const & noexcept { return *func_; }
-    // constexpr Fn         func() && { return std::move(*func_); }
 
     constexpr auto operator*() const
     {
@@ -266,9 +261,9 @@ public:
 template <typename ... UIt, typename ... USen>
 class zip_with_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 {
-    static_assert(sizeof...(UIt) == sizeof...(USen), "Template arguments to zip_sentinel don't have same length.");
+    static_assert(sizeof...(UIt) == sizeof...(USen), "Template arguments to zip_with_sentinel don't have same length.");
     static_assert(sizeof...(UIt) > 1, "There must be > 1 template arguments to zip_sentinel.");
-    static_assert((std::sentinel_for<USen, UIt> && ...), "zip_sentinel's sentinel types must be sentinels for the iterator types.");
+    static_assert((std::sentinel_for<USen, UIt> && ...), "zip_with_sentinel's sentinel types must be sentinels for the iterator types.");
 
     [[no_unique_address]] std::tuple<USen...> end{};
 
@@ -286,8 +281,6 @@ public:
         requires ((!std::same_as<USen2, USen> || ...) && (std::convertible_to<USen2, USen> && ...))
       : end{std::move(other.end)}
     {}
-
-    // constexpr Sen base() const { return end_; }
 
     friend constexpr bool operator==(zip_with_iterator<UIt...> const & lhs, zip_with_sentinel const & rhs)
     {
@@ -328,9 +321,6 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
         auto beg  = zip_with_iterator{radr::begin(rngs)...};
         auto cbeg = zip_with_iterator{radr::cbegin(rngs)...};
 
-        static_assert(std::forward_iterator<decltype(beg)>);
-        static_assert(std::forward_iterator<decltype(cbeg)>);
-
         /* all infinite → result infinite */
         if constexpr ((infinite_mp_range<URanges> && ...))
         {
@@ -343,8 +333,7 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
             auto end  = beg + s;
             auto cend = cbeg + s;
 
-            // return borrowing_rad{beg, end, cbeg, cend, s};
-            return borrowing_rad<decltype(beg), decltype(end), decltype(cbeg), decltype(cend), borrowing_rad_kind::sized>{beg, end, cbeg, cend, s};
+            return borrowing_rad{beg, end, cbeg, cend, s};
         }
         /* all common and at least one uni-directional → result common */
         else if constexpr ((common_range<URanges> && ...) && !(std::ranges::bidirectional_range<URanges> && ...))
