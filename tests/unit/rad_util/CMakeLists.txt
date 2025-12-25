@@ -1,0 +1,1 @@
+radr_unit_test(borrowing_rad)
