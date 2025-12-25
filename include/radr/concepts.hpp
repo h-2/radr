@@ -65,14 +65,19 @@ concept mutable_range = std::ranges::input_range<Range> && !constant_iterator<st
 template <typename Range>
 concept borrowed_mp_range = mp_range<Range> && std::ranges::borrowed_range<Range>;
 
+template <typename Range>
+concept ref_wrapped_range = detail::has_type_member_type<Range> && std::same_as<Range, std::reference_wrapper<typename Range::type>> && mp_range<typename Range::type>;
+
+
+//!\brief A borrowed_mp_range_object type or std::reference_wrapper around an mp_range.
+template <typename Range>
+concept explicitly_borrowed_range = borrowed_mp_range<std::remove_reference_t<Range>> || ref_wrapped_range<Range>;
+
 //!\brief A multi-pass range that is borrowed & is a cv-unqualified object type & is semiregular.
 template <typename Range>
 concept borrowed_mp_range_object =
   borrowed_mp_range<Range> && std::same_as<Range, std::remove_reference_t<Range>> && std::semiregular<std::remove_cvref_t<Range>>;
 
-//!\brief A borrowed_mp_range_object type or std::reference_wrapper around an mp_range.
-template <typename Range>
-concept explicitly_borrowed_range = borrowed_mp_range_object<Range> || (detail::has_type_member_type<Range> && std::same_as<Range, std::reference_wrapper<typename Range::type>> && mp_range<typename Range::type>);
 
 //!\brief A type that can be efficiently created & copied (nothrow), and is no bigger than three pointers.
 template <typename T>

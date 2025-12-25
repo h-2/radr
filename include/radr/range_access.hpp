@@ -16,6 +16,7 @@
 #include <ranges>
 #include <utility>
 
+#include "radr/platform.hpp"
 #include "concepts.hpp"
 #include "detail/basic_const_iterator.hpp"
 #include "radr/detail/detail.hpp"

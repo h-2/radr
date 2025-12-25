@@ -26,6 +26,8 @@
 #include "../generator.hpp"
 #include "radr/range_access.hpp"
 
+#if RADR_COMMON_TUPLE
+
 namespace radr::detail
 {
 
@@ -65,16 +67,12 @@ constexpr void tuple_for_each( F&& f, Tuple&& tuple )
 
 
 template <typename ... Args>
-class zip_with_sentinel;
-
-// template <typename ... UIt, typename ... USen>
-//     requires ((std::forward_iterator<UIt> && ...) && (std::sentinel_for<USen, UIt> && ...))
-// class zip_with_sentinel;
+class zip_sentinel;
 
 
 template <typename ... UIt>
     requires ((std::forward_iterator<UIt> && ...))
-class zip_with_iterator
+class zip_iterator
 {
     static_assert(sizeof...(UIt) > 1, "There must be > 1 template arguments to zip_iterator.");
 
@@ -83,15 +81,15 @@ class zip_with_iterator
 
     template <typename ... UIt2>
         requires ((std::forward_iterator<UIt2> && ...))
-    friend class zip_with_iterator;
+    friend class zip_iterator;
 
     template <typename ... Args2>
-    friend class zip_with_sentinel;
+    friend class zip_sentinel;
 
     //TODO this overload should only be injected for the adaptor, not the factory/container
     template <typename Container>
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
-                                     zip_with_iterator it,
+                                     zip_iterator it,
                                      Container &        container_old,
                                      Container &        container_new)
     {
@@ -112,14 +110,14 @@ public:
     using value_type      = std::tuple<std::iter_value_t<UIt>...>;
     using difference_type = std::common_type_t<std::iter_difference_t<UIt>...>;
 
-    zip_with_iterator() = default;
+    zip_iterator() = default;
 
-    constexpr zip_with_iterator(UIt ... uit) :
+    constexpr zip_iterator(UIt ... uit) :
       current{std::move(uit)...}
     {}
 
     template <typename ... UIt2>
-    constexpr zip_with_iterator(zip_with_iterator<UIt2...> other)
+    constexpr zip_iterator(zip_iterator<UIt2...> other)
         requires ((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...))
       : current{std::move(other.current)}
     {}
@@ -129,27 +127,27 @@ public:
         return tuple_transform([](auto & it) -> decltype(auto) { return *it;}, current);
     }
 
-    constexpr zip_with_iterator & operator++()
+    constexpr zip_iterator & operator++()
     {
         tuple_for_each([](auto & it) { return ++it;}, current);
         return *this;
     }
 
-    constexpr zip_with_iterator operator++(int)
+    constexpr zip_iterator operator++(int)
     {
         auto tmp = *this;
         ++*this;
         return tmp;
     }
 
-    constexpr zip_with_iterator & operator--()
+    constexpr zip_iterator & operator--()
         requires is_bidi
     {
         tuple_for_each([](auto & it) { return --it;}, current);
         return *this;
     }
 
-    constexpr zip_with_iterator operator--(int)
+    constexpr zip_iterator operator--(int)
         requires is_bidi
     {
         auto tmp = *this;
@@ -157,14 +155,14 @@ public:
         return tmp;
     }
 
-    constexpr zip_with_iterator & operator+=(difference_type n)
+    constexpr zip_iterator & operator+=(difference_type n)
         requires is_random_access
     {
         tuple_for_each([n] <typename It> (It & it) { return it += static_cast<std::iter_difference_t<It>>(n);}, current);
         return *this;
     }
 
-    constexpr zip_with_iterator & operator-=(difference_type n)
+    constexpr zip_iterator & operator-=(difference_type n)
         requires is_random_access
     {
         tuple_for_each([n] <typename It> (It & it) { return it -= static_cast<std::iter_difference_t<It>>(n);}, current);
@@ -177,63 +175,63 @@ public:
         return tuple_transform([n] <typename It> (It & it) -> decltype(auto) { return it[static_cast<std::iter_difference_t<It>>(n)];}, current);
     }
 
-    friend constexpr bool operator==(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr bool operator==(zip_iterator const & lhs, zip_iterator const & rhs)
     {
         return lhs.current == rhs.current;
     }
 
-    friend constexpr bool operator<(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr bool operator<(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
         return lhs.current < rhs.current;
     }
 
-    friend constexpr bool operator>(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr bool operator>(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
         return lhs.current > rhs.current;
     }
 
-    friend constexpr bool operator<=(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr bool operator<=(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
         return lhs.current <= rhs.current;
     }
 
-    friend constexpr bool operator>=(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr bool operator>=(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
         return lhs.current >= rhs.current;
     }
 
-    friend constexpr auto operator<=>(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr auto operator<=>(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access && (std::three_way_comparable<UIt> && ...)
     {
         return lhs.current <=> rhs.current;
     }
 
-    friend constexpr zip_with_iterator operator+(zip_with_iterator it, difference_type n)
+    friend constexpr zip_iterator operator+(zip_iterator it, difference_type n)
         requires is_random_access
     {
         it += n;
         return it;
     }
 
-    friend constexpr zip_with_iterator operator+(difference_type n, zip_with_iterator it)
+    friend constexpr zip_iterator operator+(difference_type n, zip_iterator it)
         requires is_random_access
     {
         it += n;
         return it;
     }
 
-    friend constexpr zip_with_iterator operator-(zip_with_iterator it, difference_type n)
+    friend constexpr zip_iterator operator-(zip_iterator it, difference_type n)
         requires is_random_access
     {
         it -= n;
         return it;
     }
 
-    friend constexpr difference_type operator-(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr difference_type operator-(zip_iterator const & lhs, zip_iterator const & rhs)
         requires (std::sized_sentinel_for<UIt, UIt> && ...)
     {
         return [&]<size_t ...I> (std::index_sequence<I...>)
@@ -242,12 +240,12 @@ public:
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
-    friend constexpr decltype(auto) iter_move(zip_with_iterator const & i) noexcept((noexcept(std::ranges::iter_move(UIt{})) && ...) && (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...) )
+    friend constexpr decltype(auto) iter_move(zip_iterator const & i) noexcept((noexcept(std::ranges::iter_move(UIt{})) && ...) && (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...) )
     {
         return tuple_transform(std::ranges::iter_move, i.current);
     }
 
-    friend constexpr void iter_swap(zip_with_iterator const & lhs, zip_with_iterator const & rhs)
+    friend constexpr void iter_swap(zip_iterator const & lhs, zip_iterator const & rhs)
     noexcept((noexcept(std::ranges::iter_swap(UIt{}, UIt{})) && ...))
         requires ((std::indirectly_swappable<UIt> && ...))
     {
@@ -259,30 +257,30 @@ public:
 };
 
 template <typename ... UIt, typename ... USen>
-class zip_with_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
+class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 {
-    static_assert(sizeof...(UIt) == sizeof...(USen), "Template arguments to zip_with_sentinel don't have same length.");
+    static_assert(sizeof...(UIt) == sizeof...(USen), "Template arguments to zip_sentinel don't have same length.");
     static_assert(sizeof...(UIt) > 1, "There must be > 1 template arguments to zip_sentinel.");
-    static_assert((std::sentinel_for<USen, UIt> && ...), "zip_with_sentinel's sentinel types must be sentinels for the iterator types.");
+    static_assert((std::sentinel_for<USen, UIt> && ...), "zip_sentinel's sentinel types must be sentinels for the iterator types.");
 
     [[no_unique_address]] std::tuple<USen...> end{};
 
     template <typename ... Args>
-    friend class zip_with_sentinel;
+    friend class zip_sentinel;
 
 public:
-    zip_with_sentinel() = default;
+    zip_sentinel() = default;
 
-    constexpr explicit zip_with_sentinel(zip_with_iterator<UIt...>, USen ... usen) : end{std::move(usen)...} {}
-    constexpr explicit zip_with_sentinel(USen ... usen) : end{std::move(usen)...} {}
+    constexpr explicit zip_sentinel(zip_iterator<UIt...>, USen ... usen) : end{std::move(usen)...} {}
+    constexpr explicit zip_sentinel(USen ... usen) : end{std::move(usen)...} {}
 
     template <typename ... UIt2, typename ... USen2>
-    constexpr zip_with_sentinel(zip_with_sentinel<std::tuple<UIt2...>, std::tuple<USen2...>> other)
+    constexpr zip_sentinel(zip_sentinel<std::tuple<UIt2...>, std::tuple<USen2...>> other)
         requires ((!std::same_as<USen2, USen> || ...) && (std::convertible_to<USen2, USen> && ...))
       : end{std::move(other.end)}
     {}
 
-    friend constexpr bool operator==(zip_with_iterator<UIt...> const & lhs, zip_with_sentinel const & rhs)
+    friend constexpr bool operator==(zip_iterator<UIt...> const & lhs, zip_sentinel const & rhs)
     {
         return [&]<size_t ...I> (std::index_sequence<I...>)
         {
@@ -290,17 +288,17 @@ public:
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
-    friend constexpr std::iter_difference_t<zip_with_iterator<UIt...>> operator-(
-      zip_with_iterator<UIt...> const & lhs,
-      zip_with_sentinel const & rhs)
+    friend constexpr std::iter_difference_t<zip_iterator<UIt...>> operator-(
+      zip_iterator<UIt...> const & lhs,
+      zip_sentinel const & rhs)
         requires ((std::sized_sentinel_for<USen, UIt> && ...))
     {
         return lhs.current - rhs.end;
     }
 
-    friend constexpr std::iter_difference_t<zip_with_iterator<UIt...>> operator-(
-      zip_with_sentinel const & lhs,
-      zip_with_iterator<UIt...> const & rhs)
+    friend constexpr std::iter_difference_t<zip_iterator<UIt...>> operator-(
+      zip_sentinel const & lhs,
+      zip_iterator<UIt...> const & rhs)
         requires ((std::sized_sentinel_for<USen, UIt> && ...))
     {
         return lhs.end - rhs.current;
@@ -308,7 +306,7 @@ public:
 };
 
 template <typename ...UIt, typename ... USen>
-zip_with_sentinel(zip_with_iterator<UIt...>, USen ...) ->zip_with_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
+zip_sentinel(zip_iterator<UIt...>, USen ...) ->zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
 
 inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRanges>(URange && urange, OtherRanges && ... others)
 {
@@ -318,8 +316,8 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
 
     constexpr auto impl = []<typename ... URanges>(URanges && ... rngs)
     {
-        auto beg  = zip_with_iterator{radr::begin(rngs)...};
-        auto cbeg = zip_with_iterator{radr::cbegin(rngs)...};
+        auto beg  = zip_iterator{radr::begin(rngs)...};
+        auto cbeg = zip_iterator{radr::cbegin(rngs)...};
 
         /* all infinite → result infinite */
         if constexpr ((infinite_mp_range<URanges> && ...))
@@ -338,8 +336,8 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
         /* all common and at least one uni-directional → result common */
         else if constexpr ((common_range<URanges> && ...) && !(std::ranges::bidirectional_range<URanges> && ...))
         {
-            auto end  = zip_with_iterator{radr::end(rngs)...};
-            auto cend = zip_with_iterator{radr::cend(rngs)...};
+            auto end  = zip_iterator{radr::end(rngs)...};
+            auto cend = zip_iterator{radr::cend(rngs)...};
 
             if constexpr ((std::ranges::sized_range<URanges> && ...))
             {
@@ -354,8 +352,8 @@ inline constexpr auto zip_with_borrow = []<typename URange, typename ... OtherRa
         /* all other cases */
         else
         {
-            auto end  = zip_with_sentinel{beg, radr::end(rngs)...};
-            auto cend = zip_with_sentinel{cbeg, radr::cend(rngs)...};
+            auto end  = zip_sentinel{beg, radr::end(rngs)...};
+            auto cend = zip_sentinel{cbeg, radr::cend(rngs)...};
 
             if constexpr ((std::ranges::sized_range<URanges> && ...))
             {
@@ -424,7 +422,7 @@ inline namespace cpo
  *
  * Use `radr::zip` when you need to capture more than one container by rvalue.
  *
- * Use `radr::zip_with` if you need to pipe-support.
+ * Use `radr::zip_with` if you need pipe-support.
  *
  * ## Multi-pass adaptor
  *
@@ -459,3 +457,8 @@ inline namespace cpo
 inline constexpr auto zip_with = detail::pipe_with_args_fn{detail::zip_with_coro, detail::zip_with_borrow};
 } // namespace cpo
 } // namespace radr
+
+#else
+
+#error "C++23 required for radr::zip_with"
+#endif

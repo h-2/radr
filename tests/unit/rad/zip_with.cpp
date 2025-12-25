@@ -15,6 +15,7 @@
 
 #include <radr/rad/zip_with.hpp>
 
+#if RADR_COMMON_TUPLE
 
 // ---------- Basic behavior & edge cases ----------
 
@@ -259,3 +260,4 @@ TEST(ZipView, ZipOfTemporariesLivesAsView) {
   EXPECT_EQ(total, 1+3 + 2+4);
 }
 
+#endif
