@@ -25,74 +25,59 @@
 namespace radr::detail
 {
 
-// for zip_with
-inline constexpr auto zip_with_borrow =
-  []<typename URange, typename... OtherRanges>(URange && urange, OtherRanges &&... others)
+template <zip_iterator_kind k>
+inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&... rngs)
 {
-    // static_assert(borrowed_mp_range<URange>,
-    //               "The constraints for radr::zip_with's underlying (primary) range are not met.");
+    auto beg  = make_zip_it<k>(radr::begin(rngs)...);
+    auto cbeg = make_zip_it<k>(radr::cbegin(rngs)...);
 
-    static_assert((safe_indirect_mp_range<OtherRanges> && ...),
-                  "All ranges passed to radr::zip_with after the first need to be \n"
-                  "  1) multi-pass ranges; to create a single-pass adaptor, wrap the first argument into "
-                  "radr::to_single_pass.\n"
-                  "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?");
-
-    constexpr auto impl = []<typename... URanges>(URanges &&... rngs)
+    /* all infinite → result infinite */
+    if constexpr ((infinite_mp_range<URanges> && ...))
     {
-        auto beg  = zip_iterator{radr::begin(rngs)...};
-        auto cbeg = zip_iterator{radr::cbegin(rngs)...};
+        return borrowing_rad{beg, std::unreachable_sentinel, cbeg, std::unreachable_sentinel};
+    }
+    /* all RA+sized or RA+infinite (but at least one non-infinite) → result RA+sized */
+    else if constexpr ((safely_indexable_range<URanges> && ...))
+    {
+        auto const s    = min_range_weak_size(rngs...);
+        auto       end  = beg + s;
+        auto       cend = cbeg + s;
 
-        /* all infinite → result infinite */
-        if constexpr ((infinite_mp_range<URanges> && ...))
-        {
-            return borrowing_rad{beg, std::unreachable_sentinel, cbeg, std::unreachable_sentinel};
-        }
-        /* all RA+sized or RA+infinite (but at least one non-infinite) → result RA+sized */
-        else if constexpr ((safely_indexable_range<URanges> && ...))
-        {
-            auto const s    = min_range_weak_size(rngs...);
-            auto       end  = beg + s;
-            auto       cend = cbeg + s;
+        return borrowing_rad{beg, end, cbeg, cend, s};
+    }
+    /* all common and at least one uni-directional → result common */
+    else if constexpr ((common_range<URanges> && ...) &&
+                       (sizeof...(URanges) == 1 || !(std::ranges::bidirectional_range<URanges> && ...)))
+    {
+        auto end  = make_zip_it<k>(radr::end(rngs)...);
+        auto cend = make_zip_it<k>(radr::cend(rngs)...);
 
+        if constexpr ((std::ranges::sized_range<URanges> && ...))
+        {
+            auto const s = min_range_weak_size(rngs...);
             return borrowing_rad{beg, end, cbeg, cend, s};
         }
-        /* all common and at least one uni-directional → result common */
-        else if constexpr ((common_range<URanges> && ...) &&
-                           (sizeof...(URanges) == 1 || !(std::ranges::bidirectional_range<URanges> && ...)))
-        {
-            auto end  = zip_iterator{radr::end(rngs)...};
-            auto cend = zip_iterator{radr::cend(rngs)...};
-
-            if constexpr ((std::ranges::sized_range<URanges> && ...))
-            {
-                auto const s = min_range_weak_size(rngs...);
-                return borrowing_rad{beg, end, cbeg, cend, s};
-            }
-            else
-            {
-                return borrowing_rad{beg, end, cbeg, cend, not_size{}};
-            }
-        }
-        /* all other cases */
         else
         {
-            auto end  = zip_sentinel{beg, std::make_tuple(radr::end(rngs)...)};
-            auto cend = zip_sentinel{cbeg, std::make_tuple(radr::cend(rngs)...)};
-
-            if constexpr ((std::ranges::sized_range<URanges> && ...))
-            {
-                auto const s = min_range_weak_size(rngs...);
-                return borrowing_rad{beg, end, cbeg, cend, s};
-            }
-            else
-            {
-                return borrowing_rad{beg, end, cbeg, cend, not_size{}};
-            }
+            return borrowing_rad{beg, end, cbeg, cend, not_size{}};
         }
-    };
+    }
+    /* all other cases */
+    else
+    {
+        auto end  = zip_sentinel{beg, std::make_tuple(radr::end(rngs)...)};
+        auto cend = zip_sentinel{cbeg, std::make_tuple(radr::cend(rngs)...)};
 
-    return impl(radr::borrow(std::forward<URange>(urange)), radr::borrow(std::forward<OtherRanges>(others))...);
+        if constexpr ((std::ranges::sized_range<URanges> && ...))
+        {
+            auto const s = min_range_weak_size(rngs...);
+            return borrowing_rad{beg, end, cbeg, cend, s};
+        }
+        else
+        {
+            return borrowing_rad{beg, end, cbeg, cend, not_size{}};
+        }
+    }
 };
 
 } // namespace radr::detail
@@ -141,13 +126,19 @@ inline namespace cpo
  *   * All underlying ranges model radr::common_range and it least one does **not** model std::ranges::bidirectional_range.
  *   * Or: all underlying ranges model radr::safely_indexable_range and at least one range models std::ranges::sized_range.
  *
+ * ### Notable differences to std::views::zip
+ *
+ * * lvalues of containers need to be std::ref-wrapped.
+ * * At least one argument needs to be given.
  */
 
 inline constexpr auto zip = []<typename... Ranges>(Ranges &&... ranges)
 {
     if constexpr ((safe_indirect_mp_range<Ranges> && ...))
     {
-        return detail::zip_with_borrow(std::forward<Ranges>(ranges)...);
+        // return plain adaptor if all inputs are borrowed
+        return detail::zip_with_borrow_impl<detail::zip_iterator_kind::adaptor>(
+          borrow(std::forward<Ranges>(ranges))...);
     }
     else if constexpr (((mp_range<Ranges> || ref_wrapped_mp_range<Ranges>)&&...))
     {

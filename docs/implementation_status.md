@@ -41,6 +41,7 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::drop(n)`           | C++20     | | `std::views::drop`             | C++20     |                                          |
 | `radr::drop_while(fn)`    | C++20     | | `std::views::drop_while`       | C++20     |                                          |
 | `radr::elements<I>`       | C++20     | | `std::views::elements`         | C++20     |                                          |
+| `radr::enumerate`         | **C++23** | | `std::views::enumerate`        | **C++23** |                                          |
 | `radr::filter(fn)`        | C++20     | | `std::views::filter`           | C++20     |                                          |
 | `radr::join`              | C++20     | | `std::views::join`             | C++20     |                                          |
 | `radr::keys`              | C++20     | | `std::views::keys`             | C++20     |                                          |

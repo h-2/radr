@@ -65,10 +65,18 @@ constexpr void tuple_for_each(F && f, Tuple && tuple)
                std::forward<Tuple>(tuple));
 }
 
+//!\brief At the moment, this is only relevant for rebind-behaviour on deep-copies.
+enum class zip_iterator_kind
+{
+    container, //!< used by zip_rng / zip factor(owning container); no rebind because not adaptor (always at "source" of pipe)
+    adaptor,  //!< used by zip_with adaptor; rebinds first (only range that can be owning)
+    enumerate //!< used by enumerate adaptor; rebinds second (because that's the underlying range in enumerate)
+};
+
 template <typename... Args>
 class zip_sentinel;
 
-template <bool rebind_base, typename... UIt>
+template <zip_iterator_kind kind, typename... UIt>
     requires((std::forward_iterator<UIt> && ...))
 class zip_iterator
 {
@@ -76,23 +84,25 @@ class zip_iterator
 
     std::tuple<UIt...> current;
 
-    template <bool rebind_base2, typename... UIt2>
+    template <zip_iterator_kind kind2, typename... UIt2>
         requires((std::forward_iterator<UIt2> && ...))
     friend class zip_iterator;
 
     template <typename... Args2>
     friend class zip_sentinel;
 
-    //TODO this overload should only be injected for the adaptor, not the factory/container
+    // this overload is only injected for the adaptors, not the container
     template <typename Container>
-        requires(!rebind_base)
+        requires(kind != zip_iterator_kind::container)
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
                                      zip_iterator it,
                                      Container &  container_old,
                                      Container &  container_new)
     {
-        std::get<0>(it.current) =
-          tag_invoke(custom::rebind_iterator_tag{}, std::get<0>(it.current), container_old, container_new);
+        // enumerate switches out the 1st elem not the 0th elem
+        static constexpr size_t elem_i = (kind == zip_iterator_kind::adaptor) ? 0 : 1;
+        std::get<elem_i>(it.current) =
+          tag_invoke(custom::rebind_iterator_tag{}, std::get<elem_i>(it.current), container_old, container_new);
         return it;
     }
 
@@ -114,7 +124,7 @@ public:
     constexpr zip_iterator(UIt... uit) : current{std::move(uit)...} {}
 
     template <typename... UIt2>
-    constexpr zip_iterator(zip_iterator<rebind_base, UIt2...> other)
+    constexpr zip_iterator(zip_iterator<kind, UIt2...> other)
         requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...))
       : current{std::move(other.current)}
     {}
@@ -235,7 +245,8 @@ public:
     {
         return [&]<size_t... I>(std::index_sequence<I...>)
         {
-            return std::ranges::min({(std::get<I>(lhs.current) - std::get<I>(rhs.current))...});
+            return std::ranges::min(
+              {static_cast<difference_type>(std::get<I>(lhs.current) - std::get<I>(rhs.current))...});
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
@@ -258,7 +269,13 @@ public:
 };
 
 template <typename... UIt>
-zip_iterator(UIt...) -> zip_iterator<false, UIt...>;
+zip_iterator(UIt...) -> zip_iterator<zip_iterator_kind::adaptor, UIt...>;
+
+template <zip_iterator_kind k, typename... UIt>
+constexpr auto make_zip_it(UIt... uit)
+{
+    return zip_iterator<k, UIt...>{std::forward<UIt>(uit)...};
+}
 
 template <typename... UIt, typename... USen>
 class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
@@ -276,7 +293,7 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 public:
     zip_sentinel() = default;
 
-    template <bool _>
+    template <zip_iterator_kind _>
     constexpr explicit zip_sentinel(zip_iterator<_, UIt...>, std::tuple<USen...> usens) : end{std::move(usens)}
     {}
 
@@ -286,8 +303,8 @@ public:
       : end{std::move(other.end)}
     {}
 
-    template <bool rebind_base>
-    friend constexpr bool operator==(zip_iterator<rebind_base, UIt...> const & lhs, zip_sentinel const & rhs)
+    template <zip_iterator_kind k>
+    friend constexpr bool operator==(zip_iterator<k, UIt...> const & lhs, zip_sentinel const & rhs)
     {
         return [&]<size_t... I>(std::index_sequence<I...>)
         {
@@ -295,10 +312,9 @@ public:
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
-    template <bool rebind_base>
-    friend constexpr std::iter_difference_t<zip_iterator<rebind_base, UIt...>> operator-(
-      zip_iterator<rebind_base, UIt...> const & lhs,
-      zip_sentinel const &                      rhs)
+    template <zip_iterator_kind k>
+    friend constexpr std::iter_difference_t<zip_iterator<k, UIt...>> operator-(zip_iterator<k, UIt...> const & lhs,
+                                                                               zip_sentinel const &            rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         constexpr auto diff = [](auto && lhs, auto && rhs)
@@ -312,19 +328,17 @@ public:
         return std::apply(pack_min, detail::tuple_zip_transform(diff, lhs.current, rhs.end));
     }
 
-    template <bool rebind_base>
-    friend constexpr std::iter_difference_t<zip_iterator<rebind_base, UIt...>> operator-(
-      zip_sentinel const &                      lhs,
-      zip_iterator<rebind_base, UIt...> const & rhs)
+    template <zip_iterator_kind k>
+    friend constexpr std::iter_difference_t<zip_iterator<k, UIt...>> operator-(zip_sentinel const &            lhs,
+                                                                               zip_iterator<k, UIt...> const & rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         return -(rhs - lhs);
     }
 };
 
-template <bool rebind_base, typename... UIt, typename... USen>
-zip_sentinel(zip_iterator<rebind_base, UIt...>, std::tuple<USen...>)
-  -> zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
+template <zip_iterator_kind k, typename... UIt, typename... USen>
+zip_sentinel(zip_iterator<k, UIt...>, std::tuple<USen...>) -> zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
 
 } // namespace radr::detail
 
@@ -350,8 +364,8 @@ private:
                   "If all argument to zip_rng are borrowed, use radr::borrowed_rad instead.");
 
 public:
-    using iterator       = detail::zip_iterator<true, iterator_t<URanges>...>;
-    using const_iterator = detail::zip_iterator<true, const_iterator_t<URanges>...>;
+    using iterator       = detail::zip_iterator<detail::zip_iterator_kind::container, iterator_t<URanges>...>;
+    using const_iterator = detail::zip_iterator<detail::zip_iterator_kind::container, const_iterator_t<URanges>...>;
 
 private:
     static constexpr bool is_ra_sized =

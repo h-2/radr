@@ -1,6 +1,7 @@
 #include <cctype>
 #include <ranges>
 #include <string>
+#include <type_traits>
 
 #include <gtest/gtest.h>
 #include <radr/test/aux_ranges.hpp>
@@ -41,3 +42,30 @@ TEST(owning_copy, owning_copy)
     auto copy = r;
     EXPECT_RANGE_EQ(copy, "SA");
 }
+
+#if RADR_FEATURE_ZIP
+
+#    include <radr/rad/elements.hpp>
+#    include <radr/rad/enumerate.hpp>
+
+TEST(owning_copy, zip)
+{
+    constexpr auto sub = [](std::string_view str)
+    {
+        return str.substr(0, 1);
+    };
+#    define RADR_EXPR                                                                                                  \
+        std::vector<std::string>{"foo", "bar", "baz"} | radr::transform(sub) | radr::enumerate | radr::elements<1>
+
+    std::vector<std::string> compi{"f", "b", "b"};
+    using T = std::remove_cvref_t<decltype(RADR_EXPR)>;
+    T cpy;
+    {
+        T own = RADR_EXPR;
+        EXPECT_RANGE_EQ(own, compi);
+        cpy = own;
+    }
+    EXPECT_RANGE_EQ(cpy, compi);
+}
+
+#endif
