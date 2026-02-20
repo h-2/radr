@@ -71,16 +71,22 @@ public:
     constexpr explicit owning_rad(URange && base) : base_(std::move(base)), bounds{*base_} {}
 
     template <typename Fn>
-        requires std::regular_invocable<Fn &&, URange &>
     constexpr owning_rad(URange && base, Fn cacher_fn) : base_(std::move(base)), bounds{std::move(cacher_fn)(*base_)}
-    {}
+    {
+        static_assert(std::regular_invocable<Fn &&, URange &>,
+                      "The functor passed to the generic constructor of owning_rad needs to be invocable with the "
+                      "range type.");
+    }
 
     //!\brief Collapsing constructor
     template <typename Fn, typename BorrowedRange_>
-        requires std::regular_invocable<Fn &&, BorrowedRange_ &>
     constexpr owning_rad(owning_rad<URange, BorrowedRange_> && urange, Fn cacher_fn) :
       base_(std::move(urange.base_)), bounds{std::move(cacher_fn)(urange.bounds)}
-    {}
+    {
+        static_assert(std::regular_invocable<Fn &&, BorrowedRange_ &>,
+                      "The collapsing constructor of owning_rad requires the functor to be invocable with the other "
+                      "ranges borrow-type.");
+    }
 
     constexpr auto begin()
         requires(!const_symmetric)
@@ -122,12 +128,10 @@ owning_rad(Range &&)
   -> owning_rad<std::remove_cvref_t<Range>, decltype(borrowing_rad{std::declval<std::remove_cvref_t<Range> &>()})>;
 
 template <class Range, class CacherFn>
-    requires std::regular_invocable<CacherFn &&, std::remove_cvref_t<Range> &>
 owning_rad(Range &&, CacherFn)
   -> owning_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn &&, std::remove_cvref_t<Range> &>>;
 
 template <class Range, class BorrowedRange_, class CacherFn>
-    requires std::regular_invocable<CacherFn &&, std::remove_cvref_t<BorrowedRange_> &>
 owning_rad(owning_rad<Range, BorrowedRange_> &&, CacherFn)
   -> owning_rad<std::remove_cvref_t<Range>, std::invoke_result_t<CacherFn &&, std::remove_cvref_t<BorrowedRange_> &>>;
 

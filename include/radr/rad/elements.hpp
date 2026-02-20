@@ -13,6 +13,7 @@
 
 #include <functional>
 #include <ranges>
+#include <type_traits>
 
 #include "../detail/detail.hpp"
 #include "transform.hpp"
@@ -23,11 +24,11 @@ namespace radr::detail
 template <size_t I>
 struct elements_fn
 {
-    template <typename Tuple>
+    template <tuple_like Tuple>
     constexpr decltype(auto) operator()(Tuple && tuple) const
     {
         static_assert(tuple_like<Tuple>, "The element type of the underlying range must be a tuple or pair.");
-        static_assert(std::tuple_size_v<std::remove_reference_t<Tuple>> > I,
+        static_assert(std::tuple_size_v<std::remove_cvref_t<Tuple>> > I,
                       "The element number requested by radr::elements was larger than the tuple-size.");
 
         if constexpr (std::is_reference_v<Tuple>)

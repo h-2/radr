@@ -25,6 +25,23 @@
 namespace radr::detail
 {
 
+inline constexpr auto zip_with_borrow =
+  []<typename URange, typename... OtherRanges>(URange && urange, OtherRanges &&... others)
+{
+    static_assert(borrowed_mp_range<URange>,
+                  "The constraints for radr::zip_with's underlying (primary) range are not met.");
+
+    static_assert((safe_indirect_mp_range<OtherRanges> && ...),
+                  "All ranges passed to radr::zip_with after the first need to be \n"
+                  "  1) multi-pass ranges; to create a single-pass adaptor, wrap the first argument into "
+                  "radr::to_single_pass.\n"
+                  "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?");
+
+    return zip_with_borrow_impl<zip_iterator_kind::adaptor>(radr::borrow(std::forward<URange>(urange)),
+                                                            radr::borrow(std::forward<OtherRanges>(others))...);
+};
+
+// see the section on "Call patterns" in the documentation below.
 struct zip_with_fn
 {
     template <class... Args>

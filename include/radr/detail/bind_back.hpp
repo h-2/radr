@@ -18,7 +18,6 @@ namespace radr::detail
 {
 
 #ifdef __cpp_lib_bind_back
-
 using std::bind_back;
 
 #else
