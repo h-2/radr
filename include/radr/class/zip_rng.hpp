@@ -65,24 +65,35 @@ constexpr void tuple_for_each(F && f, Tuple && tuple)
                std::forward<Tuple>(tuple));
 }
 
-//!\brief At the moment, this is only relevant for rebind-behaviour on deep-copies.
+//!\brief Relevant for rebind-behaviour on deep-copies and specialised compare.
 enum class zip_iterator_kind
 {
-    container, //!< used by zip_rng / zip factor(owning container); no rebind because not adaptor (always at "source" of pipe)
-    adaptor,  //!< used by zip_with adaptor; rebinds first (only range that can be owning)
-    enumerate //!< used by enumerate adaptor; rebinds second (because that's the underlying range in enumerate)
+    container, //!< used by zip_rng / zip factory (owning container); no rebind because always at "source" of pipe
+    adaptor,   //!< used by zip_with adaptor; rebinds first (only range that can be owning)
+    enumerate, //!< used by enumerate adaptor; rebinds second (because that's the underlying range in enumerate)
+    adjacent   //!< used by adjacent adaptor; rebinds first
 };
 
 template <typename... Args>
 class zip_sentinel;
 
+template <typename UIt, typename USen>
+class enumerate_sentinel;
+
 template <zip_iterator_kind kind, typename... UIt>
     requires((std::forward_iterator<UIt> && ...))
 class zip_iterator
 {
-    static_assert(sizeof...(UIt) > 0, "There must be > 0 template arguments to zip_iterator.");
+    static constexpr size_t _size     = sizeof...(UIt);
+    static constexpr bool   _all_same = all_same<UIt...>;
 
-    std::tuple<UIt...> current;
+    static_assert(_size > 0, "There must be > 0 template arguments to zip_iterator.");
+    static_assert((kind != zip_iterator_kind::adjacent) || _all_same,
+                  "Adjacent means all iterator types are the same.");
+
+    using internal_type = std::conditional_t<_all_same, std::array<pack_head_t<UIt...>, _size>, std::tuple<UIt...>>;
+
+    internal_type current;
 
     template <zip_iterator_kind kind2, typename... UIt2>
         requires((std::forward_iterator<UIt2> && ...))
@@ -90,6 +101,9 @@ class zip_iterator
 
     template <typename... Args2>
     friend class zip_sentinel;
+
+    template <typename UIt2, typename USen2>
+    friend class enumerate_sentinel;
 
     // this overload is only injected for the adaptors, not the container
     template <typename Container>
@@ -100,10 +114,19 @@ class zip_iterator
                                      Container &  container_new)
     {
         // enumerate switches out the 1st elem not the 0th elem
-        static constexpr size_t elem_i = (kind == zip_iterator_kind::adaptor) ? 0 : 1;
+        static constexpr size_t elem_i = (kind == zip_iterator_kind::enumerate) ? 1 : 0;
         std::get<elem_i>(it.current) =
           tag_invoke(custom::rebind_iterator_tag{}, std::get<elem_i>(it.current), container_old, container_new);
         return it;
+    }
+
+    auto & get_element_for_compare() const
+    {
+        // only need to compare 0-th element
+        if constexpr (kind == zip_iterator_kind::enumerate || kind == zip_iterator_kind::adjacent)
+            return std::get<0>(current);
+        else
+            return current; // compare everything by default
     }
 
     static constexpr bool is_random_access = (std::random_access_iterator<UIt> && ...);
@@ -121,13 +144,32 @@ public:
 
     zip_iterator() = default;
 
-    constexpr zip_iterator(UIt... uit) : current{std::move(uit)...} {}
+    constexpr zip_iterator(UIt... uit)
+        requires(!_all_same)
+      : current{std::move(uit)...}
+    {}
+
+    constexpr zip_iterator(UIt... uit)
+        requires(_all_same)
+    {
+        // tuple2array
+        [&](auto... args)
+        {
+            size_t i = 0;
+            ((current[i++] = std::move(args)), ...);
+        }(std::move(uit)...);
+    }
 
     template <typename... UIt2>
     constexpr zip_iterator(zip_iterator<kind, UIt2...> other)
-        requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...))
-      : current{std::move(other.current)}
-    {}
+        requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...) &&
+                 sizeof...(UIt2) == _size && zip_iterator<kind, UIt2...>::_all_same == _all_same)
+    {
+        if constexpr (_all_same)
+            std::ranges::move(other.current, current.data());
+        else
+            current = std::move(other.current);
+    }
 
     constexpr auto operator*() const
     {
@@ -136,7 +178,15 @@ public:
 
     constexpr zip_iterator & operator++()
     {
-        tuple_for_each([](auto & it) { return ++it; }, current);
+        if constexpr (_all_same)
+        {
+            for (auto & it : current)
+                ++it;
+        }
+        else
+        {
+            tuple_for_each([](auto & it) { return ++it; }, current);
+        }
         return *this;
     }
 
@@ -150,7 +200,15 @@ public:
     constexpr zip_iterator & operator--()
         requires is_bidi
     {
-        tuple_for_each([](auto & it) { return --it; }, current);
+        if constexpr (_all_same)
+        {
+            for (auto & it : current)
+                --it;
+        }
+        else
+        {
+            tuple_for_each([](auto & it) { return --it; }, current);
+        }
         return *this;
     }
 
@@ -186,37 +244,37 @@ public:
 
     friend constexpr bool operator==(zip_iterator const & lhs, zip_iterator const & rhs)
     {
-        return lhs.current == rhs.current;
+        return lhs.get_element_for_compare() == rhs.get_element_for_compare();
     }
 
     friend constexpr bool operator<(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
-        return lhs.current < rhs.current;
+        return lhs.get_element_for_compare() < rhs.get_element_for_compare();
     }
 
     friend constexpr bool operator>(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
-        return lhs.current > rhs.current;
+        return lhs.get_element_for_compare() > rhs.get_element_for_compare();
     }
 
     friend constexpr bool operator<=(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
-        return lhs.current <= rhs.current;
+        return lhs.get_element_for_compare() <= rhs.get_element_for_compare();
     }
 
     friend constexpr bool operator>=(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access
     {
-        return lhs.current >= rhs.current;
+        return lhs.get_element_for_compare() >= rhs.get_element_for_compare();
     }
 
     friend constexpr auto operator<=>(zip_iterator const & lhs, zip_iterator const & rhs)
         requires is_random_access && (std::three_way_comparable<UIt> && ...)
     {
-        return lhs.current <=> rhs.current;
+        return lhs.get_element_for_compare() <=> rhs.get_element_for_compare();
     }
 
     friend constexpr zip_iterator operator+(zip_iterator it, difference_type n)
@@ -285,6 +343,7 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
     static_assert((std::sentinel_for<USen, UIt> && ...),
                   "zip_sentinel's sentinel types must be sentinels for the iterator types.");
 
+    //TODO array special case
     [[no_unique_address]] std::tuple<USen...> end{};
 
     template <typename... Args>

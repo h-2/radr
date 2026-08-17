@@ -34,7 +34,7 @@ inline namespace cpo
  *
  * Calls radr::borrow on \p urange which may result in a customised range type being returned.
  *
- * Unless customised otherwise, preserves all range concepts and is transparant (preserves iterator and
+ * Unless customised otherwise, preserves all range concepts and is transparent (preserves iterator and
  * sentinel types).
  *
  * ### Single-pass adaptor

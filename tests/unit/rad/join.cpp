@@ -178,3 +178,5 @@ TEST(join, bidi_range_reverse)
     auto ra = std::ref(l) | radr::join | std::views::reverse;
     EXPECT_RANGE_EQ(ra, "braboof"sv);
 }
+
+//TODO deep copy

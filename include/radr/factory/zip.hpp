@@ -14,6 +14,7 @@
 #include "radr/concepts.hpp"
 #include "radr/custom/subborrow.hpp"
 #include "radr/generator.hpp"
+#include "radr/range_access.hpp"
 #include "radr/version.hpp"
 
 #if !RADR_FEATURE_ZIP
@@ -31,6 +32,8 @@ inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&.
     auto beg  = make_zip_it<k>(radr::begin(rngs)...);
     auto cbeg = make_zip_it<k>(radr::cbegin(rngs)...);
 
+    auto const min_size = min_range_size(rngs...);
+
     /* all infinite → result infinite */
     if constexpr ((infinite_mp_range<URanges> && ...))
     {
@@ -39,28 +42,19 @@ inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&.
     /* all RA+sized or RA+infinite (but at least one non-infinite) → result RA+sized */
     else if constexpr ((safely_indexable_range<URanges> && ...))
     {
-        auto const s    = min_range_weak_size(rngs...);
-        auto       end  = beg + s;
-        auto       cend = cbeg + s;
+        auto end  = beg + min_size;
+        auto cend = cbeg + min_size;
 
-        return borrowing_rad{beg, end, cbeg, cend, s};
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
     }
-    /* all common and at least one uni-directional → result common */
+    /* we only preserve common for 1-dimensional or uni-directional (because then unsynced ends are irrelevant) */
     else if constexpr ((common_range<URanges> && ...) &&
                        (sizeof...(URanges) == 1 || !(std::ranges::bidirectional_range<URanges> && ...)))
     {
         auto end  = make_zip_it<k>(radr::end(rngs)...);
         auto cend = make_zip_it<k>(radr::cend(rngs)...);
 
-        if constexpr ((std::ranges::sized_range<URanges> && ...))
-        {
-            auto const s = min_range_weak_size(rngs...);
-            return borrowing_rad{beg, end, cbeg, cend, s};
-        }
-        else
-        {
-            return borrowing_rad{beg, end, cbeg, cend, not_size{}};
-        }
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
     }
     /* all other cases */
     else
@@ -68,15 +62,7 @@ inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&.
         auto end  = zip_sentinel{beg, std::make_tuple(radr::end(rngs)...)};
         auto cend = zip_sentinel{cbeg, std::make_tuple(radr::cend(rngs)...)};
 
-        if constexpr ((std::ranges::sized_range<URanges> && ...))
-        {
-            auto const s = min_range_weak_size(rngs...);
-            return borrowing_rad{beg, end, cbeg, cend, s};
-        }
-        else
-        {
-            return borrowing_rad{beg, end, cbeg, cend, not_size{}};
-        }
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
     }
 };
 

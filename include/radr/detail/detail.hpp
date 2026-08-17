@@ -1,7 +1,7 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2023-2025 Hannes Hauswedell
+// Copyright (c) 2023-2026 Hannes Hauswedell
 //
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
@@ -232,7 +232,19 @@ constexpr ptr_to_const_ptr_t<T> ptr_to_const_ptr(T ptr) noexcept
     return ptr;
 }
 
+//=============================================================================
+// pack_head_t
+//=============================================================================
+
+template <typename... Pack>
+using pack_head_t = decltype([]<typename First, typename... Rest>(First, Rest...) -> First {
+}(std::type_identity<Pack>{}...))::type;
+
 } // namespace radr::detail
+
+//=============================================================================
+// RADR_BUG
+//=============================================================================
 
 #define RADR_STR(s)          #s
 #define RADR_BUG(file, line) "RADR library BUG in " RADR_STR(file) ":" RADR_STR(line) "; PLEASE REPORT THIS!"

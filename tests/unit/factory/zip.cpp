@@ -846,7 +846,7 @@ TEST(zip_sp, StopsAtShortest)
     auto              z = radr::zip_sp(std::move(a), std::move(b));
 
     int count = 0;
-    for (auto _ : z)
+    for ([[maybe_unused]] auto _ : z)
     {
         count++;
         EXPECT_LE(count, 3);

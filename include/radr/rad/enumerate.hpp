@@ -29,33 +29,99 @@
 namespace radr::detail
 {
 
+template <typename UIt, typename USen>
+class enumerate_sentinel
+{
+    [[no_unique_address]] USen end{};
+
+public:
+    enumerate_sentinel() = default;
+
+    constexpr explicit enumerate_sentinel(USen usen) : end{std::move(usen)} {}
+
+    template <typename UIt2, typename USen2>
+    constexpr enumerate_sentinel(enumerate_sentinel<UIt2, USen2> other)
+        requires((!std::same_as<USen2, USen>) && std::convertible_to<USen2, USen>)
+      : end{std::move(other.end)}
+    {}
+
+    template <typename IotaIt>
+    friend constexpr bool operator==(zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & lhs,
+                                     enumerate_sentinel const &                                      rhs)
+    {
+        return std::get<1>(lhs.current) == rhs.end;
+    }
+
+    template <typename IotaIt>
+    friend constexpr std::iter_difference_t<UIt> operator-(
+      zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & lhs,
+      enumerate_sentinel const &                                      rhs)
+        requires std::sized_sentinel_for<USen, UIt>
+    {
+        return std::get<1>(lhs.current) - rhs.end;
+    }
+
+    template <typename IotaIt>
+    friend constexpr std::iter_difference_t<UIt> operator-(
+      enumerate_sentinel const &                                      lhs,
+      zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & rhs)
+        requires std::sized_sentinel_for<USen, UIt>
+    {
+        return -(rhs - lhs);
+    }
+};
+
 inline constexpr auto enumerate_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
     requires std::ranges::forward_range<URange>
 {
     using diff_t = std::ranges::range_difference_t<URange>;
-    if constexpr (std::ranges::sized_range<URange>)
+
+    auto [iota_range, s] = [](auto & _urange)
     {
-        auto io = radr::iota(diff_t{0}, static_cast<diff_t>(std::ranges::size(urange)));
-
-        // this case is special because zip_with usually looses common-ness
-        // but now we know statically that both ranges' end is in sync (by definition)
-        if constexpr (radr::common_range<URange>)
+        if constexpr (std::ranges::sized_range<URange>)
         {
-            auto beg  = make_zip_it<zip_iterator_kind::enumerate>(radr::begin(io), radr::begin(urange));
-            auto sen  = make_zip_it<zip_iterator_kind::enumerate>(radr::end(io), radr::end(urange));
-            auto cbeg = make_zip_it<zip_iterator_kind::enumerate>(radr::cbegin(io), radr::cbegin(urange));
-            auto csen = make_zip_it<zip_iterator_kind::enumerate>(radr::cend(io), radr::cend(urange));
-
-            return borrowing_rad{beg, sen, cbeg, csen, std::ranges::size(urange)};
+            auto s  = std::ranges::size(_urange);
+            auto io = radr::iota(diff_t{0}, static_cast<diff_t>(s));
+            return std::make_tuple(std::move(io), s);
         }
         else
         {
-            return zip_with_borrow_impl<zip_iterator_kind::enumerate>(std::move(io), borrow(urange));
+            auto io = radr::iota(diff_t{0});
+            return std::make_tuple(std::move(io), not_size{});
         }
+    }(urange);
+
+    auto beg  = make_zip_it<zip_iterator_kind::enumerate>(radr::begin(iota_range), radr::begin(urange));
+    auto cbeg = make_zip_it<zip_iterator_kind::enumerate>(radr::cbegin(iota_range), radr::cbegin(urange));
+
+    /* infinite */
+    if constexpr (infinite_mp_range<URange>)
+    {
+        return borrowing_rad{beg, std::unreachable_sentinel, cbeg, std::unreachable_sentinel};
     }
+    /*  RA+sized */
+    else if constexpr (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
+    {
+        auto end  = beg + s;
+        auto cend = cbeg + s;
+
+        return borrowing_rad{beg, end, cbeg, cend, s};
+    }
+    /* common */
+    else if constexpr (common_range<URange> && std::ranges::sized_range<URange>)
+    {
+        auto end  = make_zip_it<zip_iterator_kind::enumerate>(radr::end(iota_range), radr::end(urange));
+        auto cend = make_zip_it<zip_iterator_kind::enumerate>(radr::cend(iota_range), radr::cend(urange));
+
+        return borrowing_rad{beg, end, cbeg, cend, s};
+    }
+    /* all other cases */
     else
     {
-        return zip_with_borrow_impl<zip_iterator_kind::enumerate>(radr::iota(diff_t{0}), borrow(urange));
+        auto end  = enumerate_sentinel<iterator_t<URange>, sentinel_t<URange>>{radr::end(urange)};
+        auto cend = enumerate_sentinel<const_iterator_t<URange>, const_sentinel_t<URange>>{radr::cend(urange)};
+
+        return borrowing_rad{beg, end, cbeg, cend, s};
     }
 };
 
