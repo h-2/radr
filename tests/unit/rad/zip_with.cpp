@@ -820,7 +820,7 @@ TEST(zip_with_sp, StopsAtShortest)
     auto              z = std::move(a) | radr::to_single_pass | radr::zip_with(std::ref(b));
 
     int count = 0;
-    for (auto _ : z)
+    for ([[maybe_unused]] auto _ : z)
     {
         count++;
         EXPECT_LE(count, 3);

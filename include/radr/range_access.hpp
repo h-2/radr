@@ -197,4 +197,12 @@ inline constexpr auto min_range_weak_size = []<typename... Ranges>(Ranges &&... 
     }
 };
 
+inline constexpr auto min_range_size = []<typename... Ranges>(Ranges &&... ranges)
+{
+    if constexpr ((std::ranges::sized_range<Ranges> || ...))
+        return min_range_weak_size(ranges...);
+    else
+        return not_size{};
+};
+
 } // namespace radr::detail

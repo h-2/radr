@@ -23,7 +23,7 @@ namespace radr::detail
 template <typename T>
 concept has_type_member_type = requires { typename T::type; };
 
-}
+} // namespace radr::detail
 
 namespace radr
 {
@@ -164,6 +164,9 @@ concept weakly_equality_comparable = weakly_equality_comparable_with<T, T>;
 
 template <class T, class... Us>
 concept one_of = (std::same_as<T, Us> || ...);
+
+template <class... Ts>
+concept all_same = (sizeof...(Ts) <= 1) || (std::same_as<Ts, pack_head_t<Ts...>> && ...);
 
 template <typename T>
 concept object = std::is_object_v<T>;
