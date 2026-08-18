@@ -69,6 +69,10 @@ public:
     {
         return -(rhs - lhs);
     }
+
+    constexpr USen const & base() const & { return end; }
+
+    constexpr USen && base() && { return std::move(end); }
 };
 
 inline constexpr auto enumerate_borrow = []<std::ranges::borrowed_range URange>(URange && urange)

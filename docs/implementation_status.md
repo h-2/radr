@@ -9,12 +9,12 @@ The latter will likely change at some point.
 | Standard    | adaptors |factories | Comment                    |
 |-------------|---------:|---------:|----------------------------|
 | C++20       | 14/15    |   5/5    | `lazy_split` not planned   |
-| C++23       |  3/13    |   1/1    |                            |
-| C++26       |  1/03    |   --     |                            |
-| C++29       |  1/??    |   --     |                            |
+| C++23       |  6/13    |   1/1    |                            |
+| C++26       |  1/03    |   0/1    |                            |
+| C++29       |  1/??    |   ??     |                            |
 | extra       |     1    |          |                            |
 
-See below for details. Note that the list of adaptors in C++26 and C++29 is not yet final.
+See below for details. Note that the numbers for C++29 are not yet final.
 
 ## Range adaptor classes
 
@@ -36,6 +36,7 @@ We plan to add equivalent objects for all standard library adaptors.
 | Range adaptors (objects)  | C++XY     | | Equivalent in `std::`          | C++XY     | Differences of `radr` objects            |
 |---------------------------|-----------|-|--------------------------------|-----------|------------------------------------------|
 | `radr::all`               | C++20     | | `std::views::all`              | C++20     |                                          |
+| `radr::adjacent<N>`       | **C++23** | | `std::views::adjacent`         | **C++23** |                                          |
 | `radr::as_const`          | C++20     | | `std::views::as_const`         | **C++23** | make the range *and* its elements const  |
 | `radr::as_rvalue`         | C++20     | | `std::views::as_rvalue`        | **C++23** | *returns only input ranges in C++20      |
 | `radr::drop(n)`           | C++20     | | `std::views::drop`             | C++20     |                                          |
@@ -45,6 +46,7 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::filter(fn)`        | C++20     | | `std::views::filter`           | C++20     |                                          |
 | `radr::join`              | C++20     | | `std::views::join`             | C++20     |                                          |
 | `radr::keys`              | C++20     | | `std::views::keys`             | C++20     |                                          |
+| `radr::pairwise`          | **C++23** | | `std::views::pairwise`         | **C++23** |                                          |
 | `radr::reverse`           | C++20     | | `std::views::reverse`          | C++20     |                                          |
 | `radr::slice(m, n)`       | C++20     | | *not yet available*            |           | get subrange between m and n             |
 | `radr::split(pat)`        | C++20     | | `std::views::split`            | C++20     |                                          |
