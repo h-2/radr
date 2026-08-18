@@ -640,6 +640,30 @@ TEST(zip_with, owning_copy_test)
     EXPECT_RANGE_EQ(cpy, comp);
 }
 
+TEST(zip_with, owning_copy_take_test)
+{
+    std::vector<std::tuple<int, int>> const comp{
+      {1, 0},
+      {2, 1},
+      {3, 2},
+      {4, 3},
+      {5, 4},
+      {6, 5}
+    };
+    using T = decltype(std::list{1, 2, 3, 4, 5, 6} | radr::take(6) | radr::zip_with(radr::iota(0)));
+
+    T cpy;
+
+    {
+        T own = std::list{1, 2, 3, 4, 5, 6} | radr::take(6) | radr::zip_with(radr::iota(0));
+        // EXPECT_EQ(check_rad_type(own), rad_type::owning_rad);
+        EXPECT_RANGE_EQ(own, comp);
+        cpy = own;
+    }
+
+    EXPECT_RANGE_EQ(cpy, comp);
+}
+
 TEST(zip_with, BorrowingZipIsCopyable)
 {
     std::vector<int> a{1, 2, 3};

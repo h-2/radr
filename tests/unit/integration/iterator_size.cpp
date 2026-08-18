@@ -14,6 +14,11 @@
 #include <radr/rad/join.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/transform.hpp>
+#include <radr/version.hpp>
+
+#if RADR_FEATURE_ZIP
+#    include <radr/rad/adjacent.hpp>
+#endif
 
 TEST(iterator_size, transform)
 {
@@ -314,3 +319,93 @@ TEST(iterator_size, join_bidi)
         EXPECT_EQ(sizeof(v.end()), 48);
     }
 }
+
+#if RADR_FEATURE_ZIP
+
+/* radr::adjacent<N> stores N copies of the underlying iterator, so its iterator grows linearly in N.
+ * For random-access ranges the copies are redundant (they differ by a compile-time constant offset) and a
+ * single-iterator representation would make these numbers constant in N; this test pins down the status quo,
+ * so that such a change becomes visible here. */
+
+TEST(iterator_size, adjacent_contig)
+{
+    std::vector<int> vec{};
+
+#    ifdef __cpp_lib_ranges_zip
+    {
+        // std stores N iterators, too
+        auto v1 = vec | std::views::adjacent<1>;
+        auto v2 = vec | std::views::adjacent<2>;
+        auto v4 = vec | std::views::adjacent<4>;
+
+        EXPECT_EQ(sizeof(v1), 8);
+        EXPECT_EQ(sizeof(v2), 8);
+        EXPECT_EQ(sizeof(v4), 8);
+
+        EXPECT_EQ(sizeof(v1.begin()), 8);
+        EXPECT_EQ(sizeof(v2.begin()), 16);
+        EXPECT_EQ(sizeof(v4.begin()), 32);
+
+        EXPECT_EQ(sizeof(v1.end()), 8);
+        EXPECT_EQ(sizeof(v2.end()), 16);
+        EXPECT_EQ(sizeof(v4.end()), 32);
+    }
+#    endif
+
+    {
+        auto v1 = std::ref(vec) | radr::adjacent<1>;
+        auto v2 = std::ref(vec) | radr::adjacent<2>;
+        auto v4 = std::ref(vec) | radr::adjacent<4>;
+
+        // begin and end are both zip_iterators; the size is derived from them, not stored
+        EXPECT_EQ(sizeof(v1), 16);
+        EXPECT_EQ(sizeof(v2), 32);
+        EXPECT_EQ(sizeof(v4), 64);
+
+        EXPECT_EQ(sizeof(v1.begin()), 8);
+        EXPECT_EQ(sizeof(v2.begin()), 16);
+        EXPECT_EQ(sizeof(v4.begin()), 32);
+
+        EXPECT_EQ(sizeof(v1.end()), 8);
+        EXPECT_EQ(sizeof(v2.end()), 16);
+        EXPECT_EQ(sizeof(v4.end()), 32);
+    }
+}
+
+TEST(iterator_size, adjacent_bidi)
+{
+    std::list<int> l{};
+
+#    ifdef __cpp_lib_ranges_zip
+    {
+        auto v2 = l | std::views::adjacent<2>;
+        auto v4 = l | std::views::adjacent<4>;
+
+        EXPECT_EQ(sizeof(v2), 8);
+        EXPECT_EQ(sizeof(v4), 8);
+
+        EXPECT_EQ(sizeof(v2.begin()), 16);
+        EXPECT_EQ(sizeof(v4.begin()), 32);
+
+        EXPECT_EQ(sizeof(v2.end()), 16);
+        EXPECT_EQ(sizeof(v4.end()), 32);
+    }
+#    endif
+
+    {
+        // bidi + common: end is a zip_iterator, too, but the size has to be stored (+8)
+        auto v2 = std::ref(l) | radr::adjacent<2>;
+        auto v4 = std::ref(l) | radr::adjacent<4>;
+
+        EXPECT_EQ(sizeof(v2), 40);
+        EXPECT_EQ(sizeof(v4), 72);
+
+        EXPECT_EQ(sizeof(v2.begin()), 16);
+        EXPECT_EQ(sizeof(v4.begin()), 32);
+
+        EXPECT_EQ(sizeof(v2.end()), 16);
+        EXPECT_EQ(sizeof(v4.end()), 32);
+    }
+}
+
+#endif

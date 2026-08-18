@@ -236,9 +236,29 @@ constexpr ptr_to_const_ptr_t<T> ptr_to_const_ptr(T ptr) noexcept
 // pack_head_t
 //=============================================================================
 
+// workaround GCC bug
+#if defined(__GNUC__) && (__GNUC__ >= 10) && (__GNUC__ < 14)
+
+template <typename... Ts>
+struct pack_head
+{};
+
+template <typename T, typename... Ts>
+struct pack_head<T, Ts...>
+{
+    using type = T;
+};
+
+template <typename... Pack>
+using pack_head_t = typename pack_head<Pack...>::type;
+
+#else
+
 template <typename... Pack>
 using pack_head_t = decltype([]<typename First, typename... Rest>(First, Rest...) -> First {
 }(std::type_identity<Pack>{}...))::type;
+
+#endif
 
 } // namespace radr::detail
 

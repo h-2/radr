@@ -28,6 +28,9 @@
 
 #    include "../concepts.hpp"
 #    include "radr/custom/tags.hpp"
+#    include "radr/detail/detail.hpp"
+#    include "radr/factory/iota.hpp"
+#    include "radr/rad/reverse.hpp"
 #    include "radr/range_access.hpp"
 
 namespace radr::detail
@@ -71,7 +74,7 @@ enum class zip_iterator_kind
     container, //!< used by zip_rng / zip factory (owning container); no rebind because always at "source" of pipe
     adaptor,   //!< used by zip_with adaptor; rebinds first (only range that can be owning)
     enumerate, //!< used by enumerate adaptor; rebinds second (because that's the underlying range in enumerate)
-    adjacent   //!< used by adjacent adaptor; rebinds first
+    adjacent   //!< used by adjacent adaptor; rebinds first, re-derives the rest (all point into the same range)
 };
 
 template <typename... Args>
@@ -80,20 +83,21 @@ class zip_sentinel;
 template <typename UIt, typename USen>
 class enumerate_sentinel;
 
+template <typename UIt, typename USen>
+class adjacent_sentinel;
+
 template <zip_iterator_kind kind, typename... UIt>
     requires((std::forward_iterator<UIt> && ...))
 class zip_iterator
 {
-    static constexpr size_t _size     = sizeof...(UIt);
-    static constexpr bool   _all_same = all_same<UIt...>;
-
+    static constexpr size_t _size = sizeof...(UIt);
     static_assert(_size > 0, "There must be > 0 template arguments to zip_iterator.");
+
+    using first_uit_t               = pack_head_t<UIt...>;
+    static constexpr bool _all_same = (std::same_as<UIt, first_uit_t> && ...);
+
     static_assert((kind != zip_iterator_kind::adjacent) || _all_same,
                   "Adjacent means all iterator types are the same.");
-
-    using internal_type = std::conditional_t<_all_same, std::array<pack_head_t<UIt...>, _size>, std::tuple<UIt...>>;
-
-    internal_type current;
 
     template <zip_iterator_kind kind2, typename... UIt2>
         requires((std::forward_iterator<UIt2> && ...))
@@ -105,6 +109,9 @@ class zip_iterator
     template <typename UIt2, typename USen2>
     friend class enumerate_sentinel;
 
+    template <typename UIt2, typename USen2>
+    friend class adjacent_sentinel;
+
     // this overload is only injected for the adaptors, not the container
     template <typename Container>
         requires(kind != zip_iterator_kind::container)
@@ -113,10 +120,27 @@ class zip_iterator
                                      Container &  container_old,
                                      Container &  container_new)
     {
-        // enumerate switches out the 1st elem not the 0th elem
-        static constexpr size_t elem_i = (kind == zip_iterator_kind::enumerate) ? 1 : 0;
-        std::get<elem_i>(it.current) =
-          tag_invoke(custom::rebind_iterator_tag{}, std::get<elem_i>(it.current), container_old, container_new);
+        /* adjacent holds N iterators into the *same* range, so all of them are stale after a rebind.
+         * To avoid multiple rebinds, we rebind the first and then recreate the others from that one.
+         */
+        if constexpr (kind == zip_iterator_kind::adjacent)
+        {
+            // auto new_it = tag_invoke(custom::rebind_iterator_tag{}, it.current[0], container_old, container_new);
+            // it.current  = make_adj_it_array<_size>(new_it, radr::end(container_new));
+
+            auto oldarr = it.current;
+
+            it.current[0] = tag_invoke(custom::rebind_iterator_tag{}, it.current[0], container_old, container_new);
+            for (size_t i = 1; i < _size; ++i)
+                it.current[i] = (oldarr[i] == oldarr[i - 1]) ? it.current[i - 1] : std::next(it.current[i - 1]);
+        }
+        else
+        {
+            // enumerate switches out the 1st elem not the 0th elem (because that's the number)
+            static constexpr size_t elem_i = (kind == zip_iterator_kind::enumerate) ? 1 : 0;
+            std::get<elem_i>(it.current) =
+              tag_invoke(custom::rebind_iterator_tag{}, std::get<elem_i>(it.current), container_old, container_new);
+        }
         return it;
     }
 
@@ -131,6 +155,10 @@ class zip_iterator
 
     static constexpr bool is_random_access = (std::random_access_iterator<UIt> && ...);
     static constexpr bool is_bidi          = (std::bidirectional_iterator<UIt> && ...);
+
+    /* data members */
+    using storage_type = std::conditional_t<_all_same, std::array<first_uit_t, _size>, std::tuple<UIt...>>;
+    storage_type current;
 
 public:
     // clang-format off
@@ -159,6 +187,11 @@ public:
             ((current[i++] = std::move(args)), ...);
         }(std::move(uit)...);
     }
+
+    constexpr zip_iterator(std::array<first_uit_t, _size> const & arr)
+        requires(_all_same)
+      : current{std::move(arr)}
+    {}
 
     template <typename... UIt2>
     constexpr zip_iterator(zip_iterator<kind, UIt2...> other)
@@ -335,6 +368,10 @@ constexpr auto make_zip_it(UIt... uit)
     return zip_iterator<k, UIt...>{std::forward<UIt>(uit)...};
 }
 
+/*!\brief Sentinel type for Zip adaptors.
+ * \details This is only used for zip_iterator_kind::adaptor! The container does not use it, and enumerate and adjacent
+ * have their own sentinels
+ */
 template <typename... UIt, typename... USen>
 class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 {
@@ -343,11 +380,23 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
     static_assert((std::sentinel_for<USen, UIt> && ...),
                   "zip_sentinel's sentinel types must be sentinels for the iterator types.");
 
-    //TODO array special case
+    //TODO array special case?
     [[no_unique_address]] std::tuple<USen...> end{};
 
     template <typename... Args>
     friend class zip_sentinel;
+
+    // this overload is only injected for the adaptors, not the container
+    template <typename Container>
+    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
+                                     zip_sentinel it,
+                                     Container &  container_old,
+                                     Container &  container_new)
+    {
+        std::get<0>(it.end) =
+          tag_invoke(custom::rebind_iterator_tag{}, std::get<0>(it.end), container_old, container_new);
+        return it;
+    }
 
 public:
     zip_sentinel() = default;
@@ -358,7 +407,8 @@ public:
 
     template <typename... UIt2, typename... USen2>
     constexpr zip_sentinel(zip_sentinel<std::tuple<UIt2...>, std::tuple<USen2...>> other)
-        requires((!std::same_as<USen2, USen> || ...) && (std::convertible_to<USen2, USen> && ...))
+        requires(((!std::same_as<USen2, USen> || ...) || (!std::same_as<UIt2, UIt> || ...)) &&
+                 (std::convertible_to<USen2, USen> && ...))
       : end{std::move(other.end)}
     {}
 
