@@ -22,17 +22,17 @@ namespace radr
 
 template <class Derived>
     requires std::is_class_v<Derived> && std::same_as<Derived, std::remove_cv_t<Derived>>
-class rad_interface
+class range_interface
 {
     constexpr Derived & derived() noexcept
     {
-        static_assert(sizeof(Derived) && std::derived_from<Derived, rad_interface>);
+        static_assert(sizeof(Derived) && std::derived_from<Derived, range_interface>);
         return static_cast<Derived &>(*this);
     }
 
     constexpr Derived const & derived() const noexcept
     {
-        static_assert(sizeof(Derived) && std::derived_from<Derived, rad_interface>);
+        static_assert(sizeof(Derived) && std::derived_from<Derived, range_interface>);
         return static_cast<Derived const &>(*this);
     }
 

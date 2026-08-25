@@ -14,8 +14,8 @@
 #include <ranges>
 #include <utility>
 
+#include "../class/owning_rad.hpp"
 #include "../custom/subborrow.hpp"
-#include "../rad_util/owning_rad.hpp"
 #include "detail.hpp"
 #include "radr/concepts.hpp"
 

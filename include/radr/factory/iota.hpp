@@ -15,10 +15,10 @@
 #include <istream>
 #include <iterator>
 
+#include "radr/class/borrowing_rad.hpp"
 #include "radr/concepts.hpp"
 #include "radr/detail/fwd.hpp"
 #include "radr/generator.hpp"
-#include "radr/rad_util/borrowing_rad.hpp"
 
 namespace radr::detail
 {

@@ -19,9 +19,9 @@
 #include "../custom/rebind_iterator.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/fwd.hpp"
-#include "rad_interface.hpp"
 #include "radr/concepts.hpp"
 #include "radr/range_access.hpp"
+#include "range_interface.hpp"
 
 namespace radr::detail
 {
@@ -53,7 +53,7 @@ template <std::forward_iterator    Iter,
           borrowing_rad_kind       Kind =
             std::sized_sentinel_for<Sent, Iter> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized>
     requires(Kind == borrowing_rad_kind::sized || !std::sized_sentinel_for<Sent, Iter>)
-class borrowing_rad : public rad_interface<borrowing_rad<Iter, Sent, CIter, CSent, Kind>>
+class borrowing_rad : public range_interface<borrowing_rad<Iter, Sent, CIter, CSent, Kind>>
 {
 public:
     // Note: this is an internal implementation detail that is public only for internal usage.

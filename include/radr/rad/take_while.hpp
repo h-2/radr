@@ -14,10 +14,10 @@
 #include <iterator>
 #include <utility>
 
+#include "../class/borrowing_rad.hpp"
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
 #include "../rad/filter.hpp"
-#include "../rad_util/borrowing_rad.hpp"
 
 namespace radr::detail
 {

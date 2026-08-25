@@ -14,11 +14,11 @@
 #include <functional>
 #include <ranges>
 
+#include "../class/borrowing_rad.hpp"
 #include "../concepts.hpp"
 #include "../detail/detail.hpp"
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
-#include "../rad_util/borrowing_rad.hpp"
 
 namespace radr::detail
 {

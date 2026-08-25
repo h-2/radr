@@ -9,9 +9,9 @@
 #include <radr/test/aux_ranges.hpp>
 #include <radr/test/gtest_helpers.hpp>
 
+#include <radr/class/borrowing_rad.hpp>
 #include <radr/concepts.hpp>
 #include <radr/custom/subborrow.hpp>
-#include <radr/rad_util/borrowing_rad.hpp>
 
 // --------------------------------------------------------------------------
 // vector
