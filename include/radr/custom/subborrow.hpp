@@ -14,8 +14,8 @@
 #include <iterator>
 #include <ranges>
 
+#include "../class/borrowing_rad.hpp"
 #include "../detail/detail.hpp"
-#include "../rad_util/borrowing_rad.hpp"
 #include "../range_access.hpp"
 #include "radr/concepts.hpp"
 #include "tags.hpp"

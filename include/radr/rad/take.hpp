@@ -13,9 +13,9 @@
 
 #include <iterator>
 
+#include "../class/borrowing_rad.hpp"
 #include "../detail/pipe.hpp"
 #include "../generator.hpp"
-#include "../rad_util/borrowing_rad.hpp"
 #include "radr/concepts.hpp"
 
 namespace radr::detail

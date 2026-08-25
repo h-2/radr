@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "radr/factory/repeat.hpp"
+#include "radr/class/repeat_rng.hpp"
 
 namespace radr
 {

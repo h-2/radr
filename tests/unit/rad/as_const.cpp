@@ -13,7 +13,7 @@
 #include <radr/concepts.hpp>
 #include <radr/rad/as_const.hpp>
 
-#include "radr/rad_util/borrowing_rad.hpp"
+#include "radr/class/borrowing_rad.hpp"
 #include "radr/range_access.hpp"
 
 // --------------------------------------------------------------------------

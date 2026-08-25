@@ -11,7 +11,7 @@
 
 #pragma once
 
-#include "radr/rad_util/rad_interface.hpp"
+#include "radr/class/range_interface.hpp"
 #include "radr/version.hpp"
 
 #if !RADR_FEATURE_ZIP
@@ -464,7 +464,7 @@ namespace radr
  * will return a radr::borrowing_rad.
  */
 template <typename... URanges>
-class zip_rng : public rad_interface<zip_rng<URanges...>>
+class zip_rng : public range_interface<zip_rng<URanges...>>
 {
 private:
     static_assert(sizeof...(URanges) > 0, "There must be > 0 template arguments to zip_rng.");

@@ -20,14 +20,14 @@
 #include "../detail/detail.hpp"
 #include "../detail/indirect.hpp"
 #include "../generator.hpp"
-#include "rad_interface.hpp"
 #include "radr/custom/subborrow.hpp"
+#include "range_interface.hpp"
 
 namespace radr
 {
 
 template <typename URange, typename BorrowedRange>
-class owning_rad : public rad_interface<owning_rad<URange, BorrowedRange>>
+class owning_rad : public range_interface<owning_rad<URange, BorrowedRange>>
 {
     static_assert(range_object<URange>, "Underlying range in owning_rad needs to be an unqualified range type.");
     static_assert(std::copyable<URange>, "Underlying range in owning_rad needs to be copyable.");
