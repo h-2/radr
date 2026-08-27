@@ -13,7 +13,7 @@ Most important bits are available in the following files:
 
 The project has high-quality, detailled human-written documentation in the `docs` folder. You may look up the longer files in that folder, but only when the respective topic is actually relevant.
 
-There is little, but highly relevant, doxygen-style in-code documentation for every adaptor/factory object.
+There is little, but highly relevant, doxygen-style in-code documentation for every adaptor/factory object, typically towards the end of the file.
 
 
 ## Important bits to keep in mind
@@ -63,5 +63,5 @@ ctest
   * Prefer functional and declarative paradigms over imperative and OOP patterns, but don't be dogmatic.
   * Use modern meta-programming with `constexpr`, immediately evaluated lambdas, `overloaded()`… when possible.
   * Only encode in constraints what is necessary for overload resolution. Implement other requirements as `static_assert()`.
-  * New tests should cover edge cases. For range adaptors, test whether the adaptor exhibits the behaviour specified in its doxygen docs, especially whether it "preserves/looses" concepts as specified and depending on the underlying range.
+  * For unit tests, follow the `UNIT_TEST_TEMPLATE.cxx` file.
   * Don't worry about formatting details, just reformat code with `clang-format17` after performing changes.
