@@ -281,6 +281,15 @@ struct iota_fn
             return borrowing_rad<It, Sen, It, Sen, kind>{It{val}, Sen{bound}};
         }
     }
+
+    //!\brief Overload that fixes the common case of iota(0, var) where var is a larger integral type than int.
+    template <std::integral Value, std::integral Bound>
+        requires(!std::same_as<Value, Bound>)
+    constexpr auto operator()(Value val, Bound bound) const
+    {
+        using ActualValue = std::common_type_t<Value, Bound>;
+        return operator()(static_cast<ActualValue>(val), static_cast<ActualValue>(bound));
+    }
 };
 
 } // namespace radr::detail
@@ -299,6 +308,15 @@ namespace radr
  * `std::incrementable<Value>` and not just `std::weakly_incrementable<Value>`.
  *
  * There is radr::iota_sp which is always a single-pass range and does not have this requirement.
+ *
+ * In contrast to std::views::iota, radr::iota allows the common case where Value and Bound are two
+ * integral types of different signed-ness and/or width, e.g.
+ *
+ * ```c++
+ * std::vector vec{1, 2, 3};
+ * // auto v = std::views::iota(0, vec.size()); // ill-formed because types `int` and `size_t` are different
+ * auto r = rad::iota(0, vec.size()); // well-formed; range over size_t
+ * ```
  *
  */
 inline constexpr detail::iota_fn iota{};

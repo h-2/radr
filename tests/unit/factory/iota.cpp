@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <radr/test/gtest_helpers.hpp>
 
+#include <radr/factory/indices.hpp>
 #include <radr/factory/iota.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/take_while.hpp>
@@ -96,6 +97,36 @@ TEST(iota, IotaWithCharType)
     EXPECT_RANGE_EQ(v, expected);
 }
 
+// In contrast to std::views::iota, radr::iota accepts value and bound of differing
+// integral type; the resulting range is over their std::common_type.
+TEST(iota, MixedIntegralTypes)
+{
+    std::vector vec{1, 2, 3};
+    auto        v = radr::iota(0, vec.size()); // int, size_t -> size_t
+
+    EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(v)>, std::size_t);
+    EXPECT_RANGE_EQ(v, (std::vector<std::size_t>{0, 1, 2}));
+    EXPECT_EQ(std::ranges::size(v), 3u);
+}
+
+TEST(iota, MixedIntegralTypesSignedness)
+{
+    auto v = radr::iota(-2, int64_t{2}); // int, int64_t -> int64_t
+
+    EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(v)>, int64_t);
+    EXPECT_RANGE_EQ(v, (std::vector<int64_t>{-2, -1, 0, 1}));
+}
+
+constexpr bool constexpr_mixed_test()
+{
+    auto v   = radr::iota(int8_t{2}, int64_t{7});
+    int  sum = 0;
+    for (auto i : v)
+        sum += static_cast<int>(i);
+    return std::same_as<std::ranges::range_value_t<decltype(v)>, int64_t> && sum == (2 + 3 + 4 + 5 + 6);
+}
+static_assert(constexpr_mixed_test());
+
 TEST(iota, SizeIsCorrect)
 {
     auto v = radr::iota(100, 110);
@@ -152,6 +183,27 @@ TEST(iota, IteratorOps)
     auto it2 = it + 19;
     EXPECT_EQ(*it2, 19);
     EXPECT_EQ(it2 - it, 19);
+}
+
+//===========================================================================
+// radr::indices (shortcut for radr::iota(0, bound))
+//===========================================================================
+
+TEST(indices, Basic)
+{
+    auto        v = radr::indices(5);
+    std::vector expected{0, 1, 2, 3, 4};
+    EXPECT_RANGE_EQ(v, expected);
+}
+
+TEST(indices, ContainerSize)
+{
+    std::vector vec{'a', 'b', 'c'};
+    auto        v = radr::indices(vec.size()); // bound is size_t -> range over size_t
+
+    EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(v)>, std::size_t);
+    EXPECT_RANGE_EQ(v, (std::vector<std::size_t>{0, 1, 2}));
+    EXPECT_EQ(std::ranges::size(v), vec.size());
 }
 
 //===========================================================================

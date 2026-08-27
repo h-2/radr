@@ -10,7 +10,7 @@ The latter will likely change at some point.
 |-------------|---------:|---------:|----------------------------|
 | C++20       | 14/15    |   5/5    | `lazy_split` not planned   |
 | C++23       |  6/13    |   1/1    |                            |
-| C++26       |  1/03    |   0/1    |                            |
+| C++26       |  1/03    |   1/1    |                            |
 | C++29       |  1/??    |   ??     |                            |
 | extra       |     1    |          |                            |
 
@@ -72,7 +72,8 @@ This is different from the somewhat arbitrary use of the words in the standard.
 |-------------------------------|------------|-|-------------------------|-----------|-------------------------------------------|
 | `radr::counted(it, n)`        | C++20      | | `std::views::counted`   | C++20     |                                           |
 | `radr::empty<T>`              | C++20      | | `std::views::empty`     | C++20     |                                           |
-| `radr::iota(val[, bound])`    | C++20      | | `std::views::iota`      | C++20     |                                           |
+| `radr::indices(bound)`        | C++20      | | `std::views::indices`   | **C++26** |                                           |
+| `radr::iota(val[, bound])`    | C++20      | | `std::views::iota`      | C++20     | not broken for `val, bound` of diff. type |
 | `radr::istream<Val>`          | C++20      | | `std::views::istream`   | C++20     |                                           |
 | `radr::repeat(val[, bound])`  | C++20      | | `std::views::repeat`    | **C++23** | allows indirect storage and static bounds |
 | `radr::single(val)`           | C++20      | | `std::views::single`    | C++20     | allows indirect storage                   |
