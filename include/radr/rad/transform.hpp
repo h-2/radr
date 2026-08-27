@@ -367,7 +367,7 @@ inline constexpr auto transform_coro = []<std::ranges::input_range URange, typen
     static_assert(can_reference<std::invoke_result_t<Fn &, std::ranges::range_reference_t<URange>>>,
                   "The constraints for radr::transform's functor are not met.");
 
-    static_assert(!std::is_lvalue_reference_v<URange>, RADR_ASSERTSTRING_RVALUE);
+    static_assert(!container_lvalue<URange>, RADR_ASSERTSTRING_RVALUE);
     static_assert(std::movable<URange>, RADR_ASSERTSTRING_MOVABLE);
 
     // we need to create inner functor so that it can take by value
