@@ -1,3 +1,5 @@
+// Structured re-implementation of the radr::adjacent test-suite, following UNIT_TEST_TEMPLATE.cxx.
+
 #include <gtest/gtest.h>
 
 #include <radr/version.hpp>
@@ -13,28 +15,36 @@ TEST(dummy, skipped_because_no_cpp23)
 
 #    include <deque>
 #    include <forward_list>
+#    include <functional>
 #    include <list>
 #    include <ranges>
-#    include <string>
 #    include <string_view>
 #    include <tuple>
 #    include <vector>
 
+#    include <radr/test/adaptor_template.hpp>
 #    include <radr/test/aux_ranges.hpp>
 #    include <radr/test/gtest_helpers.hpp>
 
 #    include <radr/factory/iota.hpp>
 #    include <radr/rad/adjacent.hpp>
 #    include <radr/rad/elements.hpp>
+#    include <radr/rad/filter.hpp>
 #    include <radr/rad/take.hpp>
+#    include <radr/rad/take_while.hpp>
 #    include <radr/rad/to_single_pass.hpp>
+
+using radr::test::range_cat;
 
 // --------------------------------------------------------------------------
 // test data
 // --------------------------------------------------------------------------
 
-inline std::vector<int> ints{1, 2, 3, 4, 5};
-inline std::list<int>   ints_list{1, 2, 3, 4, 5};
+// non-const, but only ever read (mutation tests use their own locals)
+inline std::vector<int>       vec{1, 2, 3, 4, 5};
+inline std::list<int>         lst{1, 2, 3, 4, 5};
+inline std::forward_list<int> flst{1, 2, 3, 4, 5};
+inline std::deque<int>        deq{1, 2, 3, 4, 5};
 
 inline std::vector<std::tuple<int, int>> const pairs{
   {1, 2},
@@ -49,68 +59,233 @@ inline std::vector<std::tuple<int, int, int>> const triples{
   {3, 4, 5}
 };
 
-// strings make the "same element appears in multiple tuples" aspect obvious
-inline std::vector<std::string> strs{"foo", "bar", "baz"};
-
-inline std::vector<std::tuple<std::string, std::string>> const str_pairs{
-  {"foo", "bar"},
-  {"bar", "baz"}
+// {1,2,3,4,5} with the 3 filtered out -> {1,2,4,5}, then adjacent<2>
+inline auto const not_three = [](int i)
+{
+    return i != 3;
+};
+inline std::vector<std::tuple<int, int>> const filtered_pairs{
+  {1, 2},
+  {2, 4},
+  {4, 5}
 };
 
-//!\brief Whether radr::adjacent<2> can be applied to URange at all.
-template <typename URange>
-concept adjacentable = requires(URange && urange) { std::forward<URange>(urange) | radr::adjacent<2>; };
+// concept checks use radr::test::check_adaptor_concepts (tests/include/radr/test/adaptor_template.hpp);
+// only the concepts expected to be *true* are listed, anything not listed is expected to be false.
 
 // --------------------------------------------------------------------------
-// single-pass: adjacent must not be available at all
+// single-pass tests
 // --------------------------------------------------------------------------
 
-TEST(adjacent_sp, not_available)
+// radr::adjacent cannot be created on single-pass ranges
+
+// --------------------------------------------------------------------------
+// multi-pass tests I – canonical cases
+// --------------------------------------------------------------------------
+
+TEST(adjacent_mp, forward)
 {
-    // multi-pass ranges are fine
-    EXPECT_TRUE((adjacentable<std::vector<int>>));
-    EXPECT_TRUE((adjacentable<std::reference_wrapper<std::vector<int>>>));
-    EXPECT_TRUE((adjacentable<std::string_view>));
+    auto ra = std::ref(flst) | radr::adjacent<2>;
 
-    // single-pass ranges are not
-    EXPECT_FALSE((adjacentable<radr::generator<size_t>>));
-    EXPECT_FALSE((adjacentable<decltype(std::vector<int>{} | radr::to_single_pass)>));
+    EXPECT_RANGE_EQ(ra, pairs);
+    // std::forward_list is forward-only and not sized; common + borrowed are preserved
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::fwd, .common = true, .mut = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, forward_rvalue)
+{
+    auto ra = auto{flst} | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // rvalue input -> owning_rad, hence .borrowed == false
+    radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .common = true, .mut = true});
+}
+
+TEST(adjacent_mp, bidi_common)
+{
+    auto ra = std::ref(lst) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // std::list: sized + common preserved
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::bidi, .sized = true, .common = true, .mut = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, bidi_common_rvalue)
+{
+    auto ra = auto{lst} | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // rvalue input -> owning_rad, hence .borrowed == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::bidi, .sized = true, .common = true, .mut = true});
+}
+
+TEST(adjacent_mp, ra_sized)
+{
+    auto ra = std::ref(deq) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // std::deque: sized + common preserved
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, ra_sized_rvalue)
+{
+    auto ra = auto{deq} | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // rvalue input -> owning_rad, hence .borrowed == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .mut = true});
+}
+
+TEST(adjacent_mp, contig_sized)
+{
+    auto ra = std::ref(vec) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // std::vector input is contiguous, but adjacent yields tuples -> .cat is ra, not contig
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, contig_sized_rvalue)
+{
+    auto ra = auto{vec} | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, pairs);
+    // contiguous input, but adjacent yields tuples -> .cat is ra; rvalue input -> .borrowed == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .mut = true});
 }
 
 // --------------------------------------------------------------------------
-// multi-pass: basic sliding-window semantics
+// multi-pass tests II – common edge cases
 // --------------------------------------------------------------------------
 
-TEST(adjacent_mp, N2)
+TEST(adjacent_mp, mutate)
 {
-    auto ra = std::ref(ints) | radr::adjacent<2>;
+    std::vector<int> v{1, 2, 3, 4};
+    auto             ra = std::ref(v) | radr::adjacent<2>;
+
+    for (auto && [a, b] : ra)
+        a += 10;
+
+    // every element but the last is the 0th element of some window
+    EXPECT_RANGE_EQ(v, (std::vector<int>{11, 12, 13, 4}));
+}
+
+TEST(adjacent_mp, empty)
+{
+    std::vector<int> v{};
+    auto             ra = std::ref(v) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, (std::vector<std::tuple<int, int>>{}));
+    EXPECT_EQ(std::ranges::size(ra), 0u);
+    EXPECT_TRUE(ra.begin() == ra.end());
+}
+
+TEST(adjacent_mp, constant)
+{
+    auto ra = std::cref(vec) | radr::adjacent<2>;
 
     EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_EQ(std::ranges::size(ra), 4u);
+    // std::cref -> constant range, hence .mut == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .constant = true, .borrowed = true});
+    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
+}
+
+TEST(adjacent_mp, infinite)
+{
+    auto ra = radr::iota(0) | radr::adjacent<2>;
+
+    std::vector<std::tuple<int, int>> const head{
+      {0, 1},
+      {1, 2},
+      {2, 3}
+    };
+    EXPECT_RANGE_EQ(ra | radr::take(3), head);
+
+    // unbounded: .sized == false and .common == false; radr::iota is a constant range, hence .mut == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .infinite = true, .constant = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, fwd_uncommon)
+{
+    auto ra = std::ref(flst) | radr::filter(not_three) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, filtered_pairs);
+    // std::forward_list | filter: .common == false (filter) and not sized;
+    // radr::filter is a constant range, hence .mut == false
+    radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, bidi_uncommon)
+{
+    auto ra = std::ref(vec) | radr::filter(not_three) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra, filtered_pairs);
+    // std::vector | filter: bidi but .common == false (the bidi+common branch does not apply) and not sized;
+    // radr::filter is a constant range, hence .mut == false
+    radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .constant = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, ra_nonsized)
+{
+    auto ra = std::ref(vec) | radr::take_while([](int i) { return i < 4; }) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::tuple<int, int>>{
+                      {1, 2},
+                      {2, 3}
+    }));
+    // std::vector | take_while: random-access, but .sized == false and .common == false
+    radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .mut = true, .borrowed = true});
+}
+
+TEST(adjacent_mp, contig_nonsized)
+{
+    auto ra = std::ref(deq) | radr::take_while([](int i) { return i < 4; }) | radr::adjacent<2>;
+
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::tuple<int, int>>{
+                      {1, 2},
+                      {2, 3}
+    }));
+    // std::deque | take_while: random-access, but .sized == false and .common == false
+    radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .mut = true, .borrowed = true});
+}
+
+// --------------------------------------------------------------------------
+// multi-pass tests III – adaptor-specific tests
+// --------------------------------------------------------------------------
+
+TEST(adjacent_mp, N1)
+{
+    // N == 1 yields 1-tuples of every element
+    auto ra = std::ref(vec) | radr::adjacent<1>;
+
+    EXPECT_RANGE_EQ(ra, (std::vector<std::tuple<int>>{{1}, {2}, {3}, {4}, {5}}));
+    EXPECT_EQ(std::ranges::size(ra), 5u);
 }
 
 TEST(adjacent_mp, N3)
 {
-    auto ra = std::ref(ints) | radr::adjacent<3>;
+    auto ra = std::ref(vec) | radr::adjacent<3>;
 
     EXPECT_RANGE_EQ(ra, triples);
     EXPECT_EQ(std::ranges::size(ra), 3u);
-}
-
-TEST(adjacent_mp, N1)
-{
-    // N == 1 is legal and yields 1-tuples of every element
-    auto ra = std::ref(ints) | radr::adjacent<1>;
-
-    std::vector<std::tuple<int>> const comp{{1}, {2}, {3}, {4}, {5}};
-
-    EXPECT_RANGE_EQ(ra, comp);
-    EXPECT_EQ(std::ranges::size(ra), 5u);
+    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int &, int &, int &>));
 }
 
 TEST(adjacent_mp, N_equals_size)
 {
-    auto ra = std::ref(ints) | radr::adjacent<5>;
+    auto ra = std::ref(vec) | radr::adjacent<5>;
 
     EXPECT_EQ(std::ranges::size(ra), 1u);
 
@@ -123,202 +298,57 @@ TEST(adjacent_mp, N_equals_size)
 
 TEST(adjacent_mp, N_larger_than_size)
 {
-    auto ra = std::ref(ints) | radr::adjacent<6>;
+    auto ra = std::ref(vec) | radr::adjacent<6>;
 
     EXPECT_EQ(std::ranges::size(ra), 0u);
-    EXPECT_TRUE(ra.begin() == ra.end());
     EXPECT_TRUE(std::ranges::empty(ra));
-}
-
-TEST(adjacent_mp, N_much_larger_than_size)
-{
-    auto ra = std::ref(ints) | radr::adjacent<100>;
-
-    EXPECT_EQ(std::ranges::size(ra), 0u);
     EXPECT_TRUE(ra.begin() == ra.end());
 }
 
-TEST(adjacent_mp, empty_range)
+TEST(adjacent_mp, N_larger_than_size_forward)
 {
-    std::vector<int> v{};
+    // non-random-access path: emptiness is detected via the last array element
+    auto ra = std::ref(flst) | radr::adjacent<9>;
+
+    EXPECT_TRUE(ra.begin() == ra.end());
+}
+
+TEST(adjacent_mp, windows_alias_the_same_elements)
+{
+    std::vector<int> v{1, 2, 3};
     auto             ra = std::ref(v) | radr::adjacent<2>;
 
-    EXPECT_EQ(std::ranges::size(ra), 0u);
-    EXPECT_TRUE(ra.begin() == ra.end());
+    auto it          = ra.begin();
+    std::get<1>(*it) = 42; // v[1]
+    ++it;
+    EXPECT_EQ(std::get<0>(*it), 42); // ...also the 0th element of the next window
+    EXPECT_EQ(v[1], 42);
 }
-
-TEST(adjacent_mp, strings)
-{
-    auto ra = std::ref(strs) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, str_pairs);
-}
-
-TEST(adjacent_mp, rvalue_container)
-{
-    // rvalue → owning_rad
-    auto ra = std::vector<int>{1, 2, 3, 4, 5} | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_FALSE((std::ranges::borrowed_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::random_access_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::common_range<decltype(ra)>));
-}
-
-// --------------------------------------------------------------------------
-// value and reference types
-// --------------------------------------------------------------------------
 
 TEST(adjacent_mp, value_and_reference_types)
 {
-    auto ra = std::ref(ints) | radr::adjacent<2>;
+    auto ra = std::ref(vec) | radr::adjacent<2>;
 
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int &, int &>));
     EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(ra)>, (std::tuple<int, int>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
 }
 
-TEST(adjacent_mp, value_and_reference_types_N3)
-{
-    auto ra = std::ref(strs) | radr::adjacent<3>;
-
-    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>,
-                     (std::tuple<std::string &, std::string &, std::string &>));
-    EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(ra)>, (std::tuple<std::string, std::string, std::string>));
-}
-
-TEST(adjacent_mp, const_range_yields_const_refs)
-{
-    auto const ra = std::ref(ints) | radr::adjacent<2>;
-
-    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
-}
-
-// --------------------------------------------------------------------------
-// concept preservation
-// --------------------------------------------------------------------------
-
-TEST(adjacent_mp, concepts_vector_ra_sized_common)
-{
-    auto ra = std::ref(ints) | radr::adjacent<2>;
-
-    EXPECT_TRUE((std::ranges::random_access_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-    EXPECT_TRUE((radr::mutable_range<decltype(ra)>));
-    EXPECT_FALSE((radr::constant_range<decltype(ra)>));
-}
-
-TEST(adjacent_mp, concepts_deque_ra_sized_common)
-{
-    std::deque<int> d{1, 2, 3, 4, 5};
-    auto            ra = std::ref(d) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_TRUE((std::ranges::random_access_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-}
-
-TEST(adjacent_mp, concepts_list_bidi_sized_common)
-{
-    // list: bidi + sized + common → categories capped at bidi, common preserved
-    std::list<int> l{1, 2, 3, 4, 5};
-    auto           ra = std::ref(l) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_TRUE((std::ranges::bidirectional_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::random_access_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-}
-
-TEST(adjacent_mp, concepts_forward_list_fwd_unsized)
-{
-    // forward_list: forward + common, but not sized and not bidi
-    // → the end cannot be computed cheaply, so common_range is lost
-    std::forward_list<int> fl{1, 2, 3, 4, 5};
-    auto                   ra = std::ref(fl) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_TRUE((std::ranges::forward_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::bidirectional_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-}
-
-TEST(adjacent_mp, forward_list_shorter_than_N)
-{
-    // the "all other cases" branch has to detect emptiness via the sentinel
-    std::forward_list<int> fl{1, 2};
-    auto                   ra = std::ref(fl) | radr::adjacent<3>;
-
-    EXPECT_TRUE(ra.begin() == ra.end());
-}
-
-TEST(adjacent_mp, concepts_string_view_constant)
-{
-    // string_view is borrowed already and constant
-    std::string_view sv{"abcd"};
-    auto             ra = sv | radr::adjacent<2>;
-
-    EXPECT_TRUE((std::ranges::random_access_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-    EXPECT_TRUE((radr::constant_range<decltype(ra)>));
-
-    std::vector<std::tuple<char, char>> const comp{
-      {'a', 'b'},
-      {'b', 'c'},
-      {'c', 'd'}
-    };
-    EXPECT_RANGE_EQ(ra, comp);
-}
-
-TEST(adjacent_mp, concepts_infinite)
-{
-    auto ra = radr::iota(0) | radr::adjacent<2>;
-
-    EXPECT_TRUE((radr::infinite_mp_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::sized_range<decltype(ra)>));
-    EXPECT_FALSE((std::ranges::common_range<decltype(ra)>));
-    EXPECT_TRUE((std::ranges::borrowed_range<decltype(ra)>));
-
-    std::vector<std::tuple<int, int>> const comp{
-      {0, 1},
-      {1, 2},
-      {2, 3}
-    };
-    EXPECT_RANGE_EQ(ra | radr::take(3), comp);
-}
-
-// --------------------------------------------------------------------------
-// iterator operations
-// --------------------------------------------------------------------------
-
 TEST(adjacent_mp, iterator_increment_decrement)
 {
-    auto ra = std::ref(ints) | radr::adjacent<2>;
+    auto ra = std::ref(vec) | radr::adjacent<2>;
     auto it = ra.begin();
 
     EXPECT_EQ(*it, (std::tuple<int, int>{1, 2}));
     ++it;
     EXPECT_EQ(*it, (std::tuple<int, int>{2, 3}));
-    ++it;
-    EXPECT_EQ(*it, (std::tuple<int, int>{3, 4}));
     --it;
-    EXPECT_EQ(*it, (std::tuple<int, int>{2, 3}));
+    EXPECT_EQ(*it, (std::tuple<int, int>{1, 2}));
 }
 
 TEST(adjacent_mp, iterator_random_access)
 {
-    auto ra = std::ref(ints) | radr::adjacent<2>;
+    auto ra = std::ref(vec) | radr::adjacent<2>;
     auto it = ra.begin();
 
     EXPECT_EQ(it[0], (std::tuple<int, int>{1, 2}));
@@ -333,112 +363,26 @@ TEST(adjacent_mp, iterator_random_access)
     EXPECT_TRUE(ra.begin() < ra.end());
 }
 
-TEST(adjacent_mp, sentinel_difference_forward_list)
+TEST(adjacent_mp, string_view_is_borrowed_and_constant)
 {
-    // no sized_sentinel_for → only equality comparison, but iteration must terminate
-    std::forward_list<int> fl{1, 2, 3, 4, 5};
-    auto                   ra = std::ref(fl) | radr::adjacent<2>;
-
-    size_t count = 0;
-    for ([[maybe_unused]] auto && t : ra)
-        ++count;
-
-    EXPECT_EQ(count, 4u);
-}
-
-// --------------------------------------------------------------------------
-// mutation
-// --------------------------------------------------------------------------
-
-TEST(adjacent_mp, mutation_through_adjacent)
-{
-    std::vector<int> v{1, 2, 3, 4};
-    auto             ra = std::ref(v) | radr::adjacent<2>;
-
-    for (auto && [a, b] : ra)
-        a += 10;
-
-    // every element but the last one is the first element of some window
-    EXPECT_EQ(v[0], 11);
-    EXPECT_EQ(v[1], 12);
-    EXPECT_EQ(v[2], 13);
-    EXPECT_EQ(v[3], 4);
-}
-
-TEST(adjacent_mp, windows_alias_the_same_elements)
-{
-    std::vector<int> v{1, 2, 3};
-    auto             ra = std::ref(v) | radr::adjacent<2>;
-
-    auto it          = ra.begin();
-    std::get<1>(*it) = 42; // this is v[1]
-
-    ++it;
-    EXPECT_EQ(std::get<0>(*it), 42); // ... and also the 0th element of the next window
-    EXPECT_EQ(v[1], 42);
-}
-
-TEST(adjacent_mp, const_container_is_constant_range)
-{
-    std::vector<int> const v{1, 2, 3, 4, 5};
-    auto                   ra = std::ref(v) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(ra, pairs);
-    EXPECT_TRUE((radr::constant_range<decltype(ra)>));
-    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
-}
-
-// --------------------------------------------------------------------------
-// combination with other adaptors
-// --------------------------------------------------------------------------
-
-TEST(adjacent_mp, combine_with_elements)
-{
-    auto first  = std::ref(ints) | radr::adjacent<2> | radr::elements<0>;
-    auto second = std::ref(ints) | radr::adjacent<2> | radr::elements<1>;
-
-    EXPECT_RANGE_EQ(first, (std::vector<int>{1, 2, 3, 4}));
-    EXPECT_RANGE_EQ(second, (std::vector<int>{2, 3, 4, 5}));
-}
-
-TEST(adjacent_mp, combine_with_elements_owning)
-{
-    auto first  = auto(ints) | radr::adjacent<2> | radr::elements<0>;
-    auto second = auto(ints) | radr::adjacent<2> | radr::elements<1>;
-
-    EXPECT_RANGE_EQ(first, (std::vector<int>{1, 2, 3, 4}));
-    EXPECT_RANGE_EQ(second, (std::vector<int>{2, 3, 4, 5}));
-}
-
-TEST(adjacent_mp, combine_with_take_pre)
-{
-    auto first = std::ref(ints_list) | radr::take(5) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(first, pairs);
-}
-
-TEST(adjacent_mp, combine_with_take_pre_owning)
-{
-    auto first = auto(ints_list) | radr::take(5) | radr::adjacent<2>;
-
-    EXPECT_RANGE_EQ(first, pairs);
-}
-
-TEST(adjacent_mp, combine_with_take)
-{
-    auto ra = std::ref(ints) | radr::adjacent<2> | radr::take(2);
+    std::string_view sv{"abcd"};
+    auto             ra = sv | radr::adjacent<2>;
 
     EXPECT_RANGE_EQ(ra,
-                    (std::vector<std::tuple<int, int>>{
-                      {1, 2},
-                      {2, 3}
+                    (std::vector<std::tuple<char, char>>{
+                      {'a', 'b'},
+                      {'b', 'c'},
+                      {'c', 'd'}
     }));
+    // contiguous input, but adjacent yields tuples -> .cat is ra; string_view elements are const -> .mut == false
+    radr::test::check_adaptor_concepts<decltype(ra)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .constant = true, .borrowed = true});
 }
 
 TEST(adjacent_mp, adjacent_of_adjacent)
 {
-    // windows of windows; the outer tuples contain the inner ones
-    auto ra = std::ref(ints) | radr::adjacent<2> | radr::adjacent<2>;
+    // windows of windows; outer tuples contain the inner ones
+    auto ra = std::ref(vec) | radr::adjacent<2> | radr::adjacent<2>;
 
     EXPECT_EQ(std::ranges::size(ra), 3u);
 
@@ -449,51 +393,71 @@ TEST(adjacent_mp, adjacent_of_adjacent)
     EXPECT_EQ(std::get<1>(std::get<1>(*it)), 3);
 }
 
+TEST(adjacent_mp, combine_with_elements)
+{
+    auto first  = std::ref(vec) | radr::adjacent<2> | radr::elements<0>;
+    auto second = std::ref(vec) | radr::adjacent<2> | radr::elements<1>;
+
+    EXPECT_RANGE_EQ(first, (std::vector<int>{1, 2, 3, 4}));
+    EXPECT_RANGE_EQ(second, (std::vector<int>{2, 3, 4, 5}));
+}
+
+TEST(adjacent_mp, combine_with_take)
+{
+    auto ra = std::ref(vec) | radr::adjacent<2> | radr::take(2);
+
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::tuple<int, int>>{
+                      {1, 2},
+                      {2, 3}
+    }));
+}
+
 // --------------------------------------------------------------------------
-// copyability
+// multi-pass tests IV – special owning tests
 // --------------------------------------------------------------------------
 
-TEST(adjacent_mp, owning_rad_is_copyable)
+TEST(adjacent_mp, deep_copy)
 {
-    using T = decltype(std::vector<int>{1, 2, 3, 4, 5} | radr::adjacent<2>);
+    using T = decltype(auto{vec} | radr::adjacent<2>);
     T cpy;
     {
-        T own = std::vector<int>{1, 2, 3, 4, 5} | radr::adjacent<2>;
+        T own = auto{vec} | radr::adjacent<2>;
         EXPECT_RANGE_EQ(own, pairs);
         cpy = own;
     }
     EXPECT_RANGE_EQ(cpy, pairs);
 }
 
-// copying an owning_rad rebinds only the first of the N underlying iterators and re-derives the others from it,
-// so the cases below pin down the situations in which those re-derived iterators could go stale
+// copying an owning_rad rebinds only the first of the N underlying iterators and re-derives the
+// rest from it, so the following pin down the situations where those could go stale
 
-TEST(adjacent_mp, owning_rad_is_copyable_N3)
+TEST(adjacent_mp, deep_copy_N3)
 {
-    using T = decltype(std::vector<int>{1, 2, 3, 4, 5} | radr::adjacent<3>);
+    using T = decltype(auto{vec} | radr::adjacent<3>);
     T cpy;
     {
-        T own = std::vector<int>{1, 2, 3, 4, 5} | radr::adjacent<3>;
+        T own = auto{vec} | radr::adjacent<3>;
         cpy   = own;
     }
     EXPECT_RANGE_EQ(cpy, triples);
 }
 
-TEST(adjacent_mp, owning_rad_is_copyable_bidi)
+TEST(adjacent_mp, deep_copy_bidi)
 {
-    // std::list is not random access, so the underlying iterators are rebound/advanced step-wise
-    using T = decltype(std::list<int>{1, 2, 3, 4, 5} | radr::adjacent<3>);
+    // std::list is not random access, so the underlying iterators advance step-wise on re-derive
+    using T = decltype(auto{lst} | radr::adjacent<3>);
     T cpy;
     {
-        T own = std::list<int>{1, 2, 3, 4, 5} | radr::adjacent<3>;
+        T own = auto{lst} | radr::adjacent<3>;
         cpy   = own;
     }
     EXPECT_RANGE_EQ(cpy, triples);
 }
 
-TEST(adjacent_mp, owning_rad_is_copyable_shorter_than_N)
+TEST(adjacent_mp, deep_copy_shorter_than_N)
 {
-    // the range is shorter than N, i.e. the trailing iterators collapse onto the end (gaps of 0)
+    // range shorter than N: the trailing iterators collapse onto the end (gaps of 0)
     using T = decltype(std::vector<int>{1, 2} | radr::adjacent<4>);
     T cpy;
     {
@@ -504,22 +468,9 @@ TEST(adjacent_mp, owning_rad_is_copyable_shorter_than_N)
     EXPECT_EQ(cpy.begin(), cpy.end());
 }
 
-TEST(adjacent_mp, owning_rad_is_copyable_shorter_than_N_bidi)
-{
-    // the range is shorter than N, i.e. the trailing iterators collapse onto the end (gaps of 0)
-    using T = decltype(std::list<int>{1, 2, 3, 4, 5} | radr::take(3) | radr::adjacent<4>);
-    T cpy;
-    {
-        T own = std::list<int>{1, 2, 3, 4, 5} | radr::take(3) | radr::adjacent<4>;
-        cpy   = own;
-    }
-    EXPECT_TRUE(std::ranges::empty(cpy));
-    EXPECT_EQ(cpy.begin(), cpy.end());
-}
-
 TEST(adjacent_mp, borrowing_rad_is_copyable)
 {
-    auto ra1 = std::ref(ints) | radr::adjacent<2>;
+    auto ra1 = std::ref(vec) | radr::adjacent<2>;
     auto ra2 = ra1;
 
     EXPECT_RANGE_EQ(ra1, pairs);

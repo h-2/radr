@@ -11,28 +11,27 @@
  * We are using "foobar" is as a placeholder for the actual adaptor name
  * See the inline `INSTRUCTION` blocks for what to add; you can do this step-by-step.
  *
- * When asked to check "all range concepts", check the following:
- * - std::regular
- * - radr::mp_range
- * - std::ranges::bidirectional_range
- * - std::ranges::random_access_range
- * - std::ranges::contiguous_range
- * - std::ranges::sized_range
- * - radr::infinite_mp_range
- * - radr::common_range
- * - radr::constant_range
- * - radr::mutable_range
+ * When asked to check "all range concepts", call `check_adaptor_concepts` from
+ * `adaptor_template.hpp`.  Only specify concepts that are expected as true
+ * (implicit is always false). If the point of a test is proving that a concept check
+ * would fail, instead add a comment for this.
+ * The documentation at the bottom of the adaptor's header file should explain the expected
+ * values for these. If for any reason, the behaviour you observe is different from the
+ * documentation, IMMEDIATELY ALERT THE PROGRAMMER. If expected values are unclear, also ask.
  *
- * The documentation at the bottom of the adaptor's header file should explain the expected values
- * for these. std::regular and radr::mp_range are always expected for multi-pass adaptors.
+ * NEVER CHANGE LIBRARY CODE WHILE WRITING TESTS, UNLESS EXPLICITLY TOLD SO.
+ *
  * If an adaptor is documented as being "transparent", also check that
  * the radr::iterator_t and radr::const_iterator_t of the adaptor are the same as for the
  * underlying range.
  */
 
-
 #include <gtest/gtest.h>
 #include <radr/test/gtest_helpers.hpp>
+#include <radr/test/adaptor_template.hpp>
+
+// avoid visual clutter
+using radr::test::range_cat;
 
 /* INSTRUCTION: add include for the respective adaptor.
  * The header contains valuable documentation of the adaptor towards the end of the file.
@@ -79,8 +78,8 @@ TEST(foobar_sp, other)
  * specified inputs, add a note the source-code stating this and skip the
  * respective test.
  *
- * for each of the canonical cases, add a second test that uses an
- * rvalue/copy of the input as underlying range
+ * for each of the canonical cases, add a second test that uses an rvalue/copy
+ * of the input as underlying range (use `auto(var)` to make copies).
  */
 
 TEST(foobar_mp, forward)
@@ -115,6 +114,21 @@ TEST(foobar_mp, contig_sized)
 // multi-pass tests II – common edge cases
 // --------------------------------------------------------------------------
 
+TEST(foobar_mp, mutate)
+{
+    // skip if range is never mutable
+    // test with std::ref of std::vector as input
+    // assign through the adaptor and validate results with EXPECT_RANGE_EQ
+    // NO concept tests required here because identical to `contig_sized`
+}
+
+TEST(foobar_mp, empty)
+{
+    // test with std::ref of an empty std::vector as imput
+    // EXPECT_RANGE_EQ with expected results (typically also empty)
+    // NO concept tests required here because identical to `contig_sized`
+}
+
 TEST(foobar_mp, constant)
 {
     // test with std::cref of std::vector as input
@@ -122,17 +136,17 @@ TEST(foobar_mp, constant)
     // check all range concepts on the result
 }
 
-TEST(foobar_mp, empty)
-{
-    // test with std::ref of an empty std::vector as imput
-    // EXPECT_RANGE_EQ with known good results (→ data section)
-    // NO concept tests required here because identical to `contig_sized`
-}
-
 TEST(foobar_mp, infinite)
 {
     // test with unbounded radr::iota or radr::repeat as input
     // check first two elements with known good results
+    // check all range concepts on the result
+}
+
+TEST(foobar_mp, fwd_uncommon)
+{
+    // test with std::ref of std::forward_list | radr::filter as input
+    // EXPECT_RANGE_EQ with known good results (→ data section)
     // check all range concepts on the result
 }
 

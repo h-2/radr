@@ -65,7 +65,7 @@ constexpr std::array<It, N> make_adj_it_array(It it, Sen sen)
 template <size_t, typename T>
 using pack_helper = T;
 
-template <typename UIt, size_t N>
+template <size_t N, typename UIt>
 constexpr auto make_adj_it(std::array<UIt, N> const & arr)
 {
     return [&arr]<size_t... Is>(std::index_sequence<Is...>)
@@ -175,12 +175,28 @@ inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(U
         {
             return std::tuple{beg + s, cbeg + s};
         }
-        /* common */
+        /* bidi + common */
         else if constexpr (std::ranges::bidirectional_range<URange> && common_range<URange>)
         {
             return std::tuple{
               make_adj_it<N>(std::ranges::prev(radr::end(urange), N - 1, radr::begin(urange)), radr::end(urange)),
               make_adj_it<N>(std::ranges::prev(radr::cend(urange), N - 1, radr::cbegin(urange)), radr::cend(urange))};
+        }
+        /* uni + common */
+        else if constexpr (common_range<URange>)
+        {
+            /* we don't have operator--, so all elements are set to the end.
+             * → The first entries of the arr are "incorrect".
+             * To still achieve correct behaviour, the comparison in zip_rng uses the
+             * last element for unidirectional iterators. See get_element_for_compare.
+             */
+            std::array<iterator_t<URange>, N> arr;
+            arr.fill(radr::end(urange));
+
+            std::array<const_iterator_t<URange>, N> carr;
+            carr.fill(radr::cend(urange));
+
+            return std::tuple{make_adj_it<N>(arr), make_adj_it<N>(carr)};
         }
         /* all other cases */
         else
@@ -215,7 +231,7 @@ inline namespace cpo
  *   * categories up to std::ranges::random_access_range
  *   * std::ranges::borrowed_range
  *   * std::ranges::sized_range
- *   * radr::common_range (only if also bidirectional)
+ *   * radr::common_range
  *   * radr::constant_range
  *   * radr::mutable_range
  *

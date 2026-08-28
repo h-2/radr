@@ -146,9 +146,28 @@ class zip_iterator
 
     auto & get_element_for_compare() const
     {
-        // only need to compare 0-th element
-        if constexpr (kind == zip_iterator_kind::enumerate || kind == zip_iterator_kind::adjacent)
+        /* enumerate: only compare the 0-th element (the counter!) */
+        if constexpr (kind == zip_iterator_kind::enumerate)
             return std::get<0>(current);
+        /* adjacent
+         * all N iterators move in lockstep, so it suffices to compare one of them
+         *
+         * std::adjacent_view compares the last, but benchmarks have shown it to be
+         * favourable to compare the first, especially for RA+sized ranges and N > 4,
+         * so that's what we do by default.
+         *
+         * There is one exception: for uni-directional+common ranges, the sentinel is
+         * initialised as an array{end, end, end} (because we don't have operator--
+         * to decrement the first entries).
+         * In this case, we need to compare the last element.
+         */
+        else if constexpr (kind == zip_iterator_kind::adjacent)
+        {
+            if constexpr (is_bidi)
+                return std::get<0>(current);
+            else
+                return current.back();
+        }
         else
             return current; // compare everything by default
     }

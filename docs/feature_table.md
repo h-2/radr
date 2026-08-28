@@ -2,14 +2,16 @@
 
 **Range adaptor objects:**
 
-| Range adaptor              | $O(n)$ constr  | min cat | max cat  | sized | common    | Remarks                                  |
+| Range adaptor              | $O(n)$ constr  | min cat | max cat  | sized | common (if) | Remarks                                  |
 |----------------------------|:--------------:|---------|----------|:-----:|:---------:|------------------------------------------|
 | `radr::all`                |                | input   | contig   |  =    |  =        |                                          |
+| `radr::adjacent<N>`        |                | fwd     | ra       |  =    |  =        |                                          |
 | `radr::as_const`           |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
 | `radr::as_rvalue`          |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
 | `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
 | `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
 | `radr::elements<I>`        |                | input   | ra       |  =    |  =        |                                          |
+| `radr::enumerate`          |                | fwd     | ra       |  =    |  sized    |                                          |
 | `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
 | `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
 | `radr::keys`               |                | input   | ra       |  =    |  =        |                                          |
