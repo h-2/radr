@@ -84,10 +84,10 @@ public:
     /*!\name Associated types
      * \{
      */
-    using split_rad_iterator_concept  = std::forward_iterator_tag;
-    using split_rad_iterator_category = std::input_iterator_tag;
-    using value_type                  = subborrow_t<Borrow, UIt, UIt>;
-    using difference_type             = std::ranges::range_difference_t<value_type>;
+    using iterator_concept  = std::forward_iterator_tag;
+    using iterator_category = std::input_iterator_tag;
+    using value_type        = subborrow_t<Borrow, UIt, UIt>;
+    using difference_type   = std::ranges::range_difference_t<value_type>;
     //!\}
 
     /*!\name Constructors, destructor and assignments.

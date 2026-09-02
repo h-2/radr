@@ -1,4 +1,6 @@
+#include <deque>
 #include <forward_list>
+#include <functional>
 #include <list>
 #include <ranges>
 #include <vector>
@@ -9,10 +11,14 @@
 #include <radr/test/gtest_helpers.hpp>
 
 #include <radr/concepts.hpp>
+#include <radr/rad/chunk.hpp>
+#include <radr/rad/chunk_by.hpp>
 #include <radr/rad/drop.hpp>
 #include <radr/rad/filter.hpp>
 #include <radr/rad/join.hpp>
+#include <radr/rad/lazy_chunk.hpp>
 #include <radr/rad/take.hpp>
+#include <radr/rad/take_while.hpp>
 #include <radr/rad/transform.hpp>
 #include <radr/version.hpp>
 
@@ -318,6 +324,264 @@ TEST(iterator_size, join_bidi)
         EXPECT_EQ(sizeof(v.begin()), 48);
         EXPECT_EQ(sizeof(v.end()), 48);
     }
+}
+
+TEST(iterator_size, chunk_by_unidi)
+{
+    std::forward_list<int> vec{};
+
+#ifdef __cpp_lib_ranges_chunk_by
+    {
+        auto v = vec | std::views::chunk_by(std::equal_to<>{});
+#    ifdef _LIBCPP_VERSION
+        EXPECT_EQ(sizeof(v), 24); // libc++ does not pad the view
+#    else
+        EXPECT_EQ(sizeof(v), 32);
+#    endif
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 24);
+    }
+#endif
+
+    auto v = std::ref(vec) | radr::chunk_by(std::equal_to<>{});
+    EXPECT_EQ(sizeof(v), 24);
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 1); // un-common, so we save empty sentinel
+}
+
+TEST(iterator_size, chunk_by_bidi)
+{
+    std::vector<int> vec{};
+
+#ifdef __cpp_lib_ranges_chunk_by
+    {
+        // std::views::chunk_by has no size/capabilities split, and no separate random-access
+        // implementation either (its boundaries are content-dependent, same reasoning as
+        // radr::chunk_by never getting one) -- these are the same numbers as the chunk_by test above.
+        auto v = vec | std::views::chunk_by(std::equal_to<>{});
+        EXPECT_EQ(sizeof(v), 24);
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 24);
+    }
+#endif
+
+    // common, so begin and end are the same type and the range is just the two of them
+    auto v = std::ref(vec) | radr::chunk_by(std::equal_to<>{});
+    EXPECT_EQ(sizeof(v), 64);
+    EXPECT_EQ(sizeof(v.begin()), 32);
+    EXPECT_EQ(sizeof(v.end()), 32);
+}
+
+TEST(iterator_size, chunk_unidi)
+{
+    std::forward_list<int> vec{};
+
+#ifdef __cpp_lib_ranges_chunk
+    {
+        auto v = vec | std::views::chunk(2);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 32);
+        EXPECT_EQ(sizeof(v.end()), 32);
+    }
+#endif
+
+    auto v = std::ref(vec) | radr::chunk(2);
+    EXPECT_EQ(sizeof(v), 32);
+    EXPECT_EQ(sizeof(v.begin()), 32);
+    EXPECT_EQ(sizeof(v.end()), 1); // un-common, so we save empty sentinel
+}
+
+TEST(iterator_size, chunk_bidi_common)
+{
+    std::list<int> l{};
+
+#ifdef __cpp_lib_ranges_chunk
+    {
+        // std::views::chunk has no size/capabilities split -- this is the same view template as in
+        // the chunk test above, just with a bidirectional, non-random-access base.
+        auto v = l | std::views::chunk(2);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 32);
+        EXPECT_EQ(sizeof(v.end()), 32);
+    }
+#endif
+
+    // common, so begin and end are the same type; the range is the two of them plus 8 for the size
+    auto v = std::ref(l) | radr::chunk(2);
+    EXPECT_EQ(sizeof(v), 88);
+    EXPECT_EQ(sizeof(v.begin()), 40);
+    EXPECT_EQ(sizeof(v.end()), 40);
+}
+
+// ra_chunk_like_iterator stores one underlying iterator plus three cheap integers, instead of
+// bidi_chunk_like_iterator's two-or-more full (and for std::deque specifically, "fat") iterators.
+TEST(iterator_size, chunk_ra_sized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+#ifdef __cpp_lib_ranges_chunk
+    {
+        // std::views::chunk's outer iterator doesn't get any smaller for a random-access base either
+        // -- it always caches begin/end/n unconditionally, unlike radr::chunk's dedicated
+        // ra_chunk_like_iterator, which is exactly the point of the latter's existence.
+        auto v = vec | std::views::chunk(2);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 32);
+        EXPECT_EQ(sizeof(v.end()), 32);
+
+        auto d = deq | std::views::chunk(2);
+        EXPECT_EQ(sizeof(d), 16);
+        EXPECT_EQ(sizeof(d.begin()), 80);
+        EXPECT_EQ(sizeof(d.end()), 80);
+    }
+#endif
+
+    auto v = std::ref(vec) | radr::chunk(2);
+    EXPECT_EQ(sizeof(v), 64);
+    EXPECT_EQ(sizeof(v.begin()), 32);
+    EXPECT_EQ(sizeof(v.end()), 32);
+
+    /* ra_chunk_like_iterator is one underlying iterator plus three integers, so the deque numbers
+     * follow the deque iterator, which is 32 bytes in libstdc++ and 16 in libc++. */
+    auto d = std::ref(deq) | radr::chunk(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 80);
+    EXPECT_EQ(sizeof(d.begin()), 40);
+    EXPECT_EQ(sizeof(d.end()), 40);
+#else
+    EXPECT_EQ(sizeof(d), 112);
+    EXPECT_EQ(sizeof(d.begin()), 56);
+    EXPECT_EQ(sizeof(d.end()), 56);
+#endif
+}
+
+TEST(iterator_size, chunk_ra_unsized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+    constexpr auto p = [](auto &&)
+    {
+        return true;
+    };
+
+#ifdef __cpp_lib_ranges_chunk
+    {
+        auto v = vec | std::views::take_while(p) | std::views::chunk(2);
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(v.begin()), 40);
+        EXPECT_EQ(sizeof(v.end()), 1);
+
+        auto d = deq | std::views::take_while(p) | std::views::chunk(2);
+        EXPECT_EQ(sizeof(d), 16);
+        EXPECT_EQ(sizeof(d.begin()), 88);
+        EXPECT_EQ(sizeof(d.end()), 1);
+    }
+#endif
+
+    auto v = std::ref(vec) | radr::take_while(p) | radr::chunk(2);
+    EXPECT_EQ(sizeof(v), 32);
+    EXPECT_EQ(sizeof(v.begin()), 32);
+    EXPECT_EQ(sizeof(v.end()), 1);
+
+    // unidi_chunk_like_iterator stores three deque iterators (underlying end, chunk begin, chunk end)
+    auto d = std::ref(deq) | radr::take_while(p) | radr::chunk(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 56);
+    EXPECT_EQ(sizeof(d.begin()), 56);
+#else
+    EXPECT_EQ(sizeof(d), 104);
+    EXPECT_EQ(sizeof(d.begin()), 104);
+#endif
+    EXPECT_EQ(sizeof(d.end()), 1);
+}
+
+/* lazy_chunk_like_iterator stores the underlying end, the current chunk's begin and n -- it never
+ * computes the chunk's end, so compared to unidi_chunk_like_iterator (which also stores that end) it
+ * saves one underlying iterator, and compared to bidi_chunk_like_iterator it saves two.
+ *
+ * Against ra_chunk_like_iterator (one iterator plus three integers) the comparison flips as soon as
+ * the underlying iterator gets fat: see the deque numbers below. */
+
+TEST(iterator_size, lazy_chunk_unidi)
+{
+    std::forward_list<int> vec{};
+
+    // std::views::chunk is the closest equivalent; see chunk_unidi above for its numbers
+    auto v = std::ref(vec) | radr::lazy_chunk(2);
+    EXPECT_EQ(sizeof(v), 24); // un-sized, so no size stored either
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 1); // un-common, so we save empty sentinel
+
+    // radr::chunk is 32 here: unidi_chunk_like_iterator stores the chunk's end on top of that
+}
+
+TEST(iterator_size, lazy_chunk_bidi_common)
+{
+    std::list<int> l{};
+
+    auto v = std::ref(l) | radr::lazy_chunk(2);
+    EXPECT_EQ(sizeof(v), 32); // + 8 for size
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 1);
+
+    // radr::chunk is 88/40/40 here, because it uses bidi_chunk_like_iterator and becomes common
+}
+
+TEST(iterator_size, lazy_chunk_ra_sized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+    auto v = std::ref(vec) | radr::lazy_chunk(2);
+    EXPECT_EQ(sizeof(v), 32); // + 8 for size
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 1);
+
+    // radr::chunk is 64/32/32 here, i.e. its iterator is bigger and it stores two of them
+
+    /* Two deque iterators plus n, so these numbers follow the deque iterator: 32 bytes in libstdc++,
+     * 16 in libc++. Note that this iterator is *bigger* than radr::chunk's ra_chunk_like_iterator
+     * under libstdc++ (72 vs 56), and the same size under libc++ (40 vs 40). */
+    auto d = std::ref(deq) | radr::lazy_chunk(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 48);
+    EXPECT_EQ(sizeof(d.begin()), 40);
+#else
+    EXPECT_EQ(sizeof(d), 80);
+    EXPECT_EQ(sizeof(d.begin()), 72);
+#endif
+    EXPECT_EQ(sizeof(d.end()), 1);
+}
+
+TEST(iterator_size, lazy_chunk_ra_unsized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+    constexpr auto p = [](auto &&)
+    {
+        return true;
+    };
+
+    auto v = std::ref(vec) | radr::take_while(p) | radr::lazy_chunk(2);
+    EXPECT_EQ(sizeof(v), 24);
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 1);
+
+    // radr::chunk is 32/32/1 here; std::views::chunk 16/40/1 (see chunk_ra_unsized above)
+
+    // here radr::chunk is the bigger one on both implementations (104 vs 72, and 56 vs 40)
+    auto d = std::ref(deq) | radr::take_while(p) | radr::lazy_chunk(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 40);
+    EXPECT_EQ(sizeof(d.begin()), 40);
+#else
+    EXPECT_EQ(sizeof(d), 72);
+    EXPECT_EQ(sizeof(d.begin()), 72);
+#endif
+    EXPECT_EQ(sizeof(d.end()), 1);
 }
 
 #if RADR_FEATURE_ZIP
