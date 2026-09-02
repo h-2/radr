@@ -417,4 +417,44 @@ struct tuple_element<1, radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp> const>
     using type = CSp;
 };
 
+/*!\brief Teach std::common_reference that "adding const" to a radr::borrowing_rad means switching to its
+ *        const iterator/sentinel pair -- the same thing radr::borrowing_rad::begin() const already does.
+ * \details
+ *
+ * Without this, `common_reference_t<borrowing_rad<...> const&&, borrowing_rad<...>>` (as computed by
+ * `radr::detail::iter_const_reference_t`, see concepts.hpp) falls back to a mechanically const-qualified
+ * *value* type (`borrowing_rad<...> const`), which is never std::same_as the unqualified `borrowing_rad<...>`.
+ * That makes radr::constant_iterator (and therefore radr::constant_range) unsatisfiable for any iterator
+ * that yields a radr::borrowing_rad prvalue -- including one that is already fully const, i.e. whose Iter
+ * already equals CIter. This specialization fixes that case, while still correctly reporting "not constant"
+ * when Iter and CIter actually differ (see the two branches of the conditional below).
+ *
+ * This only applies when both operands share the same borrowing_rad specialization (i.e. differ only in
+ * cvref-qualification, exactly the case iter_const_reference_t produces); combining genuinely different
+ * borrowing_rad instantiations directly is intentionally left unspecialized.
+ */
+template <class Ip,
+          class Sp,
+          class CIp,
+          class CSp,
+          radr::borrowing_rad_kind Kp,
+          template <class>
+          class TQual,
+          template <class>
+          class UQual>
+struct basic_common_reference<radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>,
+                              radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>,
+                              TQual,
+                              UQual>
+{
+    // TQual<X>/UQual<X> reproduce the cvref-qualification the respective operand originally had; probing
+    // with a scalar reveals whether that qualification included `const`.
+    static constexpr bool either_const =
+      std::is_const_v<std::remove_reference_t<TQual<int>>> || std::is_const_v<std::remove_reference_t<UQual<int>>>;
+
+    using type = std::conditional_t<either_const,
+                                    radr::borrowing_rad<CIp, CSp, CIp, CSp, Kp>,
+                                    radr::borrowing_rad<Ip, Sp, CIp, CSp, Kp>>;
+};
+
 } // namespace std

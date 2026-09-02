@@ -9,10 +9,10 @@ The latter will likely change at some point.
 | Standard    | adaptors |factories | Comment                    |
 |-------------|---------:|---------:|----------------------------|
 | C++20       | 14/15    |   5/5    | `lazy_split` not planned   |
-| C++23       |  6/13    |   1/1    |                            |
+| C++23       |  8/15    |   1/1    |                            |
 | C++26       |  1/03    |   1/1    |                            |
 | C++29       |  1/??    |   ??     |                            |
-| extra       |     1    |          |                            |
+| extra       |     2    |          |                            |
 
 See below for details. Note that the numbers for C++29 are not yet final.
 
@@ -39,6 +39,8 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::adjacent<N>`       | **C++23** | | `std::views::adjacent`         | **C++23** |                                          |
 | `radr::as_const`          | C++20     | | `std::views::as_const`         | **C++23** | make the range *and* its elements const  |
 | `radr::as_rvalue`         | C++20     | | `std::views::as_rvalue`        | **C++23** | *returns only input ranges in C++20      |
+| `radr::chunk(n)`          | C++20     | | `std::views::chunk`            | **C++23** |                                          |
+| `radr::chunk_by(pred)`    | C++20     | | `std::views::chunk_by`         | **C++23** |                                          |
 | `radr::drop(n)`           | C++20     | | `std::views::drop`             | C++20     |                                          |
 | `radr::drop_while(fn)`    | C++20     | | `std::views::drop_while`       | C++20     |                                          |
 | `radr::elements<I>`       | C++20     | | `std::views::elements`         | C++20     |                                          |
@@ -46,6 +48,7 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::filter(fn)`        | C++20     | | `std::views::filter`           | C++20     |                                          |
 | `radr::join`              | C++20     | | `std::views::join`             | C++20     |                                          |
 | `radr::keys`              | C++20     | | `std::views::keys`             | C++20     |                                          |
+| `radr::lazy_chunk(n)`     | C++20     | | *not available*                |           | faster `radr::chunk`, weaker range types |
 | `radr::pairwise`          | **C++23** | | `std::views::pairwise`         | **C++23** |                                          |
 | `radr::reverse`           | C++20     | | `std::views::reverse`          | C++20     |                                          |
 | `radr::slice(m, n)`       | C++20     | | *not yet available*            |           | get subrange between m and n             |
@@ -63,7 +66,7 @@ We plan to add equivalent objects for all standard library adaptors.
 In this library, everything that "you can pipe into", is called an *adaptor*; everything else is called a *factory* (can only be at beginning of pipeline).
 This is different from the somewhat arbitrary use of the words in the standard.
 
-[^diff]: These range adaptors have relevant differences between `std::` and `radr::`. Usually the names have been chosen differently to highlight this.
+[^diff]: These range adaptors have relevant differences between `std::` and `radr::`. The names have been chosen differently to highlight this.
 
 
 ## Range factory objects
