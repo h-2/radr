@@ -65,8 +65,13 @@ struct subborrow_impl_t
                           "No usable constant iterator could be deduced for your range. "
                           "Building in C++23 (or later) mode might fix this.");
 
+            // common
+            if constexpr (std::same_as<Sen, It>)
+            {
+                return borrowing_rad<It, It, ConstIt, ConstIt>{b, e};
+            }
             // RA+sized to common
-            if constexpr (std::random_access_iterator<It> && std::sized_sentinel_for<Sen, It>)
+            else if constexpr (std::random_access_iterator<It> && std::sized_sentinel_for<Sen, It>)
             {
                 return borrowing_rad<It, It, ConstIt, ConstIt>{b, b + (e - b)};
             }
@@ -123,8 +128,13 @@ struct subborrow_impl_t
                           "No usable constant iterator could be deduced for your range. "
                           "Building in C++23 (or later) mode might fix this.");
 
+            // common
+            if constexpr (std::same_as<Sen, It>)
+            {
+                return borrowing_rad<It, It, ConstIt, ConstIt, borrowing_rad_kind::sized>{b, e, s};
+            }
             // RA+sized to common
-            if constexpr (std::random_access_iterator<It>)
+            else if constexpr (std::random_access_iterator<It>)
             {
                 (void)e;
                 return borrowing_rad<It, It, ConstIt, ConstIt, borrowing_rad_kind::sized>{b, b + s};
