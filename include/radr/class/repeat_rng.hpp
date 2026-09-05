@@ -192,8 +192,7 @@ public:
 
 } // namespace radr::detail
 
-// GCC < 14 runs into recursive concept checks without this ¯\_(ツ)_/¯
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ < 14
+#if RADR_BUG_GCC_CONCEPT_RECURSION
 template <typename Value, radr::repeat_rng_storage storage>
 struct std::iterator_traits<radr::detail::repeat_iterator<Value, storage>>
 {
