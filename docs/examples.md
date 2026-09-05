@@ -90,7 +90,7 @@ Well-formed ( $O(1)$ ).
 
 ```cpp
 /* capture of lvalue */
-std::vector vec{1, 2, 3};
+std::vector vec{1,2,3};
 auto vue1 = vec | std::views::take(2);
 ```
 
@@ -107,7 +107,7 @@ Well-formed ( $O(1)$ ).
 
 ```cpp
 /* capture of lvalue */
-std::vector vec{1, 2, 3};
+std::vector vec{1,2,3};
 auto rad2 = std::ref(vec) | radr::take(2);
 ```
 
@@ -140,10 +140,10 @@ Well-formed ( $O(1)$ ).
 
 ```cpp
 /* create adaptor on temporary */
-auto vue0 = std::vector{1, 2, 3} | std::views::take(2);
+auto vue0 = std::vector{1,2,3} | std::views::take(2);
 
 /* move existing */
-std::vector vec{1, 2, 3};
+std::vector vec{1,2,3};
 auto vue1 = std::move(vec) | std::views::take(2);
 ```
 
@@ -161,10 +161,10 @@ Ill-formed, owning views are not copyable.
 
 ```cpp
 /* create adaptor on temporary */
-auto rad0 = std::vector{1, 2, 3} | radr::take(2);
+auto rad0 = std::vector{1,2,3} | radr::take(2);
 
 /* move existing */
-std::vector vec{1, 2, 3};
+std::vector vec{1,2,3};
 auto rad1 = std::move(vec) | radr::take(2);
 ```
 
@@ -388,7 +388,7 @@ void print(auto const & r)
 
 ```cpp
 std::vector vec{'f','o','o'};
-auto v = vec | radr::take(2);
+auto v = std::ref(vec) | radr::take(2);
 print(v);
 ```
 
@@ -396,7 +396,7 @@ Well-formed.
 
 ```cpp
 std::vector vec{'f','o','o'};
-auto v = vec | radr::transform(/**/);
+auto v = std::ref(vec) | radr::transform(/**/);
 print(v);
 ```
 
@@ -404,7 +404,7 @@ Well-formed.
 
 ```cpp
 std::vector vec{'f','o','o'};
-auto v = vec | radr::filter(/**/);
+auto v = std::ref(vec) | radr::filter(/**/);
 print(v);
 ```
 
@@ -539,7 +539,7 @@ Undefined behaviour 💣
 std::vector vec{1,2,2,3}
 auto is_even = /**/;
 
-auto rad = vec | radr::filter(is_even);
+auto rad = std::ref(vec) | radr::filter(is_even);
 auto b = vue.begin(); // on first '2'
 // *b = 1;
 ```
@@ -590,7 +590,9 @@ auto plusCount = [count=0] (int i) mutable
   return i + count++;
 };
 
-// auto rad = std::ref(vec) | radr::transform(plusCount);
+// auto rad = std::ref(vec)
+//          | radr::transform(plusCount);
+//
 ```
 
 Mutable function object is rejected; no undefined behaviour.[^multipass]
