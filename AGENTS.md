@@ -49,6 +49,7 @@ ctest
 **You should never:**
   * Perform modifying git operations, like commits or rebases.
   * Modify or create anything in the `docs` folders (except updating `implementation_status.md`). Documentation is reserved for humans.
+  * Directly perform modifying operations on the GitHub, i.e. never push to GitHub, never open PRs, never reply to issues or discussions.
 
 **You should ask:**
   * If user instructions are vague or contradictory (in themselves or in combination with this file).
