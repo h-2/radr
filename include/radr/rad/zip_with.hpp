@@ -37,7 +37,8 @@ inline constexpr auto zip_with_borrow =
                   "radr::to_single_pass.\n"
                   "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?");
 
-    return zip_with_borrow_impl<zip_iterator_kind::adaptor>(radr::borrow(std::forward<URange>(urange)),
+    return zip_with_borrow_impl<zip_iterator_kind::adaptor>(zip_deref{},
+                                                            radr::borrow(std::forward<URange>(urange)),
                                                             radr::borrow(std::forward<OtherRanges>(others))...);
 };
 

@@ -80,6 +80,7 @@ inline constexpr auto zip = []<typename... Ranges>(Ranges &&... ranges)
     {
         // return plain adaptor if all inputs are borrowed
         return detail::zip_with_borrow_impl<detail::zip_iterator_kind::adaptor>(
+          detail::zip_deref{},
           borrow(std::forward<Ranges>(ranges))...);
     }
     else if constexpr (((mp_range<Ranges> || ref_wrapped_mp_range<Ranges>)&&...))

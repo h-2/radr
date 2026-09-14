@@ -56,8 +56,10 @@ private:
                   "If all argument to zip_rng are borrowed, use radr::borrowed_rad instead.");
 
 public:
-    using iterator       = detail::zip_iterator<detail::zip_iterator_kind::container, iterator_t<URanges>...>;
-    using const_iterator = detail::zip_iterator<detail::zip_iterator_kind::container, const_iterator_t<URanges>...>;
+    using iterator =
+      detail::zip_iterator<detail::zip_iterator_kind::container, detail::zip_deref, iterator_t<URanges>...>;
+    using const_iterator =
+      detail::zip_iterator<detail::zip_iterator_kind::container, detail::zip_deref, const_iterator_t<URanges>...>;
 
 private:
     static constexpr bool is_ra_sized =

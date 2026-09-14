@@ -24,10 +24,10 @@ namespace radr::detail
 {
 
 template <zip_iterator_kind k>
-inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&... rngs)
+inline constexpr auto zip_with_borrow_impl = []<typename Deref, typename... URanges>(Deref deref, URanges &&... rngs)
 {
-    auto beg  = make_zip_it<k>(radr::begin(rngs)...);
-    auto cbeg = make_zip_it<k>(radr::cbegin(rngs)...);
+    auto beg  = make_zip_it_with<k>(deref, radr::begin(rngs)...);
+    auto cbeg = make_zip_it_with<k>(deref, radr::cbegin(rngs)...);
 
     auto const min_size = min_range_size(rngs...);
 
@@ -48,8 +48,8 @@ inline constexpr auto zip_with_borrow_impl = []<typename... URanges>(URanges &&.
     else if constexpr ((common_range<URanges> && ...) &&
                        (sizeof...(URanges) == 1 || !(std::ranges::bidirectional_range<URanges> && ...)))
     {
-        auto end  = make_zip_it<k>(radr::end(rngs)...);
-        auto cend = make_zip_it<k>(radr::cend(rngs)...);
+        auto end  = make_zip_it_with<k>(deref, radr::end(rngs)...);
+        auto cend = make_zip_it_with<k>(deref, radr::cend(rngs)...);
 
         return borrowing_rad{beg, end, cbeg, cend, min_size};
     }

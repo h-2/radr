@@ -45,26 +45,26 @@ public:
       : end{std::move(other.end)}
     {}
 
-    template <typename IotaIt>
-    friend constexpr bool operator==(zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & lhs,
-                                     enumerate_sentinel const &                                      rhs)
+    template <typename Deref, typename IotaIt>
+    friend constexpr bool operator==(zip_iterator<zip_iterator_kind::enumerate, Deref, IotaIt, UIt> const & lhs,
+                                     enumerate_sentinel const &                                             rhs)
     {
         return std::get<1>(lhs.current) == rhs.end;
     }
 
-    template <typename IotaIt>
+    template <typename Deref, typename IotaIt>
     friend constexpr std::iter_difference_t<UIt> operator-(
-      zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & lhs,
-      enumerate_sentinel const &                                      rhs)
+      zip_iterator<zip_iterator_kind::enumerate, Deref, IotaIt, UIt> const & lhs,
+      enumerate_sentinel const &                                             rhs)
         requires std::sized_sentinel_for<USen, UIt>
     {
         return std::get<1>(lhs.current) - rhs.end;
     }
 
-    template <typename IotaIt>
+    template <typename Deref, typename IotaIt>
     friend constexpr std::iter_difference_t<UIt> operator-(
-      enumerate_sentinel const &                                      lhs,
-      zip_iterator<zip_iterator_kind::enumerate, IotaIt, UIt> const & rhs)
+      enumerate_sentinel const &                                             lhs,
+      zip_iterator<zip_iterator_kind::enumerate, Deref, IotaIt, UIt> const & rhs)
         requires std::sized_sentinel_for<USen, UIt>
     {
         return -(rhs - lhs);
