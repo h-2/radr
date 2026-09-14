@@ -59,19 +59,19 @@ constexpr std::array<It, N> make_adj_it_array(It it, Sen sen)
 template <size_t, typename T>
 using pack_helper = T;
 
-template <size_t N, typename UIt>
-constexpr auto make_adj_it(std::array<UIt, N> const & arr)
+template <size_t N, typename Deref, typename UIt>
+constexpr auto make_adj_it(Deref deref, std::array<UIt, N> const & arr)
 {
-    return [&arr]<size_t... Is>(std::index_sequence<Is...>)
+    return [&]<size_t... Is>(std::index_sequence<Is...>)
     {
-        return zip_iterator<zip_iterator_kind::adjacent, pack_helper<Is, UIt>...>{arr};
+        return zip_iterator<zip_iterator_kind::adjacent, Deref, pack_helper<Is, UIt>...>{std::move(deref), arr};
     }(std::make_index_sequence<N>{});
 }
 
-template <size_t N, std::forward_iterator UIt, std::sentinel_for<UIt> USen>
-constexpr auto make_adj_it(UIt uit, USen usen)
+template <size_t N, typename Deref, std::forward_iterator UIt, std::sentinel_for<UIt> USen>
+constexpr auto make_adj_it(Deref deref, UIt uit, USen usen)
 {
-    return make_adj_it(make_adj_it_array<N>(std::move(uit), std::move(usen)));
+    return make_adj_it<N>(std::move(deref), make_adj_it_array<N>(std::move(uit), std::move(usen)));
 }
 
 template <typename UIt, typename USen>
@@ -87,8 +87,8 @@ public:
 
     constexpr explicit adjacent_sentinel(USen usen) : end{std::move(usen)} {}
 
-    template <typename... Its>
-    constexpr explicit adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, Its...>, USen usen) :
+    template <typename Deref, typename... Its>
+    constexpr explicit adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, Deref, Its...>, USen usen) :
       end{std::move(usen)}
     {}
 
@@ -98,27 +98,27 @@ public:
       : end{std::move(other.end)}
     {}
 
-    template <typename... Its>
-    friend constexpr bool operator==(zip_iterator<zip_iterator_kind::adjacent, Its...> const & lhs,
-                                     adjacent_sentinel const &                                 rhs)
+    template <typename Deref, typename... Its>
+    friend constexpr bool operator==(zip_iterator<zip_iterator_kind::adjacent, Deref, Its...> const & lhs,
+                                     adjacent_sentinel const &                                        rhs)
         requires((std::same_as<UIt, Its> && ...))
     {
         return lhs.current.back() == rhs.end;
     }
 
-    template <typename... Its>
+    template <typename Deref, typename... Its>
     friend constexpr std::iter_difference_t<UIt> operator-(
-      zip_iterator<zip_iterator_kind::adjacent, Its...> const & lhs,
-      adjacent_sentinel const &                                 rhs)
+      zip_iterator<zip_iterator_kind::adjacent, Deref, Its...> const & lhs,
+      adjacent_sentinel const &                                        rhs)
         requires(std::sized_sentinel_for<USen, UIt> && (std::same_as<UIt, Its> && ...))
     {
         return lhs.current.back() - rhs.end;
     }
 
-    template <typename... Its>
+    template <typename Deref, typename... Its>
     friend constexpr std::iter_difference_t<UIt> operator-(
-      adjacent_sentinel const &                                 lhs,
-      zip_iterator<zip_iterator_kind::adjacent, Its...> const & rhs)
+      adjacent_sentinel const &                                        lhs,
+      zip_iterator<zip_iterator_kind::adjacent, Deref, Its...> const & rhs)
         requires(std::sized_sentinel_for<USen, UIt> && (std::same_as<UIt, Its> && ...))
     {
         return -(rhs - lhs);
@@ -129,17 +129,18 @@ public:
     constexpr USen && base() && { return std::move(end); }
 };
 
-template <typename It1, typename... Its, typename USen>
-adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, It1, Its...>, USen) -> adjacent_sentinel<It1, USen>;
+template <typename Deref, typename It1, typename... Its, typename USen>
+adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, Deref, It1, Its...>, USen) -> adjacent_sentinel<It1, USen>;
 
 template <ptrdiff_t N>
-inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
+inline constexpr auto adjacent_borrow_impl =
+  []<typename Deref, std::ranges::borrowed_range URange>(Deref deref, URange && urange)
     requires std::ranges::forward_range<URange>
 {
     static_assert(N > 0, "You must select N > 0 for radr::adjacent.");
 
-    auto beg  = make_adj_it<N>(radr::begin(urange), radr::end(urange));
-    auto cbeg = make_adj_it<N>(radr::cbegin(urange), radr::cend(urange));
+    auto beg  = make_adj_it<N>(deref, radr::begin(urange), radr::end(urange));
+    auto cbeg = make_adj_it<N>(deref, radr::cbegin(urange), radr::cend(urange));
 
     using diff_t = std::common_type_t<std::ranges::range_difference_t<URange>, ptrdiff_t>;
 
@@ -172,9 +173,12 @@ inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(U
         /* bidi + common */
         else if constexpr (std::ranges::bidirectional_range<URange> && common_range<URange>)
         {
-            return std::tuple{
-              make_adj_it<N>(std::ranges::prev(radr::end(urange), N - 1, radr::begin(urange)), radr::end(urange)),
-              make_adj_it<N>(std::ranges::prev(radr::cend(urange), N - 1, radr::cbegin(urange)), radr::cend(urange))};
+            return std::tuple{make_adj_it<N>(deref,
+                                             std::ranges::prev(radr::end(urange), N - 1, radr::begin(urange)),
+                                             radr::end(urange)),
+                              make_adj_it<N>(deref,
+                                             std::ranges::prev(radr::cend(urange), N - 1, radr::cbegin(urange)),
+                                             radr::cend(urange))};
         }
         /* uni + common */
         else if constexpr (common_range<URange>)
@@ -190,7 +194,7 @@ inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(U
             std::array<const_iterator_t<URange>, N> carr;
             carr.fill(radr::cend(urange));
 
-            return std::tuple{make_adj_it<N>(arr), make_adj_it<N>(carr)};
+            return std::tuple{make_adj_it<N>(deref, arr), make_adj_it<N>(deref, carr)};
         }
         /* all other cases */
         else
@@ -203,6 +207,14 @@ inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(U
     }();
 
     return borrowing_rad{beg, end, cbeg, cend, s};
+};
+
+//!\brief radr::detail::adjacent_borrow_impl with the plain zip policy.
+template <ptrdiff_t N>
+inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
+    requires std::ranges::forward_range<URange>
+{
+    return adjacent_borrow_impl<N>(zip_deref{}, std::forward<URange>(urange));
 };
 
 } // namespace radr::detail

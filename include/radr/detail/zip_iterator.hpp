@@ -24,6 +24,7 @@
 #include "radr/concepts.hpp"
 #include "radr/custom/tags.hpp"
 #include "radr/detail/detail.hpp"
+#include "radr/detail/semiregular_box.hpp"
 #include "radr/range_access.hpp"
 
 /* This is the machinery for zip-based ranges, including
@@ -85,6 +86,47 @@ enum class zip_iterator_kind
     adjacent   //!< used by adjacent adaptor; rebinds first, re-derives the rest (all point into the same range)
 };
 
+/*!\brief Dereference policy of radr::detail::zip_iterator yielding a std::tuple of references.
+ * \details Used by radr::zip, radr::zip_with, radr::adjacent and radr::enumerate. The tuple value_type
+ * restricts instantiations to C++23; see the note at the top of this header.
+ */
+struct zip_deref
+{
+    //!\brief Proxy reference; selects the tuple-flavoured iter_move/iter_swap.
+    static constexpr bool proxy = true;
+
+    template <typename... UIt>
+    using value_type = std::tuple<std::iter_value_t<UIt>...>;
+
+    template <typename... UIt>
+    constexpr auto operator()(UIt const &... its) const
+    {
+        return std::tuple<std::iter_reference_t<UIt>...>(*its...);
+    }
+};
+
+/*!\brief Dereference policy of radr::detail::zip_iterator invoking an N-ary functor.
+ * \details Used by the *_transform adaptors. No std::tuple appears in any associated type, so
+ * instantiations are C++20.
+ */
+template <typename Fn>
+struct transform_deref
+{
+    //!\brief No proxy; iter_move follows radr::detail::transform_iterator and iter_swap is dropped.
+    static constexpr bool proxy = false;
+
+    [[no_unique_address]] semiregular_box<Fn> fn{};
+
+    template <typename... UIt>
+    using value_type = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<UIt>...>>;
+
+    template <typename... UIt>
+    constexpr decltype(auto) operator()(UIt const &... its) const
+    {
+        return std::invoke(*fn, *its...);
+    }
+};
+
 template <typename... Args>
 class zip_sentinel;
 
@@ -94,7 +136,7 @@ class enumerate_sentinel;
 template <typename UIt, typename USen>
 class adjacent_sentinel;
 
-template <zip_iterator_kind kind, typename... UIt>
+template <zip_iterator_kind kind, typename Deref, typename... UIt>
     requires((std::forward_iterator<UIt> && ...))
 class zip_iterator
 {
@@ -107,7 +149,7 @@ class zip_iterator
     static_assert((kind != zip_iterator_kind::adjacent) || _all_same,
                   "Adjacent means all iterator types are the same.");
 
-    template <zip_iterator_kind kind2, typename... UIt2>
+    template <zip_iterator_kind kind2, typename Deref2, typename... UIt2>
         requires((std::forward_iterator<UIt2> && ...))
     friend class zip_iterator;
 
@@ -186,7 +228,9 @@ class zip_iterator
 
     /* data members */
     using storage_type = std::conditional_t<_all_same, std::array<first_uit_t, _size>, std::tuple<UIt...>>;
-    storage_type current;
+
+    [[no_unique_address]] Deref deref_{};
+    storage_type                current;
 
 public:
     // clang-format off
@@ -195,18 +239,37 @@ public:
                                                                   std::forward_iterator_tag>>;
     // clang-format on
 
-    using value_type      = std::tuple<std::iter_value_t<UIt>...>;
+    using value_type      = typename Deref::template value_type<UIt...>;
     using difference_type = std::common_type_t<std::iter_difference_t<UIt>...>;
 
     zip_iterator() = default;
 
+    /* Policy-less constructors default-construct deref_; restricted to zip_deref, because
+     * transform_deref<Fn> would hold an empty semiregular_box for non-default-constructible Fn. */
     constexpr zip_iterator(UIt... uit)
-        requires(!_all_same)
+        requires(Deref::proxy && !_all_same)
       : current{std::move(uit)...}
     {}
 
+    constexpr zip_iterator(Deref deref, UIt... uit)
+        requires(!_all_same)
+      : deref_{std::move(deref)}, current{std::move(uit)...}
+    {}
+
     constexpr zip_iterator(UIt... uit)
+        requires(Deref::proxy && _all_same)
+    {
+        // tuple2array
+        [&](auto... args)
+        {
+            size_t i = 0;
+            ((current[i++] = std::move(args)), ...);
+        }(std::move(uit)...);
+    }
+
+    constexpr zip_iterator(Deref deref, UIt... uit)
         requires(_all_same)
+      : deref_{std::move(deref)}
     {
         // tuple2array
         [&](auto... args)
@@ -217,14 +280,20 @@ public:
     }
 
     constexpr zip_iterator(std::array<first_uit_t, _size> const & arr)
-        requires(_all_same)
+        requires(Deref::proxy && _all_same)
       : current{std::move(arr)}
     {}
 
+    constexpr zip_iterator(Deref deref, std::array<first_uit_t, _size> const & arr)
+        requires(_all_same)
+      : deref_{std::move(deref)}, current{std::move(arr)}
+    {}
+
     template <typename... UIt2>
-    constexpr zip_iterator(zip_iterator<kind, UIt2...> other)
+    constexpr zip_iterator(zip_iterator<kind, Deref, UIt2...> other)
         requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...) &&
-                 sizeof...(UIt2) == _size && zip_iterator<kind, UIt2...>::_all_same == _all_same)
+                 sizeof...(UIt2) == _size && zip_iterator<kind, Deref, UIt2...>::_all_same == _all_same)
+      : deref_{std::move(other.deref_)}
     {
         if constexpr (_all_same)
             std::ranges::move(other.current, current.data());
@@ -232,10 +301,7 @@ public:
             current = std::move(other.current);
     }
 
-    constexpr auto operator*() const
-    {
-        return tuple_transform([](auto & it) -> decltype(auto) { return *it; }, current);
-    }
+    constexpr decltype(auto) operator*() const { return std::apply(deref_, current); }
 
     constexpr zip_iterator & operator++()
     {
@@ -298,9 +364,7 @@ public:
     constexpr decltype(auto) operator[](difference_type n) const
         requires is_random_access
     {
-        return tuple_transform([n]<typename It>(It & it) -> decltype(auto)
-        { return it[static_cast<std::iter_difference_t<It>>(n)]; },
-                               current);
+        return *(*this + n);
     }
 
     friend constexpr bool operator==(zip_iterator const & lhs, zip_iterator const & rhs)
@@ -370,15 +434,22 @@ public:
     }
 
     friend constexpr decltype(auto) iter_move(zip_iterator const & i) noexcept(
-      (noexcept(std::ranges::iter_move(UIt{})) && ...) &&
-      (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...))
+      Deref::proxy ? ((noexcept(std::ranges::iter_move(UIt{})) && ...) &&
+                      (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...))
+                   : noexcept(*i))
     {
-        return tuple_transform(std::ranges::iter_move, i.current);
+        if constexpr (Deref::proxy)
+            return tuple_transform(std::ranges::iter_move, i.current);
+        /* same rule as radr::detail::transform_iterator */
+        else if constexpr (std::is_lvalue_reference_v<decltype(*i)>)
+            return std::move(*i);
+        else
+            return *i;
     }
 
     friend constexpr void iter_swap(zip_iterator const & lhs, zip_iterator const & rhs) noexcept(
       (noexcept(std::ranges::iter_swap(UIt{}, UIt{})) && ...))
-        requires((std::indirectly_swappable<UIt> && ...))
+        requires(Deref::proxy && (std::indirectly_swappable<UIt> && ...))
     {
         [&]<size_t... I>(std::index_sequence<I...>)
         {
@@ -388,12 +459,19 @@ public:
 };
 
 template <typename... UIt>
-zip_iterator(UIt...) -> zip_iterator<zip_iterator_kind::adaptor, UIt...>;
+zip_iterator(UIt...) -> zip_iterator<zip_iterator_kind::adaptor, zip_deref, UIt...>;
 
 template <zip_iterator_kind k, typename... UIt>
 constexpr auto make_zip_it(UIt... uit)
 {
-    return zip_iterator<k, UIt...>{std::forward<UIt>(uit)...};
+    return zip_iterator<k, zip_deref, UIt...>{std::forward<UIt>(uit)...};
+}
+
+//!\brief radr::detail::make_zip_it with an explicit dereference policy.
+template <zip_iterator_kind k, typename Deref, typename... UIt>
+constexpr auto make_zip_it_with(Deref deref, UIt... uit)
+{
+    return zip_iterator<k, Deref, UIt...>{std::move(deref), std::forward<UIt>(uit)...};
 }
 
 /*!\brief Sentinel type for Zip adaptors.
@@ -429,8 +507,8 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 public:
     zip_sentinel() = default;
 
-    template <zip_iterator_kind _>
-    constexpr explicit zip_sentinel(zip_iterator<_, UIt...>, std::tuple<USen...> usens) : end{std::move(usens)}
+    template <zip_iterator_kind _, typename Deref>
+    constexpr explicit zip_sentinel(zip_iterator<_, Deref, UIt...>, std::tuple<USen...> usens) : end{std::move(usens)}
     {}
 
     template <typename... UIt2, typename... USen2>
@@ -440,8 +518,8 @@ public:
       : end{std::move(other.end)}
     {}
 
-    template <zip_iterator_kind k>
-    friend constexpr bool operator==(zip_iterator<k, UIt...> const & lhs, zip_sentinel const & rhs)
+    template <zip_iterator_kind k, typename Deref>
+    friend constexpr bool operator==(zip_iterator<k, Deref, UIt...> const & lhs, zip_sentinel const & rhs)
     {
         return [&]<size_t... I>(std::index_sequence<I...>)
         {
@@ -449,9 +527,10 @@ public:
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
-    template <zip_iterator_kind k>
-    friend constexpr std::iter_difference_t<zip_iterator<k, UIt...>> operator-(zip_iterator<k, UIt...> const & lhs,
-                                                                               zip_sentinel const &            rhs)
+    template <zip_iterator_kind k, typename Deref>
+    friend constexpr std::iter_difference_t<zip_iterator<k, Deref, UIt...>> operator-(
+      zip_iterator<k, Deref, UIt...> const & lhs,
+      zip_sentinel const &                   rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         constexpr auto diff = [](auto && lhs, auto && rhs)
@@ -465,16 +544,18 @@ public:
         return std::apply(pack_min, detail::tuple_zip_transform(diff, lhs.current, rhs.end));
     }
 
-    template <zip_iterator_kind k>
-    friend constexpr std::iter_difference_t<zip_iterator<k, UIt...>> operator-(zip_sentinel const &            lhs,
-                                                                               zip_iterator<k, UIt...> const & rhs)
+    template <zip_iterator_kind k, typename Deref>
+    friend constexpr std::iter_difference_t<zip_iterator<k, Deref, UIt...>> operator-(
+      zip_sentinel const &                   lhs,
+      zip_iterator<k, Deref, UIt...> const & rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         return -(rhs - lhs);
     }
 };
 
-template <zip_iterator_kind k, typename... UIt, typename... USen>
-zip_sentinel(zip_iterator<k, UIt...>, std::tuple<USen...>) -> zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
+template <zip_iterator_kind k, typename Deref, typename... UIt, typename... USen>
+zip_sentinel(zip_iterator<k, Deref, UIt...>, std::tuple<USen...>)
+  -> zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
 
 } // namespace radr::detail
