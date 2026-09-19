@@ -249,6 +249,18 @@ public:
     using value_type      = typename Deref::template value_type<UIt...>;
     using difference_type = std::common_type_t<std::iter_difference_t<UIt>...>;
 
+    /*!\brief Access to the underlying iterators.
+     * \details The sentinels go through this instead of touching `current` directly, although they are friends:
+     *          GCC<=12 does not grant a befriended class's friendship to functions *defined inside* that class,
+     *          which is what every sentinel's `operator==` / `operator-` is. Same workaround as in
+     *          radr::detail::transform_sentinel.
+     *
+     *          Deliberately *not* called `base()`: the generic fallback in `custom/rebind_iterator.hpp`
+     *          is keyed on `it.base()` plus `It(it.base())`, and a `base()` here makes that fallback a
+     *          viable candidate next to this iterator's own `tag_invoke` for the zip_deref flavour.
+     */
+    constexpr storage_type const & base_storage() const & noexcept { return current; }
+
     zip_iterator() = default;
 
     /* Policy-less constructors default-construct deref_; restricted to zip_deref, because
@@ -530,7 +542,7 @@ public:
     {
         return [&]<size_t... I>(std::index_sequence<I...>)
         {
-            return ((std::get<I>(lhs.current) == std::get<I>(rhs.end)) || ...);
+            return ((std::get<I>(lhs.base_storage()) == std::get<I>(rhs.end)) || ...);
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
@@ -548,7 +560,7 @@ public:
         {
             return std::ranges::min({values...});
         };
-        return std::apply(pack_min, detail::tuple_zip_transform(diff, lhs.current, rhs.end));
+        return std::apply(pack_min, detail::tuple_zip_transform(diff, lhs.base_storage(), rhs.end));
     }
 
     template <zip_iterator_kind k, typename Deref>

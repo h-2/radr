@@ -257,9 +257,10 @@ public:
 
     constexpr Sen base() const { return end_; }
 
+    /* All three go through transform_iterator::base() instead of `.current_`: GCC<=12 does not grant a
+     * befriended class's friendship to functions *defined inside* that class, which is what these are. */
     friend constexpr bool operator==(transform_iterator<Iter, Fn> const & x, transform_sentinel const & y)
     {
-        // GCC<=12 doesn't handle  `.current_` here ¯\_(ツ)_/¯
         return x.base() == y.end_;
     }
 
@@ -268,7 +269,7 @@ public:
       transform_sentinel const &           y)
         requires std::sized_sentinel_for<Sen, Iter>
     {
-        return x.current_ - y.end_;
+        return x.base() - y.end_;
     }
 
     friend constexpr std::iter_difference_t<transform_iterator<Iter, Fn>> operator-(
@@ -276,7 +277,7 @@ public:
       transform_iterator<Iter, Fn> const & y)
         requires std::sized_sentinel_for<Sen, Iter>
     {
-        return x.end_ - y.current_;
+        return x.end_ - y.base();
     }
 };
 

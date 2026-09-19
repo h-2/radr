@@ -49,7 +49,7 @@ public:
     friend constexpr bool operator==(zip_iterator<zip_iterator_kind::enumerate, Deref, IotaIt, UIt> const & lhs,
                                      enumerate_sentinel const &                                             rhs)
     {
-        return std::get<1>(lhs.current) == rhs.end;
+        return std::get<1>(lhs.base_storage()) == rhs.end;
     }
 
     template <typename Deref, typename IotaIt>
@@ -58,7 +58,7 @@ public:
       enumerate_sentinel const &                                             rhs)
         requires std::sized_sentinel_for<USen, UIt>
     {
-        return std::get<1>(lhs.current) - rhs.end;
+        return std::get<1>(lhs.base_storage()) - rhs.end;
     }
 
     template <typename Deref, typename IotaIt>
