@@ -77,30 +77,29 @@ inline namespace cpo
  * \param[in] other_ranges A pack of the other ranges; each wrapped in std::ref or std::cref.
  * \details
  *
- * |                                            |  std::views::zip |  radr::zip       |  radr::zip_with      |
- * |--------------------------------------------|:----------------:|:----------------:|:--------------------:|
- * | minimum arguments                          |   0              |   1              |                  1   |
- * | pipe into                                  |    no            |    no            |               yes    |
- * | lvalues of containers allowed (first arg)  | yes              | std::ref-wrapped |    std::ref-wrapped  |
- * | lvalues of containers allowed (other args) | yes              | std::ref-wrapped |    std::ref-wrapped  |
- * | rvalues of containers allowed (first arg)  | yes              | yes              |      yes             |
- * | rvalues of containers allowed (other args) | yes              | yes              |      no              |
+ * Zip other ranges with a given one.
  *
- * Use `radr::zip` if you need to capture more than one container by rvalue.
+ * ## Comparison with other adaptors/factories
  *
- * Use `radr::zip_with` if you need pipe-support.
+ * |                                         |  std::views::zip                     |  radr::zip                           |  radr::zip_with                            |
+ * |-----------------------------------------|:------------------------------------:|:------------------------------------:|:------------------------------------------:|
+ * | minimum number of ranges                |   0                                  |   1                                  |                  1                         |
+ * | lvalue of container for \p urange       | yes                                  | std::ref-wrapped                     |    std::ref-wrapped                        |
+ * | lvalue of container for \p other_ranges | yes                                  | std::ref-wrapped                     |    std::ref-wrapped                        |
+ * | rvalue of container for \p urange       | yes                                  | yes                                  |      yes                                   |
+ * | rvalue of container for \p other_ranges | yes                                  | yes                                  |      no                                    |
+ * | direct ("factory") call pattern         | `s::v::zip(urange, other_ranges...)` | `radr::zip(urange, other_ranges...)` | *no* (see below)                           |
+ * | pipe ("adaptor") call pattern           | no                                   | no                                   | `urange | radr::zip_with(other_ranges...)` |
+ * | closure ("stored") call pattern         | no                                   | no                                   | `radr::zip_with(other_ranges...)(urange)`  |
  *
- * ## Call pattern
+ * In this library there are two objects corresponding to std::views::zip:
+ *   * radr::zip: a factory object that is very similar to std::views::zip.
+ *   * radr::zip_with: a range adaptor that allows the pipe call pattern, but does not allow container rvalues in \p other_ranges.
  *
- * Typically, the following call patterns are identical for range adaptors:
- *   1. `urange | radr::foo(param1, param2);`
- *   2. `radr::foo(urange, param1, param2);`
- *   3. `radr::foo(param1, param2)(urange);`
- *
- * For this adaptor, **the second pattern has different semantics**, it always returns a closure.
+ * For radr::zip_with, **the direct call pattern is not supported**. The respective syntax always returns a closure (i.e. the first part of the closure call pattern).
  * Use one of the other syntaxes, or use `radr::zip` instead of `radr::zip_with`.
  *
- * Zipping a single range is supported, but empty parantheses must be given, e.g. `urange | radr::zip_with()`.
+ * Zipping a single range is supported, but empty parentheses must be given, e.g. `urange | radr::zip_with()`.
  *
  * ## Multi-pass adaptor
  *
@@ -119,7 +118,7 @@ inline namespace cpo
  * at least one range models std::ranges::sized_range.
  *
  * It models radr::common_range, if one of the following conditions is met:
- *   * All underlying ranges model radr::common_range and it least one does **not** model std::ranges::bidirectional_range.
+ *   * All underlying ranges model radr::common_range and at least one does **not** model std::ranges::bidirectional_range.
  *   * Or: all underlying ranges model radr::safely_indexable_range and at least one range models std::ranges::sized_range.
  *
  * If you want to zip more than one container, use the `radr::zip` factory instead.
