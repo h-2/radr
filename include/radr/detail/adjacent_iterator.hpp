@@ -113,7 +113,7 @@ public:
                                      adjacent_sentinel const &                                        rhs)
         requires((std::same_as<UIt, Its> && ...))
     {
-        return lhs.current.back() == rhs.end;
+        return lhs.base_storage().back() == rhs.end;
     }
 
     template <typename Deref, typename... Its>
@@ -122,7 +122,7 @@ public:
       adjacent_sentinel const &                                        rhs)
         requires(std::sized_sentinel_for<USen, UIt> && (std::same_as<UIt, Its> && ...))
     {
-        return lhs.current.back() - rhs.end;
+        return lhs.base_storage().back() - rhs.end;
     }
 
     template <typename Deref, typename... Its>
