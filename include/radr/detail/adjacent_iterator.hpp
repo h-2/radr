@@ -59,6 +59,16 @@ constexpr std::array<It, N> make_adj_it_array(It it, Sen sen)
 template <size_t, typename T>
 using pack_helper = T;
 
+/*!\brief radr::detail::transform_deref_constraints with sizeof...(Is) copies of \p UIt.
+ * \details Deliberately not an immediately-invoked lambda inside the static_assert: that crashes clang 17 and 19.
+ */
+template <typename Fn, typename UIt, typename Seq>
+inline constexpr bool transform_deref_constraints_n = false;
+
+template <typename Fn, typename UIt, size_t... Is>
+inline constexpr bool transform_deref_constraints_n<Fn, UIt, std::index_sequence<Is...>> =
+  transform_deref_constraints<Fn, pack_helper<Is, UIt>...>;
+
 template <size_t N, typename Deref, typename UIt>
 constexpr auto make_adj_it(Deref deref, std::array<UIt, N> const & arr)
 {

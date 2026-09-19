@@ -33,7 +33,8 @@
  *  adaptors:   zip_with, enumerate, adjacent, pairwise
  *
  * And also for the _transform variants:
- *  adaptors:   zip_transform, adjacent_transform, pairwise_transform
+ *  factory:    zip_transform
+ *  adaptors:   zip_with_transform, adjacent_transform, pairwise_transform
  *
  * The machinery itself does not require C++23, but all entities in the first paragraph do,
  * because they have tuple-of-reference as the range reference type. This is only supported
@@ -126,6 +127,12 @@ struct transform_deref
         return std::invoke(*fn, *its...);
     }
 };
+
+//!\brief Requirements of radr::detail::transform_deref on \p Fn, for one pack of underlying iterators.
+template <typename Fn, typename... UIts>
+concept transform_deref_constraints =
+  std::is_object_v<Fn> && std::regular_invocable<Fn const &, std::iter_reference_t<UIts>...> &&
+  can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<UIts>...>>;
 
 template <typename... Args>
 class zip_sentinel;
