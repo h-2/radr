@@ -2,37 +2,41 @@
 
 **Range adaptor objects:**
 
-| Range adaptor              | $O(n)$ constr  | min cat | max cat  | sized | common    | Remarks                                  |
-|----------------------------|:--------------:|---------|----------|:-----:|:---------:|------------------------------------------|
-| `radr::all`                |                | input   | contig   |  =    |  =        |                                          |
-| `radr::adjacent<N>`        |                | fwd     | ra       |  =    |  =        |                                          |
-| `radr::as_const`           |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
-| `radr::as_rvalue`          |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
-| `radr::chunk(n)`           | !(ra+sized)    | input   | ra       |  =    |  bidi     |                                          |
-|  ↳ inner range type        |                | input   | contig   |  +    |  +        |                                          |
-| `radr::chunk_by(fn)`       | always         | input   | bidi     |  -    |  bidi     |                                          |
-|  ↳ inner range type        |                | input   | contig   |  ra   |  +        |                                          |
-| `radr::drop(n)`            | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
-| `radr::drop_while(fn)`     | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
-| `radr::elements<I>`        |                | input   | ra       |  =    |  =        |                                          |
-| `radr::enumerate`          |                | fwd     | ra       |  =    |  sized    |                                          |
-| `radr::filter(fn)`         | always         | input   | bidi     |  -    |  ⊝        |                                          |
-| `radr::join`               |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
-| `radr::keys`               |                | input   | ra       |  =    |  =        |                                          |
-| `radr::lazy_chunk(n)`      |                | input   | fwd      |  =    |  -        |                                          |
-|  ↳ inner range type        |                | input   | contig   |  -    |  -        |                                          |
-| `radr::reverse`            | non-common     | bidi    | ra       |  =    |  +        |                                          |
-| `radr::slice(m, n)`        | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
-| `radr::split(pat)`         | always         | input   | fwd      |  -    |  ⊝        |                                          |
-|  ↳ inner range type        |                | input   | contig   |  +    |  +        |                                          |
-| `radr::take(n)`            |                | input   | contig   |  =    |  ra+sized |                                          |
-| `radr::take_while(fn)`     |                | input   | contig   |  -    |  -        |                                          |
-| `radr::to_common`          | !(common)      | fwd     | contig   |  ⊕    |  +        |                                          |
-| `radr::to_single_pass`     |                | input   | input    |  -    |  -        | demotes range category to single-pass    |
-| `radr::transform(fn)`      |                | input   | ra       |  =    |  =        |                                          |
-| `radr::values`             |                | input   | ra       |  =    |  =        |                                          |
-| `radr::uncheckd_take(n)`   |                | input   | contig   |  +    |  ra+sized | turns unsized into size of n             |
-| `radr::zip_with(w)`        |                | input   | ra       |  =    |  ra+sized |                                          |
+| Range adaptor                     | $O(n)$ constr  | min cat | max cat  | sized | common    | Remarks                                  |
+|-----------------------------------|:--------------:|---------|----------|:-----:|:---------:|------------------------------------------|
+| `radr::all`                       |                | input   | contig   |  =    |  =        |                                          |
+| `radr::adjacent<N>`               |                | fwd     | ra       |  =    |  =        |                                          |
+| `radr::adjacent_transform<N>(fn)` |                | fwd     | ra       |  =    |  =        |                                          |
+| `radr::as_const`                  |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
+| `radr::as_rvalue`                 |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
+| `radr::chunk(n)`                  | !(ra+sized)    | input   | ra       |  =    |  bidi     |                                          |
+|  ↳ inner range type               |                | input   | contig   |  +    |  +        |                                          |
+| `radr::chunk_by(fn)`              | always         | input   | bidi     |  -    |  bidi     |                                          |
+|  ↳ inner range type               |                | input   | contig   |  ra   |  +        |                                          |
+| `radr::drop(n)`                   | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
+| `radr::drop_while(fn)`            | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
+| `radr::elements<I>`               |                | input   | ra       |  =    |  =        |                                          |
+| `radr::enumerate`                 |                | fwd     | ra       |  =    |  sized    |                                          |
+| `radr::filter(fn)`                | always         | input   | bidi     |  -    |  ⊝        |                                          |
+| `radr::join`                      |                | input   | (bidi)   |  -    |  =        | less strict than std::views::join        |
+| `radr::keys`                      |                | input   | ra       |  =    |  =        |                                          |
+| `radr::lazy_chunk(n)`             |                | input   | fwd      |  =    |  -        |                                          |
+|  ↳ inner range type               |                | input   | contig   |  -    |  -        |                                          |
+| `radr::pairwise`                  |                | fwd     | ra       |  =    |  =        |                                          |
+| `radr::pairwise_transform(fn)`    |                | fwd     | ra       |  =    |  =        |                                          |
+| `radr::reverse`                   | non-common     | bidi    | ra       |  =    |  +        |                                          |
+| `radr::slice(m, n)`               | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
+| `radr::split(pat)`                | always         | input   | fwd      |  -    |  ⊝        |                                          |
+|  ↳ inner range type               |                | input   | contig   |  +    |  +        |                                          |
+| `radr::take(n)`                   |                | input   | contig   |  =    |  ra+sized |                                          |
+| `radr::take_while(fn)`            |                | input   | contig   |  -    |  -        |                                          |
+| `radr::to_common`                 | !(common)      | fwd     | contig   |  ⊕    |  +        |                                          |
+| `radr::to_single_pass`            |                | input   | input    |  -    |  -        | demotes range category to single-pass    |
+| `radr::transform(fn)`             |                | input   | ra       |  =    |  =        |                                          |
+| `radr::values`                    |                | input   | ra       |  =    |  =        |                                          |
+| `radr::uncheckd_take(n)`          |                | input   | contig   |  +    |  ra+sized | turns unsized into size of n             |
+| `radr::zip_with(w)`               |                | input   | ra       |  =    |  ra+sized |                                          |
+| `radr::zip_with_transform(fn, w)` |                | input   | ra       |  =    |  ra+sized |                                          |
 
 **min cat** underlying range required to be at least input (`input_range`), fwd (`forward_range`), bidi (`bidirectional_range`),
 ra (`random_access_range`) or contig (`contiguous_range`)<br>

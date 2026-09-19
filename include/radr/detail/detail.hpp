@@ -62,6 +62,15 @@ concept can_reference = requires { typename plus_ref<T>; };
 template <typename Ip>
 concept has_arrow = std::input_iterator<Ip> && (std::is_pointer_v<Ip> || requires(Ip i) { i.operator->(); });
 
+/*!\brief Returns a decayed copy of \p v.
+ * \details Equivalent to `auto{v}`, which is C++23; this library is C++20.
+ */
+template <typename T>
+[[nodiscard]] constexpr std::decay_t<T> decay_copy(T && v) noexcept(std::is_nothrow_convertible_v<T, std::decay_t<T>>)
+{
+    return std::forward<T>(v);
+}
+
 //TODO special cases
 template <std::integral T>
 constexpr auto to_unsigned_like(T v) noexcept
