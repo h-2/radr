@@ -182,9 +182,6 @@ class zip_iterator
          */
         if constexpr (kind == zip_iterator_kind::adjacent)
         {
-            // auto new_it = tag_invoke(custom::rebind_iterator_tag{}, it.current[0], container_old, container_new);
-            // it.current  = make_adj_it_array<_size>(new_it, radr::end(container_new));
-
             auto oldarr = it.current;
 
             it.current[0] = tag_invoke(custom::rebind_iterator_tag{}, it.current[0], container_old, container_new);
@@ -239,6 +236,25 @@ class zip_iterator
     [[no_unique_address]] Deref deref_{};
     storage_type                current;
 
+    /*!\brief Move-assign \p rhs onto \p lhs, elementwise if the two storages differ.
+     * \details The element-wise path covers std::tuple <-> std::array.
+     */
+    template <typename Lhs, typename Rhs>
+    static constexpr void move_assign_elements(Lhs && lhs, Rhs && rhs)
+    {
+        if constexpr (decays_to<Lhs, Rhs>)
+        {
+            lhs = std::move(rhs);
+        }
+        else
+        {
+            [&]<size_t... I>(std::index_sequence<I...>)
+            {
+                ((std::get<I>(lhs) = std::move(std::get<I>(rhs))), ...);
+            }(std::make_index_sequence<_size>{});
+        }
+    }
+
 public:
     // clang-format off
     using iterator_concept = std::conditional_t<is_random_access, std::random_access_iterator_tag,
@@ -266,58 +282,34 @@ public:
     /* Policy-less constructors default-construct deref_; restricted to zip_deref, because
      * transform_deref<Fn> would hold an empty semiregular_box for non-default-constructible Fn. */
     constexpr zip_iterator(UIt... uit)
-        requires(Deref::proxy && !_all_same)
-      : current{std::move(uit)...}
-    {}
-
-    constexpr zip_iterator(Deref deref, UIt... uit)
-        requires(!_all_same)
-      : deref_{std::move(deref)}, current{std::move(uit)...}
-    {}
-
-    constexpr zip_iterator(UIt... uit)
-        requires(Deref::proxy && _all_same)
+        requires(Deref::proxy)
     {
-        // tuple2array
-        [&](auto... args)
-        {
-            size_t i = 0;
-            ((current[i++] = std::move(args)), ...);
-        }(std::move(uit)...);
+        move_assign_elements(current, std::tuple(std::move(uit)...));
     }
 
-    constexpr zip_iterator(Deref deref, UIt... uit)
-        requires(_all_same)
-      : deref_{std::move(deref)}
+    constexpr zip_iterator(Deref deref, UIt... uit) : deref_{std::move(deref)}
     {
-        // tuple2array
-        [&](auto... args)
-        {
-            size_t i = 0;
-            ((current[i++] = std::move(args)), ...);
-        }(std::move(uit)...);
+        move_assign_elements(current, std::tuple(std::move(uit)...));
     }
 
-    constexpr zip_iterator(std::array<first_uit_t, _size> const & arr)
-        requires(Deref::proxy && _all_same)
-      : current{std::move(arr)}
-    {}
+    constexpr zip_iterator(storage_type rhs)
+        requires(Deref::proxy)
+    {
+        move_assign_elements(current, rhs);
+    }
 
-    constexpr zip_iterator(Deref deref, std::array<first_uit_t, _size> const & arr)
-        requires(_all_same)
-      : deref_{std::move(deref)}, current{std::move(arr)}
-    {}
+    constexpr zip_iterator(Deref deref, storage_type rhs) : deref_{std::move(deref)}
+    {
+        move_assign_elements(current, rhs);
+    }
 
     template <typename... UIt2>
     constexpr zip_iterator(zip_iterator<kind, Deref, UIt2...> other)
         requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...) &&
-                 sizeof...(UIt2) == _size && zip_iterator<kind, Deref, UIt2...>::_all_same == _all_same)
+                 sizeof...(UIt2) == _size)
       : deref_{std::move(other.deref_)}
     {
-        if constexpr (_all_same)
-            std::ranges::move(other.current, current.data());
-        else
-            current = std::move(other.current);
+        move_assign_elements(current, other.current);
     }
 
     constexpr decltype(auto) operator*() const { return std::apply(deref_, current); }

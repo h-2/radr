@@ -264,6 +264,53 @@ TEST(zip_with, ConstReferencesNotMutable2)
     EXPECT_EQ(sum, (1 + 4) + (2 + 5) + (3 + 6));
 }
 
+TEST(zip_with, MixedConstness)
+{
+    std::vector<int> a{1, 2, 3};
+    std::vector<int> b{4, 5, 6};
+
+    // {int *, int const *} vs. {int const *, int const *}: the constant iterator stores a std::array
+    // while the mutable one stores a std::tuple, so the conversion between them changes storage
+    auto z = std::ref(a) | radr::zip_with(std::cref(b));
+
+    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, (std::tuple<int &, int const &>));
+    EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
+    EXPECT_TRUE((std::convertible_to<radr::iterator_t<decltype(z)>, radr::iterator_t<decltype(z) const>>));
+    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+
+    std::vector<std::tuple<int, int>> const expected{
+      {1, 4},
+      {2, 5},
+      {3, 6}
+    };
+    EXPECT_RANGE_EQ(z, expected);
+
+    // only the first range is writable
+    for (auto [x, y] : z)
+        x += y;
+
+    EXPECT_EQ(a, (std::vector<int>{5, 7, 9}));
+    EXPECT_EQ(b, (std::vector<int>{4, 5, 6}));
+}
+
+TEST(zip_with, MixedConstnessReversed)
+{
+    std::vector<int> a{1, 2, 3};
+    std::vector<int> b{4, 5, 6};
+
+    auto z = std::cref(a) | radr::zip_with(std::ref(b));
+
+    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, (std::tuple<int const &, int &>));
+    EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
+    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+
+    for (auto [x, y] : z)
+        y += x;
+
+    EXPECT_EQ(a, (std::vector<int>{1, 2, 3}));
+    EXPECT_EQ(b, (std::vector<int>{5, 7, 9}));
+}
+
 TEST(zip_with, ReferenceTypesAreTuples)
 {
     std::vector<int>         xs{1, 2, 3};

@@ -304,14 +304,67 @@ TEST(zip_with_transform_mp, single_range)
 
 TEST(zip_with_transform_mp, three_ranges)
 {
-    // NOTE: all three are std::ref (not std::cref); mixing mutable and constant ranges of the same
-    // element type is rejected by zip_iterator (pre-existing, affects radr::zip_with alike).
     std::vector<int> a{100, 200, 300, 400, 500};
     auto             z = std::ref(vec) |
              radr::zip_with_transform([](int x, int y, int z_) { return x + y + z_; }, std::ref(other), std::ref(a));
 
     EXPECT_RANGE_EQ(z, (std::vector<int>{111, 222, 333, 444, 555}));
     EXPECT_EQ(std::ranges::size(z), 5u);
+}
+
+// The pack of the mutable iterator is {int *, int const *} and the pack of the constant iterator is
+// {int const *, int const *}. zip_iterator only stores a std::array when all iterators have the same
+// type, so the two disagree on storage (std::tuple vs std::array) and the iterator -> const_iterator
+// conversion demanded by radr::borrowing_rad has to bridge that.
+
+TEST(zip_with_transform_mp, mixed_constness)
+{
+    auto z = std::ref(vec) | radr::zip_with_transform(add, std::cref(other));
+
+    EXPECT_RANGE_EQ(z, sums);
+    // not constant: the iterator is not const-symmetric, because only one of the inputs is constant
+    radr::test::check_adaptor_concepts<decltype(z)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .borrowed = true});
+}
+
+TEST(zip_with_transform_mp, mixed_constness_reversed)
+{
+    auto z = std::cref(vec) | radr::zip_with_transform(add, std::ref(other));
+
+    EXPECT_RANGE_EQ(z, sums);
+    radr::test::check_adaptor_concepts<decltype(z)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .borrowed = true});
+}
+
+TEST(zip_with_transform_mp, mixed_constness_heterogeneous_elements)
+{
+    // both packs are std::tuple-stored here (the element types differ), so this covers the
+    // tuple -> tuple flavour of the same conversion
+    std::vector<std::string> strs{"aa", "bb", "cc"};
+    std::vector<int>         nums{1, 2, 3};
+    auto                     z = std::ref(strs) |
+             radr::zip_with_transform([](std::string const & s, int i) { return (int)s.size() + i; }, std::cref(nums));
+
+    EXPECT_RANGE_EQ(z, (std::vector<int>{3, 4, 5}));
+    radr::test::check_adaptor_concepts<decltype(z)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .borrowed = true});
+}
+
+TEST(zip_with_transform_mp, mixed_constness_mutate)
+{
+    std::vector<int> v{1, 2, 3};
+    std::vector<int> w{10, 20, 30};
+    auto             z = std::ref(v) | radr::zip_with_transform(first_ref, std::cref(w));
+
+    // the constant half does not make the mutable half read-only
+    EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, int &);
+    EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>, int const &);
+
+    for (int & i : z)
+        i *= 2;
+
+    EXPECT_RANGE_EQ(v, (std::vector<int>{2, 4, 6}));
+    EXPECT_RANGE_EQ(w, (std::vector<int>{10, 20, 30}));
 }
 
 TEST(zip_with_transform_mp, size_is_minimum)
