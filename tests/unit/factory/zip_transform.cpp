@@ -68,6 +68,17 @@ TEST(zip_transform_mp, bidi)
     radr::test::check_adaptor_concepts<decltype(z)>({.cat = range_cat::bidi, .sized = true, .borrowed = true});
 }
 
+TEST(zip_transform_mp, mixed_constness)
+{
+    // mutable and constant ranges over the same element type; see rad/zip_with_transform.cpp for the
+    // storage mismatch this exercises in the iterator -> const_iterator conversion
+    auto z = radr::zip_transform(add, std::ref(vec), std::cref(other));
+
+    EXPECT_RANGE_EQ(z, sums);
+    radr::test::check_adaptor_concepts<decltype(z)>(
+      {.cat = range_cat::ra, .sized = true, .common = true, .borrowed = true});
+}
+
 TEST(zip_transform_mp, rvalue_container_as_first_range)
 {
     using T = decltype(radr::zip_transform(add, std::vector<int>{1, 2, 3, 4, 5}, std::ref(other)));
