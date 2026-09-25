@@ -21,14 +21,18 @@
 #include <type_traits>
 #include <utility>
 
+#include "radr/class/borrowing_rad.hpp"
+#include "radr/class/range_interface.hpp"
 #include "radr/concepts.hpp"
 #include "radr/custom/tags.hpp"
 #include "radr/detail/detail.hpp"
 #include "radr/detail/semiregular_box.hpp"
 #include "radr/range_access.hpp"
+#include "radr/version.hpp"
 
 /* This is the machinery for zip-based ranges, including
- *  class:      zip_rng
+ *  policies:   zip_policy_tuple, zip_policy_transform
+ *  class:      zip_container
  *  factory:    zip
  *  adaptors:   zip_with, enumerate, adjacent, pairwise
  *
@@ -36,12 +40,77 @@
  *  factory:    zip_transform
  *  adaptors:   zip_with_transform, adjacent_transform, pairwise_transform
  *
- * The machinery itself does not require C++23, but all entities in the first paragraph do,
- * because they have tuple-of-reference as the range reference type. This is only supported
+ * The machinery itself does not require C++23, but every entity built on radr::zip_policy_tuple does,
+ * because it has tuple-of-reference as the range reference type. This is only supported
  * with P2321R2 (C++23).
  *
- * The *_transform variants are fine in C++20.
+ * The *_transform variants build on radr::zip_policy_transform and are fine in C++20.
  */
+
+namespace radr
+{
+
+/*!\brief Dereference policy of the zip machinery yielding a std::tuple of references.
+ * \details
+ *
+ * This is the policy behind radr::zip, radr::zip_with, radr::adjacent and radr::enumerate, and it is the
+ * policy of radr::zip_rng.
+ *
+ * The std::tuple value_type restricts instantiations to C++23.
+ */
+struct zip_policy_tuple
+{
+    //!\brief Proxy reference; selects the tuple-flavoured iter_move/iter_swap.
+    static constexpr bool proxy = true;
+
+    //!\brief The value type for a given pack of underlying iterators.
+    template <typename... UIt>
+    using value_type = std::tuple<std::iter_value_t<UIt>...>;
+
+    //!\brief Returns a std::tuple of the dereferenced underlying iterators.
+    template <typename... UIt>
+    constexpr auto operator()(UIt const &... its) const
+    {
+        return std::tuple<std::iter_reference_t<UIt>...>(*its...);
+    }
+};
+
+/*!\brief Dereference policy of the zip machinery invoking an N-ary functor.
+ * \tparam Fn The invocable; it is called with N arguments, not with a tuple.
+ * \details
+ *
+ * This is the policy behind the `*_transform` adaptors and behind radr::zip_transform.
+ *
+ * No std::tuple appears in any associated type, so instantiations are C++20.
+ */
+template <typename Fn>
+struct zip_policy_transform
+{
+    //!\brief No proxy; iter_move follows radr::detail::transform_iterator and iter_swap is dropped.
+    static constexpr bool proxy = false;
+
+    //!\brief The stored invocable.
+    [[no_unique_address]] detail::semiregular_box<Fn> fn{};
+
+    //!\brief The value type for a given pack of underlying iterators.
+    template <typename... UIt>
+    using value_type = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<UIt>...>>;
+
+    //!\brief Returns the result of invoking the functor on the dereferenced underlying iterators.
+    template <typename... UIt>
+    constexpr decltype(auto) operator()(UIt const &... its) const
+    {
+        return std::invoke(*fn, *its...);
+    }
+};
+
+//!\brief Requirements of radr::zip_policy_transform on \p Fn, for one pack of underlying iterators.
+template <typename Fn, typename... UIts>
+concept zip_policy_transform_constraints =
+  std::is_object_v<Fn> && std::regular_invocable<Fn const &, std::iter_reference_t<UIts>...> &&
+  detail::can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<UIts>...>>;
+
+} // namespace radr
 
 namespace radr::detail
 {
@@ -87,53 +156,6 @@ enum class zip_iterator_kind
     adjacent   //!< used by adjacent adaptor; rebinds first, re-derives the rest (all point into the same range)
 };
 
-/*!\brief Dereference policy of radr::detail::zip_iterator yielding a std::tuple of references.
- * \details Used by radr::zip, radr::zip_with, radr::adjacent and radr::enumerate. The tuple value_type
- * restricts instantiations to C++23; see the note at the top of this header.
- */
-struct zip_deref
-{
-    //!\brief Proxy reference; selects the tuple-flavoured iter_move/iter_swap.
-    static constexpr bool proxy = true;
-
-    template <typename... UIt>
-    using value_type = std::tuple<std::iter_value_t<UIt>...>;
-
-    template <typename... UIt>
-    constexpr auto operator()(UIt const &... its) const
-    {
-        return std::tuple<std::iter_reference_t<UIt>...>(*its...);
-    }
-};
-
-/*!\brief Dereference policy of radr::detail::zip_iterator invoking an N-ary functor.
- * \details Used by the *_transform adaptors. No std::tuple appears in any associated type, so
- * instantiations are C++20.
- */
-template <typename Fn>
-struct transform_deref
-{
-    //!\brief No proxy; iter_move follows radr::detail::transform_iterator and iter_swap is dropped.
-    static constexpr bool proxy = false;
-
-    [[no_unique_address]] semiregular_box<Fn> fn{};
-
-    template <typename... UIt>
-    using value_type = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<UIt>...>>;
-
-    template <typename... UIt>
-    constexpr decltype(auto) operator()(UIt const &... its) const
-    {
-        return std::invoke(*fn, *its...);
-    }
-};
-
-//!\brief Requirements of radr::detail::transform_deref on \p Fn, for one pack of underlying iterators.
-template <typename Fn, typename... UIts>
-concept transform_deref_constraints =
-  std::is_object_v<Fn> && std::regular_invocable<Fn const &, std::iter_reference_t<UIts>...> &&
-  can_reference<std::invoke_result_t<Fn const &, std::iter_reference_t<UIts>...>>;
-
 template <typename... Args>
 class zip_sentinel;
 
@@ -143,7 +165,7 @@ class enumerate_sentinel;
 template <typename UIt, typename USen>
 class adjacent_sentinel;
 
-template <zip_iterator_kind kind, typename Deref, typename... UIt>
+template <zip_iterator_kind kind, typename ZipPolicy, typename... UIt>
     requires((std::forward_iterator<UIt> && ...))
 class zip_iterator
 {
@@ -156,7 +178,7 @@ class zip_iterator
     static_assert((kind != zip_iterator_kind::adjacent) || _all_same,
                   "Adjacent means all iterator types are the same.");
 
-    template <zip_iterator_kind kind2, typename Deref2, typename... UIt2>
+    template <zip_iterator_kind kind2, typename ZipPolicy2, typename... UIt2>
         requires((std::forward_iterator<UIt2> && ...))
     friend class zip_iterator;
 
@@ -233,8 +255,8 @@ class zip_iterator
     /* data members */
     using storage_type = std::conditional_t<_all_same, std::array<first_uit_t, _size>, std::tuple<UIt...>>;
 
-    [[no_unique_address]] Deref deref_{};
-    storage_type                current;
+    [[no_unique_address]] ZipPolicy policy_{};
+    storage_type                    current;
 
     /*!\brief Move-assign \p rhs onto \p lhs, elementwise if the two storages differ.
      * \details The element-wise path covers std::tuple <-> std::array.
@@ -262,7 +284,7 @@ public:
                                                                   std::forward_iterator_tag>>;
     // clang-format on
 
-    using value_type      = typename Deref::template value_type<UIt...>;
+    using value_type      = typename ZipPolicy::template value_type<UIt...>;
     using difference_type = std::common_type_t<std::iter_difference_t<UIt>...>;
 
     /*!\brief Access to the underlying iterators.
@@ -273,46 +295,46 @@ public:
      *
      *          Deliberately *not* called `base()`: the generic fallback in `custom/rebind_iterator.hpp`
      *          is keyed on `it.base()` plus `It(it.base())`, and a `base()` here makes that fallback a
-     *          viable candidate next to this iterator's own `tag_invoke` for the zip_deref flavour.
+     *          viable candidate next to this iterator's own `tag_invoke` for the zip_policy_tuple flavour.
      */
     constexpr storage_type const & base_storage() const & noexcept { return current; }
 
     zip_iterator() = default;
 
-    /* Policy-less constructors default-construct deref_; restricted to zip_deref, because
-     * transform_deref<Fn> would hold an empty semiregular_box for non-default-constructible Fn. */
+    /* Policy-less constructors default-construct policy_; restricted to zip_policy_tuple, because
+     * zip_policy_transform<Fn> would hold an empty semiregular_box for non-default-constructible Fn. */
     constexpr zip_iterator(UIt... uit)
-        requires(Deref::proxy)
+        requires(ZipPolicy::proxy)
     {
         move_assign_elements(current, std::tuple(std::move(uit)...));
     }
 
-    constexpr zip_iterator(Deref deref, UIt... uit) : deref_{std::move(deref)}
+    constexpr zip_iterator(ZipPolicy policy, UIt... uit) : policy_{std::move(policy)}
     {
         move_assign_elements(current, std::tuple(std::move(uit)...));
     }
 
     constexpr zip_iterator(storage_type rhs)
-        requires(Deref::proxy)
+        requires(ZipPolicy::proxy)
     {
         move_assign_elements(current, rhs);
     }
 
-    constexpr zip_iterator(Deref deref, storage_type rhs) : deref_{std::move(deref)}
+    constexpr zip_iterator(ZipPolicy policy, storage_type rhs) : policy_{std::move(policy)}
     {
         move_assign_elements(current, rhs);
     }
 
     template <typename... UIt2>
-    constexpr zip_iterator(zip_iterator<kind, Deref, UIt2...> other)
+    constexpr zip_iterator(zip_iterator<kind, ZipPolicy, UIt2...> other)
         requires((!std::same_as<UIt2, UIt> || ...) && (std::convertible_to<UIt2, UIt> && ...) &&
                  sizeof...(UIt2) == _size)
-      : deref_{std::move(other.deref_)}
+      : policy_{std::move(other.policy_)}
     {
         move_assign_elements(current, other.current);
     }
 
-    constexpr decltype(auto) operator*() const { return std::apply(deref_, current); }
+    constexpr decltype(auto) operator*() const { return std::apply(policy_, current); }
 
     constexpr zip_iterator & operator++()
     {
@@ -445,11 +467,11 @@ public:
     }
 
     friend constexpr decltype(auto) iter_move(zip_iterator const & i) noexcept(
-      Deref::proxy ? ((noexcept(std::ranges::iter_move(UIt{})) && ...) &&
-                      (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...))
-                   : noexcept(*i))
+      ZipPolicy::proxy ? ((noexcept(std::ranges::iter_move(UIt{})) && ...) &&
+                          (std::is_nothrow_move_constructible_v<std::iter_rvalue_reference_t<UIt>> && ...))
+                       : noexcept(*i))
     {
-        if constexpr (Deref::proxy)
+        if constexpr (ZipPolicy::proxy)
             return tuple_transform(std::ranges::iter_move, i.current);
         /* same rule as radr::detail::transform_iterator */
         else if constexpr (std::is_lvalue_reference_v<decltype(*i)>)
@@ -460,7 +482,7 @@ public:
 
     friend constexpr void iter_swap(zip_iterator const & lhs, zip_iterator const & rhs) noexcept(
       (noexcept(std::ranges::iter_swap(UIt{}, UIt{})) && ...))
-        requires(Deref::proxy && (std::indirectly_swappable<UIt> && ...))
+        requires(ZipPolicy::proxy && (std::indirectly_swappable<UIt> && ...))
     {
         [&]<size_t... I>(std::index_sequence<I...>)
         {
@@ -470,24 +492,24 @@ public:
 };
 
 template <typename... UIt>
-zip_iterator(UIt...) -> zip_iterator<zip_iterator_kind::adaptor, zip_deref, UIt...>;
+zip_iterator(UIt...) -> zip_iterator<zip_iterator_kind::adaptor, zip_policy_tuple, UIt...>;
 
 template <zip_iterator_kind k, typename... UIt>
 constexpr auto make_zip_it(UIt... uit)
 {
-    return zip_iterator<k, zip_deref, UIt...>{std::forward<UIt>(uit)...};
+    return zip_iterator<k, zip_policy_tuple, UIt...>{std::forward<UIt>(uit)...};
 }
 
 //!\brief radr::detail::make_zip_it with an explicit dereference policy.
-template <zip_iterator_kind k, typename Deref, typename... UIt>
-constexpr auto make_zip_it_with(Deref deref, UIt... uit)
+template <zip_iterator_kind k, typename ZipPolicy, typename... UIt>
+constexpr auto make_zip_it_with(ZipPolicy policy, UIt... uit)
 {
-    return zip_iterator<k, Deref, UIt...>{std::move(deref), std::forward<UIt>(uit)...};
+    return zip_iterator<k, ZipPolicy, UIt...>{std::move(policy), std::forward<UIt>(uit)...};
 }
 
-/*!\brief Sentinel type for Zip adaptors.
- * \details This is only used for zip_iterator_kind::adaptor! The container does not use it, and enumerate and adjacent
- * have their own sentinels
+/*!\brief Sentinel type for zip_iterator_kind::adaptor and zip_iterator_kind::container.
+ * \details Used by the zip_with adaptor and by radr::zip_container, in both cases only when the end cannot be
+ * deduced in o(1). enumerate and adjacent have their own sentinels.
  */
 template <typename... UIt, typename... USen>
 class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
@@ -503,7 +525,8 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
     template <typename... Args>
     friend class zip_sentinel;
 
-    // this overload is only injected for the adaptors, not the container
+    /* Unlike zip_iterator, this is also injected for the container; harmless, because radr::zip_container is
+     * always at the "source" of a pipe and is therefore never rebound. */
     template <typename Container>
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
                                      zip_sentinel it,
@@ -518,8 +541,9 @@ class zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>
 public:
     zip_sentinel() = default;
 
-    template <zip_iterator_kind _, typename Deref>
-    constexpr explicit zip_sentinel(zip_iterator<_, Deref, UIt...>, std::tuple<USen...> usens) : end{std::move(usens)}
+    template <zip_iterator_kind _, typename ZipPolicy>
+    constexpr explicit zip_sentinel(zip_iterator<_, ZipPolicy, UIt...>, std::tuple<USen...> usens) :
+      end{std::move(usens)}
     {}
 
     template <typename... UIt2, typename... USen2>
@@ -529,8 +553,8 @@ public:
       : end{std::move(other.end)}
     {}
 
-    template <zip_iterator_kind k, typename Deref>
-    friend constexpr bool operator==(zip_iterator<k, Deref, UIt...> const & lhs, zip_sentinel const & rhs)
+    template <zip_iterator_kind k, typename ZipPolicy>
+    friend constexpr bool operator==(zip_iterator<k, ZipPolicy, UIt...> const & lhs, zip_sentinel const & rhs)
     {
         return [&]<size_t... I>(std::index_sequence<I...>)
         {
@@ -538,10 +562,10 @@ public:
         }(std::make_index_sequence<sizeof...(UIt)>{});
     }
 
-    template <zip_iterator_kind k, typename Deref>
-    friend constexpr std::iter_difference_t<zip_iterator<k, Deref, UIt...>> operator-(
-      zip_iterator<k, Deref, UIt...> const & lhs,
-      zip_sentinel const &                   rhs)
+    template <zip_iterator_kind k, typename ZipPolicy>
+    friend constexpr std::iter_difference_t<zip_iterator<k, ZipPolicy, UIt...>> operator-(
+      zip_iterator<k, ZipPolicy, UIt...> const & lhs,
+      zip_sentinel const &                       rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         constexpr auto diff = [](auto && lhs, auto && rhs)
@@ -555,18 +579,219 @@ public:
         return std::apply(pack_min, detail::tuple_zip_transform(diff, lhs.base_storage(), rhs.end));
     }
 
-    template <zip_iterator_kind k, typename Deref>
-    friend constexpr std::iter_difference_t<zip_iterator<k, Deref, UIt...>> operator-(
-      zip_sentinel const &                   lhs,
-      zip_iterator<k, Deref, UIt...> const & rhs)
+    template <zip_iterator_kind k, typename ZipPolicy>
+    friend constexpr std::iter_difference_t<zip_iterator<k, ZipPolicy, UIt...>> operator-(
+      zip_sentinel const &                       lhs,
+      zip_iterator<k, ZipPolicy, UIt...> const & rhs)
         requires((std::sized_sentinel_for<USen, UIt> && ...))
     {
         return -(rhs - lhs);
     }
 };
 
-template <zip_iterator_kind k, typename Deref, typename... UIt, typename... USen>
-zip_sentinel(zip_iterator<k, Deref, UIt...>, std::tuple<USen...>)
+template <zip_iterator_kind k, typename ZipPolicy, typename... UIt, typename... USen>
+zip_sentinel(zip_iterator<k, ZipPolicy, UIt...>, std::tuple<USen...>)
   -> zip_sentinel<std::tuple<UIt...>, std::tuple<USen...>>;
 
+template <zip_iterator_kind k>
+inline constexpr auto zip_with_borrow_impl =
+  []<typename ZipPolicy, typename... URanges>(ZipPolicy policy, URanges &&... rngs)
+{
+    auto beg  = make_zip_it_with<k>(policy, radr::begin(rngs)...);
+    auto cbeg = make_zip_it_with<k>(policy, radr::cbegin(rngs)...);
+
+    auto const min_size = min_range_size(rngs...);
+
+    /* all infinite → result infinite */
+    if constexpr ((infinite_mp_range<URanges> && ...))
+    {
+        return borrowing_rad{beg, std::unreachable_sentinel, cbeg, std::unreachable_sentinel};
+    }
+    /* all RA+sized or RA+infinite (but at least one non-infinite) → result RA+sized */
+    else if constexpr ((safely_indexable_range<URanges> && ...))
+    {
+        auto end  = beg + min_size;
+        auto cend = cbeg + min_size;
+
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
+    }
+    /* we only preserve common for 1-dimensional or uni-directional (because then unsynced ends are irrelevant) */
+    else if constexpr ((common_range<URanges> && ...) &&
+                       (sizeof...(URanges) == 1 || !(std::ranges::bidirectional_range<URanges> && ...)))
+    {
+        auto end  = make_zip_it_with<k>(policy, radr::end(rngs)...);
+        auto cend = make_zip_it_with<k>(policy, radr::cend(rngs)...);
+
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
+    }
+    /* all other cases */
+    else
+    {
+        auto end  = zip_sentinel{beg, std::make_tuple(radr::end(rngs)...)};
+        auto cend = zip_sentinel{cbeg, std::make_tuple(radr::cend(rngs)...)};
+
+        return borrowing_rad{beg, end, cbeg, cend, min_size};
+    }
+};
+
 } // namespace radr::detail
+
+namespace radr
+{
+
+/*!\brief A container of multiple other containers.
+ * \tparam ZipPolicy The dereference policy; radr::zip_policy_tuple or radr::zip_policy_transform.
+ * \tparam URanges The underlying ranges.
+ * \details
+ *
+ * All underlying ranges must be cv-unqualified object types that model radr::mp_range.
+ * At least one underlying range must be a container (i.e. not be borrowed).
+ *
+ * It is recommended to use one of the following adaptors or factories instead of using this type directly:
+ *   * radr::zip
+ *   * radr::zip_with
+ *   * radr::zip_transform
+ *   * radr::zip_with_transform
+ *
+ * Note that the simple "zip" mechanism (enabled via radr::zip_policy_tuple) is only available in C++23.
+ */
+template <typename ZipPolicy, typename... URanges>
+class zip_container : public range_interface<zip_container<ZipPolicy, URanges...>>
+{
+private:
+#if RADR_FEATURE_ZIP
+    static constexpr bool radr_has_feature_zip = true;
+#else
+    static constexpr bool radr_has_feature_zip = false;
+#endif
+
+    static_assert(radr_has_feature_zip || detail::different_from<ZipPolicy, zip_policy_tuple>,
+                  "Ranges whose elements are tuples of references are only available in C++23.");
+
+    static_assert(sizeof...(URanges) > 0, "There must be > 0 range arguments to zip_container.");
+    static_assert((range_object<URanges> && ...),
+                  "All range arguments to zip_container must be unqualified multi-passed ranges.");
+    static_assert(((!borrowed_mp_range<URanges>) || ...),
+                  "If all range arguments to zip_container are borrowed, use radr::borrowed_rad instead.");
+
+    using iterator = detail::zip_iterator<detail::zip_iterator_kind::container, ZipPolicy, iterator_t<URanges>...>;
+    using const_iterator =
+      detail::zip_iterator<detail::zip_iterator_kind::container, ZipPolicy, const_iterator_t<URanges>...>;
+
+    static constexpr bool is_ra_sized =
+      (safely_indexable_range<URanges const> && ...) && (std::ranges::sized_range<URanges const> || ...);
+    static constexpr bool is_sized        = (std::ranges::sized_range<URanges const> && ...) || is_ra_sized;
+    static constexpr bool const_symmetric = std::same_as<iterator, const_iterator>;
+
+    using size_type =
+      std::conditional_t<is_sized, std::common_type_t<detail::range_size_t_or_size_t<URanges>...>, detail::not_size>;
+
+    [[no_unique_address]] ZipPolicy policy{};
+    std::tuple<URanges...>          containers;
+    size_type                       sz{}; // stored size
+
+    template <typename iterator_t, typename get_end_t, typename self_t>
+    static auto end_impl(self_t & self)
+    {
+        // common via random access
+        if constexpr (is_ra_sized)
+        {
+            return self.begin() + self.size();
+        }
+        else
+        {
+            auto make_zip_iterator = [&](auto &&... rngs)
+            {
+                static constexpr get_end_t get_end{};
+
+                // common only if end can be deduced in o(1)
+                if constexpr ((common_range<URanges const> && ...) &&
+                              (sizeof...(URanges) == 1 || !std::bidirectional_iterator<const_iterator>))
+                {
+                    return iterator_t{self.policy, get_end(rngs)...};
+                }
+                else // not common
+                {
+                    return detail::zip_sentinel{iterator_t{}, std::make_tuple(get_end(rngs)...)};
+                }
+            };
+            return std::apply(make_zip_iterator, self.containers);
+        }
+    }
+
+public:
+    using value_type      = std::iter_value_t<iterator>;
+    using difference_type = std::iter_difference_t<iterator>;
+
+    /*!\name Constructors, destructors and assignment
+     * \{
+     */
+    constexpr zip_container()                                  = default;
+    constexpr zip_container(zip_container const &)             = default;
+    constexpr zip_container(zip_container &&)                  = default;
+    constexpr zip_container & operator=(zip_container const &) = default;
+    constexpr zip_container & operator=(zip_container &&)      = default;
+
+    constexpr zip_container(ZipPolicy policy_, URanges &&... uranges) :
+      policy{std::move(policy_)},
+      containers{std::make_tuple(std::forward<URanges>(uranges)...)},
+      sz{std::apply(detail::min_range_weak_size, containers)}
+    {}
+
+    constexpr zip_container(URanges &&... uranges)
+        requires std::same_as<ZipPolicy, zip_policy_tuple>
+      :
+      policy{zip_policy_tuple{}},
+      containers{std::make_tuple(std::forward<URanges>(uranges)...)},
+      sz{std::apply(detail::min_range_weak_size, containers)}
+    {}
+    //!\}
+
+    constexpr iterator begin()
+        requires(!const_symmetric)
+    {
+        auto make_zip_iterator = [this](auto &&... rngs)
+        {
+            return iterator{policy, radr::begin(rngs)...};
+        };
+        return std::apply(make_zip_iterator, containers);
+    }
+
+    constexpr const_iterator begin() const
+    {
+        auto make_zip_iterator = [this](auto &&... rngs)
+        {
+            return const_iterator{policy, radr::cbegin(rngs)...};
+        };
+        return std::apply(make_zip_iterator, containers);
+    }
+
+    constexpr auto end()
+        requires(!const_symmetric)
+    {
+        return end_impl<iterator, decltype(radr::end)>(*this);
+    }
+
+    constexpr auto end() const { return end_impl<const_iterator, decltype(radr::cend)>(*this); }
+
+    constexpr auto size() const
+        requires is_sized
+    {
+        return sz;
+    }
+
+    constexpr friend bool operator==(zip_container const & lhs, zip_container const & rhs)
+        requires detail::weakly_equality_comparable<std::iter_reference_t<const_iterator>>
+    {
+        return std::ranges::equal(lhs, rhs);
+    }
+};
+
+template <typename ZipPolicy, typename... URanges>
+zip_container(ZipPolicy, URanges &&...) -> zip_container<ZipPolicy, std::remove_cvref_t<URanges>...>;
+
+template <typename... URanges>
+    requires(mp_range<URanges> && ...)
+zip_container(URanges &&...) -> zip_container<zip_policy_tuple, std::remove_cvref_t<URanges>...>;
+
+} // namespace radr

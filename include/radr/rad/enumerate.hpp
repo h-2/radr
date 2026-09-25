@@ -12,7 +12,7 @@
 #pragma once
 
 #include "../version.hpp"
-#include "radr/class/zip_rng.hpp"
+#include "radr/class/zip_container.hpp"
 
 #if !RADR_FEATURE_ZIP
 #    pragma GCC warning "This header requires C++23."

@@ -11,9 +11,9 @@
 
 #pragma once
 
+#include "radr/class/zip_container.hpp"
 #include "radr/concepts.hpp"
 #include "radr/custom/subborrow.hpp"
-#include "radr/detail/zip_borrow.hpp"
 #include "radr/generator.hpp"
 #include "radr/range_access.hpp"
 #include "radr/version.hpp"
@@ -21,8 +21,6 @@
 #if !RADR_FEATURE_ZIP
 #    pragma GCC warning "This header requires C++23."
 #else
-
-#    include "radr/class/zip_rng.hpp"
 
 namespace radr
 {
@@ -35,7 +33,7 @@ inline namespace cpo
  * \param[in] uranges A pack of ranges.
  * \details
  *
- * Zip multiple ranges into a range of tuples.
+ * Zip multiple ranges into a range of tuples. Requires C++23!
  *
  * ## Comparison with other adaptors/factories
  *
@@ -58,10 +56,10 @@ inline namespace cpo
  * ### Concepts
  *
  * Requirements:
- *   * `radr::mp_range<URange>`
+ *   * `(radr::mp_range<URanges> && ...)`
  *   * LValues of containers need to be wrapped in `std::ref()` or `std::cref()`.
  *
- * This adaptor preserves, if all underlying ranges provide it:
+ * The returned range models, if all underlying ranges provide it:
  *   * categories up to std::ranges::random_access_range
  *   * std::ranges::borrowed_range
  *   * std::ranges::sized_range
@@ -87,7 +85,7 @@ inline constexpr auto zip = []<typename... Ranges>(Ranges &&... ranges)
     {
         // return plain adaptor if all inputs are borrowed
         return detail::zip_with_borrow_impl<detail::zip_iterator_kind::adaptor>(
-          detail::zip_deref{},
+          zip_policy_tuple{},
           borrow(std::forward<Ranges>(ranges))...);
     }
     else if constexpr (((mp_range<Ranges> || ref_wrapped_mp_range<Ranges>)&&...))
@@ -95,7 +93,7 @@ inline constexpr auto zip = []<typename... Ranges>(Ranges &&... ranges)
         static_assert((!container_lvalue<Ranges> && ...),
                       "Do not pass lvalues of containers to radr::zip. "
                       "To store copies, pass copies; to store references, wrap inputs in std::ref().");
-        return zip_rng{RADR_FWD(ranges)...};
+        return zip_container{zip_policy_tuple{}, RADR_FWD(ranges)...};
     }
     else
     {

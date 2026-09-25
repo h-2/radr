@@ -29,38 +29,38 @@ TEST(dummy, skipped_because_no_cpp23)
 
 // created with help of AI
 
-enum class rad_type : uint8_t
+enum class range_type : uint8_t
 {
     other,
     borrowing_rad,
     owning_rad,
-    zip_rng,
+    zip_container,
     generator
 };
 
-constexpr rad_type check_rng_type(auto const &)
+constexpr range_type check_rng_type(auto const &)
 {
-    return rad_type::other;
+    return range_type::other;
 }
 template <typename Iter, typename Sent, typename CIter, typename CSent, auto Kind>
-constexpr rad_type check_rad_type(radr::borrowing_rad<Iter, Sent, CIter, CSent, Kind> const &)
+constexpr range_type check_range_type(radr::borrowing_rad<Iter, Sent, CIter, CSent, Kind> const &)
 {
-    return rad_type::borrowing_rad;
+    return range_type::borrowing_rad;
 }
 template <typename URange, typename BorrowingRange>
-constexpr rad_type check_rad_type(radr::owning_rad<URange, BorrowingRange> const &)
+constexpr range_type check_range_type(radr::owning_rad<URange, BorrowingRange> const &)
 {
-    return rad_type::owning_rad;
+    return range_type::owning_rad;
 }
-template <typename... URanges>
-constexpr rad_type check_rad_type(radr::zip_rng<URanges...> const &)
+template <typename Policy, typename... URanges>
+constexpr range_type check_range_type(radr::zip_container<Policy, URanges...> const &)
 {
-    return rad_type::zip_rng;
+    return range_type::zip_container;
 }
 template <typename Ref, typename Val>
-constexpr rad_type check_rad_type(radr::generator<Ref, Val> const &)
+constexpr range_type check_range_type(radr::generator<Ref, Val> const &)
 {
-    return rad_type::generator;
+    return range_type::generator;
 }
 
 //===========================================================================
@@ -76,7 +76,7 @@ TEST(zip, SingleRange)
 
     std::vector<std::tuple<int>> expected{{1}, {2}, {3}};
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, TwoRanges)
@@ -91,7 +91,7 @@ TEST(zip, TwoRanges)
       {3, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, ThreeRanges)
@@ -107,7 +107,7 @@ TEST(zip, ThreeRanges)
       {3, 'z', 3.3}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, RvalueContainer)
@@ -117,7 +117,7 @@ TEST(zip, RvalueContainer)
     std::vector<std::tuple<int>> expected{{10}, {20}, {30}};
     EXPECT_RANGE_EQ(z, expected);
     EXPECT_TRUE(std::ranges::common_range<decltype(z)>);
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
 }
 
 TEST(zip, MultipleRvalueContainers)
@@ -131,7 +131,7 @@ TEST(zip, MultipleRvalueContainers)
     };
     EXPECT_RANGE_EQ(z, expected);
     EXPECT_TRUE(std::ranges::common_range<decltype(z)>);
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
 }
 
 TEST(zip, MixedRvalueAndRef)
@@ -146,7 +146,7 @@ TEST(zip, MixedRvalueAndRef)
     };
     EXPECT_RANGE_EQ(z, expected);
     EXPECT_TRUE(std::ranges::common_range<decltype(z)>);
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
 }
 
 // ---------- Edge cases ----------
@@ -159,7 +159,7 @@ TEST(zip, EmptyRanges)
 
     EXPECT_EQ(std::ranges::size(z), 0u);
     EXPECT_TRUE(z.begin() == z.end());
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, OneEmptyRange)
@@ -170,7 +170,7 @@ TEST(zip, OneEmptyRange)
 
     EXPECT_EQ(std::ranges::size(z), 0u);
     EXPECT_TRUE(z.begin() == z.end());
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, DifferentLengths)
@@ -185,7 +185,7 @@ TEST(zip, DifferentLengths)
     };
     EXPECT_RANGE_EQ(z, expected);
     EXPECT_EQ(std::ranges::size(z), 2u);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, DifferentLengthsThreeRanges)
@@ -202,7 +202,7 @@ TEST(zip, DifferentLengthsThreeRanges)
       {3, 'c', 3.3}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, SingleElement)
@@ -215,7 +215,7 @@ TEST(zip, SingleElement)
       {42, 'x'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 // ---------- Reference and value semantics ----------
@@ -235,7 +235,7 @@ TEST(zip, ReferencesAreMutable)
 
     EXPECT_EQ(a, (std::vector<int>{2, 4, 6}));
     EXPECT_EQ(b, (std::vector<int>{15, 25, 35}));
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, ConstReferencesNotMutable)
@@ -247,7 +247,7 @@ TEST(zip, ConstReferencesNotMutable)
 
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 
     int sum = 0;
     for (auto [x, y] : z)
@@ -266,7 +266,7 @@ TEST(zip, ConstReferencesNotMutable2)
 
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>, (std::tuple<int const &, int const &>));
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 
     int sum = 0;
     for (auto [x, y] : z)
@@ -287,7 +287,7 @@ TEST(zip, ReferenceTypesAreTuples)
     using ConstRef = radr::detail::range_const_reference_t<decltype(z)>;
     EXPECT_SAME_TYPE(Ref, (std::tuple<int &, std::string &>));
     EXPECT_SAME_TYPE(ConstRef, (std::tuple<int const &, std::string const &>));
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 
     auto it     = z.begin();
     auto [i, s] = *it;
@@ -314,7 +314,7 @@ TEST(zip, MoveOnlyElements)
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(z)>, (std::tuple<std::unique_ptr<int> &, int &>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(z)>,
                      (std::tuple<std::unique_ptr<int> const &, int const &>));
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 
     for (auto [ptr, mult] : z)
     {
@@ -341,7 +341,7 @@ TEST(zip, VectorAndArray)
       {3, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, VectorAndList)
@@ -357,7 +357,7 @@ TEST(zip, VectorAndList)
       {3, 'z'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, ListAndDeque)
@@ -373,7 +373,7 @@ TEST(zip, ListAndDeque)
       {3, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, BorrowedRanges)
@@ -389,7 +389,7 @@ TEST(zip, BorrowedRanges)
       {3, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 TEST(zip, WithRadrRanges)
@@ -405,7 +405,7 @@ TEST(zip, WithRadrRanges)
       {2, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
 }
 
 // ---------- Concept checks ----------
@@ -416,7 +416,7 @@ TEST(zip, ConceptsForRandomAccessRanges)
     std::vector<int> b{4, 5, 6};
     auto             z = radr::zip(std::ref(a), std::ref(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
@@ -432,7 +432,7 @@ TEST(zip, ConceptsForBidirectionalRanges)
     std::list<int> b{4, 5, 6};
     auto           z = radr::zip(std::ref(a), std::ref(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
@@ -448,7 +448,7 @@ TEST(zip, ConceptsForForwardRanges)
     std::forward_list<int> b{4, 5, 6};
     auto                   z = radr::zip(std::ref(a), std::ref(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::bidirectional_range<decltype(z)>);
@@ -463,7 +463,7 @@ TEST(zip, ConceptsMixedCategories)
     std::list<int>   lst{4, 5, 6};
     auto             z = radr::zip(std::ref(vec), std::ref(lst));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::random_access_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::sized_range<decltype(z)>);
@@ -479,7 +479,7 @@ TEST(zip, ConceptsForRandomAccessRangesOwning)
     std::vector<int> b{4, 5, 6};
     auto             z = radr::zip(std::move(a), std::move(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
@@ -495,7 +495,7 @@ TEST(zip, ConceptsForBidirectionalRangesOwning)
     std::list<int> b{4, 5, 6};
     auto           z = radr::zip(std::move(a), std::move(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
@@ -511,7 +511,7 @@ TEST(zip, ConceptsForForwardRangesOwning)
     std::forward_list<int> b{4, 5, 6};
     auto                   z = radr::zip(std::move(a), std::move(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::forward_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::bidirectional_range<decltype(z)>);
@@ -526,7 +526,7 @@ TEST(zip, ConceptsMixedCategoriesOwning)
     std::list<int>   lst{4, 5, 6};
     auto             z = radr::zip(std::move(vec), std::move(lst));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::zip_rng);
+    EXPECT_EQ(check_range_type(z), range_type::zip_container);
     EXPECT_TRUE(std::ranges::bidirectional_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::random_access_range<decltype(z)>);
     EXPECT_TRUE(std::ranges::sized_range<decltype(z)>);
@@ -626,7 +626,7 @@ TEST(zip, SizeIsMinimum)
     std::vector<int> c{100, 200, 300, 400};
     auto             z = radr::zip(std::ref(a), std::ref(b), std::ref(c));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_EQ(std::ranges::size(z), 2u);
 }
 
@@ -636,7 +636,7 @@ TEST(zip, CommonRangeWithCommonInputs)
     std::vector<int> b{4, 5, 6};
     auto             z = radr::zip(std::ref(a), std::ref(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z), range_type::borrowing_rad);
     EXPECT_TRUE(std::ranges::common_range<decltype(z)>);
 }
 
@@ -658,7 +658,7 @@ TEST(zip, owning_copy_test)
 
     {
         T own = radr::zip(std::vector{1, 2, 3, 4, 5, 6}, radr::iota(0));
-        EXPECT_EQ(check_rad_type(own), rad_type::zip_rng);
+        EXPECT_EQ(check_range_type(own), range_type::zip_container);
         EXPECT_RANGE_EQ(own, comp);
         cpy = own;
     }
@@ -673,8 +673,8 @@ TEST(zip, BorrowingZipIsCopyable)
     auto             z1 = radr::zip(std::ref(a), std::ref(b));
     auto             z2 = z1;
 
-    EXPECT_EQ(check_rad_type(z1), rad_type::borrowing_rad);
-    EXPECT_EQ(check_rad_type(z2), rad_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z1), range_type::borrowing_rad);
+    EXPECT_EQ(check_range_type(z2), range_type::borrowing_rad);
     std::vector<std::tuple<int, int>> expected{
       {1, 4},
       {2, 5},
@@ -695,7 +695,7 @@ TEST(zip_sp, SingleRange)
 
     std::vector<std::tuple<int>> expected{{1}, {2}, {3}};
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, TwoRanges)
@@ -710,7 +710,7 @@ TEST(zip_sp, TwoRanges)
       {3, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, ThreeRanges)
@@ -726,7 +726,7 @@ TEST(zip_sp, ThreeRanges)
       {3, 'z', 3.3}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, EmptyRanges)
@@ -736,7 +736,7 @@ TEST(zip_sp, EmptyRanges)
     auto             z = radr::zip_sp(std::move(a), std::move(b));
 
     EXPECT_TRUE(z.begin() == z.end());
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, DifferentLengths)
@@ -750,7 +750,7 @@ TEST(zip_sp, DifferentLengths)
       {2, 'b'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, MixedSinglePassAndMultiPass)
@@ -765,7 +765,7 @@ TEST(zip_sp, MixedSinglePassAndMultiPass)
       {2, 'c'}
     };
     EXPECT_RANGE_EQ(z, expected);
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
 }
 
 TEST(zip_sp, ConceptChecks)
@@ -774,7 +774,7 @@ TEST(zip_sp, ConceptChecks)
     std::vector<int> b{4, 5, 6};
     auto             z = radr::zip_sp(std::move(a), std::move(b));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
     EXPECT_TRUE(std::ranges::input_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::forward_range<decltype(z)>);
     EXPECT_FALSE(std::ranges::bidirectional_range<decltype(z)>);
@@ -790,7 +790,7 @@ TEST(zip_sp, ReferenceTypes)
     std::vector<std::string> ys{"a", "b", "c"};
     auto                     z = radr::zip_sp(std::move(xs), std::move(ys));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
     using Ref = std::ranges::range_reference_t<decltype(z)>;
     using Val = std::ranges::range_value_t<decltype(z)>;
 
@@ -803,7 +803,7 @@ TEST(zip_sp, ReferenceTypes2)
     std::vector<int> xs{1, 2, 3};
     auto             z = radr::zip_sp(std::move(xs), radr::iota(0));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
     using Ref = std::ranges::range_reference_t<decltype(z)>;
     using Val = std::ranges::range_value_t<decltype(z)>;
 
@@ -862,7 +862,7 @@ TEST(zip_sp, FourRanges)
     std::vector<bool>   d{true, false};
     auto                z = radr::zip_sp(std::move(a), std::move(b), std::move(c), std::move(d));
 
-    EXPECT_EQ(check_rad_type(z), rad_type::generator);
+    EXPECT_EQ(check_range_type(z), range_type::generator);
     std::vector<std::tuple<int, char, double, bool>> expected{
       {1, 'a', 1.1,  true},
       {2, 'b', 2.2, false}

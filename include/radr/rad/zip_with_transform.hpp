@@ -16,11 +16,11 @@
 #include <tuple>
 #include <utility>
 
+#include "radr/class/zip_container.hpp"
 #include "radr/concepts.hpp"
 #include "radr/custom/subborrow.hpp"
 #include "radr/detail/detail.hpp"
 #include "radr/detail/pipe.hpp"
-#include "radr/detail/zip_borrow.hpp"
 #include "radr/generator.hpp"
 #include "radr/range_access.hpp"
 
@@ -37,15 +37,18 @@ inline constexpr auto zip_with_transform_borrow =
                   "All ranges passed to radr::zip_with_transform after the functor need to be \n"
                   "  1) multi-pass ranges; to create a single-pass adaptor, wrap the first argument into "
                   "radr::to_single_pass.\n"
-                  "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?");
+                  "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?\n"
+                  "     To pass rvalues of containers here, use the radr::zip_transform factory instead.");
 
     static_assert(
-      transform_deref_constraints<Fn, iterator_t<borrow_t<URange>>, iterator_t<borrow_t<OtherRanges>>...> &&
-        transform_deref_constraints<Fn, const_iterator_t<borrow_t<URange>>, const_iterator_t<borrow_t<OtherRanges>>...>,
+      zip_policy_transform_constraints<Fn, iterator_t<borrow_t<URange>>, iterator_t<borrow_t<OtherRanges>>...> &&
+        zip_policy_transform_constraints<Fn,
+                                         const_iterator_t<borrow_t<URange>>,
+                                         const_iterator_t<borrow_t<OtherRanges>>...>,
       "The constraints for radr::zip_with_transform's functor are not met.");
 
     return zip_with_borrow_impl<zip_iterator_kind::adaptor>(
-      transform_deref<Fn>{
+      zip_policy_transform<Fn>{
         semiregular_box<Fn>{std::in_place, std::move(fn)}
     },
       radr::borrow(std::forward<URange>(urange)),
@@ -118,7 +121,7 @@ inline namespace cpo
  * | lvalue of container for \p urange       |                        yes                         |                  std::ref-wrapped                  |                     std::ref-wrapped                     |
  * | lvalue of container for \p other_ranges |                        yes                         |                  std::ref-wrapped                  |                     std::ref-wrapped                     |
  * | rvalue of container for \p urange       |                        yes                         |                        yes                         |                           yes                            |
- * | rvalue of container for \p other_ranges |                        yes                         |                     no (TODO)                      |                            no                            |
+ * | rvalue of container for \p other_ranges |                        yes                         |                        yes                         |                            no                            |
  * | direct ("factory") call pattern         | `s::v::zip_transform(fn, urange, other_ranges...)` | `radr::zip_transform(fn, urange, other_ranges...)` | `radr::zip_with_transform(urange, fn, other_ranges...)`  |
  * | pipe ("adaptor") call pattern           |                         no                         |                         no                         | `urange | radr::zip_with_transform(fn, other_ranges...)` |
  * | closure ("stored") call pattern         |                         no                         |                         no                         | `radr::zip_with_transform(fn, other_ranges...)(urange)`  |
@@ -159,7 +162,7 @@ inline namespace cpo
  * The implementation of radr::zip_with_transform follows radr::zip_with (adaptor) and not radr::zip (factory). This implies:
  *   * You can pipe into radr::zip_with_transform (which you cannot into std::views::zip_transform); see "call patterns" above.
  *   * \p urange, the first/main underlying range can be an rvalue of a container—but the \p other_ranges cannot.
- *   * If you want to zip more than one container by rvalue, use `radr::zip | radr::transform` instead.
+ *   * If you want to zip more than one container by rvalue, use radr::zip_transform instead.
  *
  * ## Single-pass adaptor
  *

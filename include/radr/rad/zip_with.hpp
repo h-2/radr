@@ -37,7 +37,7 @@ inline constexpr auto zip_with_borrow =
                   "radr::to_single_pass.\n"
                   "  2) safe/explicit indirections; did you forget to wrap a container in std::ref() or std::cref()?");
 
-    return zip_with_borrow_impl<zip_iterator_kind::adaptor>(zip_deref{},
+    return zip_with_borrow_impl<zip_iterator_kind::adaptor>(zip_policy_tuple{},
                                                             radr::borrow(std::forward<URange>(urange)),
                                                             radr::borrow(std::forward<OtherRanges>(others))...);
 };
@@ -77,7 +77,7 @@ inline namespace cpo
  * \param[in] other_ranges A pack of the other ranges; each wrapped in std::ref or std::cref.
  * \details
  *
- * Zip other ranges with a given one.
+ * Zip other ranges with a given one. Requires C++23!
  *
  * ## Comparison with other adaptors/factories
  *
