@@ -24,7 +24,7 @@
 #    include <array>
 #    include <ranges>
 
-#    include "radr/class/zip_rng.hpp"
+#    include "radr/class/zip_container.hpp"
 #    include "radr/concepts.hpp"
 #    include "radr/detail/pipe.hpp"
 
@@ -36,6 +36,8 @@ inline namespace cpo
 /*!\brief Create a sliding tuple of fixed size N over the range.
  * \tparam N The size of the tuple (>= 1).
  * \param urange The underlying range.
+ *
+ * Requires C++23!
  *
  * ### Multi-pass adaptor
  *

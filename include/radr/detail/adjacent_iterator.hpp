@@ -17,8 +17,8 @@
 #include <ranges>
 
 #include "radr/class/borrowing_rad.hpp"
+#include "radr/class/zip_container.hpp"
 #include "radr/concepts.hpp"
-#include "radr/detail/zip_iterator.hpp"
 #include "radr/range_access.hpp"
 
 namespace radr::detail
@@ -59,15 +59,15 @@ constexpr std::array<It, N> make_adj_it_array(It it, Sen sen)
 template <size_t, typename T>
 using pack_helper = T;
 
-/*!\brief radr::detail::transform_deref_constraints with sizeof...(Is) copies of \p UIt.
+/*!\brief radr::detail::zip_policy_transform_constraints with sizeof...(Is) copies of \p UIt.
  * \details Deliberately not an immediately-invoked lambda inside the static_assert: that crashes clang 17 and 19.
  */
 template <typename Fn, typename UIt, typename Seq>
-inline constexpr bool transform_deref_constraints_n = false;
+inline constexpr bool zip_policy_transform_constraints_n = false;
 
 template <typename Fn, typename UIt, size_t... Is>
-inline constexpr bool transform_deref_constraints_n<Fn, UIt, std::index_sequence<Is...>> =
-  transform_deref_constraints<Fn, pack_helper<Is, UIt>...>;
+inline constexpr bool zip_policy_transform_constraints_n<Fn, UIt, std::index_sequence<Is...>> =
+  zip_policy_transform_constraints<Fn, pack_helper<Is, UIt>...>;
 
 template <size_t N, typename Deref, typename UIt>
 constexpr auto make_adj_it(Deref deref, std::array<UIt, N> const & arr)
@@ -224,7 +224,7 @@ template <ptrdiff_t N>
 inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
     requires std::ranges::forward_range<URange>
 {
-    return adjacent_borrow_impl<N>(zip_deref{}, std::forward<URange>(urange));
+    return adjacent_borrow_impl<N>(zip_policy_tuple{}, std::forward<URange>(urange));
 };
 
 } // namespace radr::detail

@@ -31,13 +31,13 @@ inline constexpr auto adjacent_transform_borrow = []<typename URange, typename F
                   "The constraints for radr::adjacent_transform's underlying range are not met.");
 
     using seq_t = std::make_index_sequence<N>;
-    static_assert(transform_deref_constraints_n<Fn, iterator_t<URange>, seq_t> &&
-                    transform_deref_constraints_n<Fn, const_iterator_t<URange>, seq_t>,
+    static_assert(zip_policy_transform_constraints_n<Fn, iterator_t<URange>, seq_t> &&
+                    zip_policy_transform_constraints_n<Fn, const_iterator_t<URange>, seq_t>,
                   "The constraints for radr::adjacent_transform's functor are not met; note that it is invoked with N "
                   "arguments.");
 
     return adjacent_borrow_impl<N>(
-      transform_deref<Fn>{
+      zip_policy_transform<Fn>{
         semiregular_box<Fn>{std::in_place, std::move(fn)}
     },
       std::forward<URange>(urange));
