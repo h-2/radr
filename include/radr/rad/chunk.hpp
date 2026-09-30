@@ -23,55 +23,14 @@
 #include "radr/generator.hpp"
 #include "radr/range_access.hpp"
 
+// ==========================================================================
+// unidi_chunk_like_iterator [for radr::chunk, radr::chunk_by, radr::slide]
+// ==========================================================================
+
 namespace radr::detail
 {
 
-/*!\brief Whether the BoundaryFinder knows the chunk size upfront.
- * \details
- * True for radr::chunk (radr::detail::chunk_size_finder), false for radr::chunk_by.
- */
-template <typename BoundaryFinder>
-concept fixed_size_finder = requires(BoundaryFinder const & f) { f.n; };
-
-/*!\brief The size of the chunk [\p b, \p e), or radr::detail::not_size if it cannot be computed in O(1).
- * \param finder The BoundaryFinder of the calling iterator.
- * \param b Begin of the current chunk.
- * \param e End of the current chunk.
- * \param uend End of the underlying range.
- * \details
- *
- * Shared by both chunk-like iterators; the return type doubles as the size argument of radr::subborrow,
- * so it determines whether the inner range models std::ranges::sized_range (see radr::detail::chunk_size_t).
- */
-template <typename BoundaryFinder, typename UIt, typename USen>
-constexpr auto chunk_size([[maybe_unused]] BoundaryFinder const & finder,
-                          [[maybe_unused]] UIt const &            b,
-                          [[maybe_unused]] UIt const &            e,
-                          [[maybe_unused]] USen const &           uend)
-{
-    if constexpr (std::sized_sentinel_for<UIt, UIt>)
-    {
-        return to_unsigned_like(e - b);
-    }
-    else if constexpr (fixed_size_finder<BoundaryFinder>)
-    {
-        // only the last chunk may be shorter than n, so the linear count happens at most once per traversal
-        return to_unsigned_like(e == uend ? std::ranges::distance(b, e) : finder.n);
-    }
-    else
-    {
-        return not_size{};
-    }
-}
-
-//!\brief The return type of radr::detail::chunk_size.
-template <typename BoundaryFinder, typename UIt, typename USen>
-using chunk_size_t = decltype(chunk_size(std::declval<BoundaryFinder const &>(),
-                                         std::declval<UIt const &>(),
-                                         std::declval<UIt const &>(),
-                                         std::declval<USen const &>()));
-
-/*!\brief The forward-only iterator for radr::chunk and radr::chunk_by.
+/*!\brief The forward-only iterator for radr::chunk, radr::chunk_by and radr::slide.
  * \tparam Borrow The (borrowed) underlying range.
  * \tparam BoundaryFinder Policy object that locates the end of the next chunk.
  */
@@ -103,13 +62,19 @@ private:
         return it;
     }
 
+    //!\brief The return type determines whether subranges are sized or not.
+    template <typename UIt, typename USen>
+    using chunk_size_t = decltype(finder.chunk_size(std::declval<UIt const &>(),
+                                                    std::declval<UIt const &>(),
+                                                    std::declval<USen const &>()));
+
 public:
     /*!\name Associated types
      * \{
      */
     using iterator_concept  = std::forward_iterator_tag;
     using iterator_category = std::input_iterator_tag;
-    using value_type        = subborrow_t<Borrow, UIt, UIt, chunk_size_t<BoundaryFinder, UIt, USen>>;
+    using value_type        = subborrow_t<Borrow, UIt, UIt, chunk_size_t<UIt, USen>>;
     using difference_type   = std::ranges::range_difference_t<Borrow>;
     //!\}
 
@@ -124,12 +89,12 @@ public:
 
     //!\brief Construct from values.
     constexpr unidi_chunk_like_iterator(Borrow urange_, BoundaryFinder finder_) :
-      finder{std::move(finder_)}, uend{radr::end(urange_)}, subrange_begin{radr::begin(urange_)}
+      finder{std::move(finder_)},
+      uend{radr::end(urange_)},
+      subrange_begin{radr::begin(urange_)},
+      subrange_end{radr::begin(urange_)}
     {
-        if (subrange_begin != uend)
-            subrange_end = finder.find_end(subrange_begin, uend);
-        else
-            subrange_end = subrange_begin;
+        finder.init_begin(subrange_begin, subrange_end, uend);
     }
 
     //!\brief Construct from compatible iterator, in particular non-const to const.
@@ -150,17 +115,12 @@ public:
      */
     constexpr value_type operator*() const
     {
-        return subborrow(Borrow{},
-                         subrange_begin,
-                         subrange_end,
-                         chunk_size(finder, subrange_begin, subrange_end, uend));
+        return subborrow(Borrow{}, subrange_begin, subrange_end, finder.chunk_size(subrange_begin, subrange_end, uend));
     }
 
     constexpr unidi_chunk_like_iterator & operator++()
     {
-        subrange_begin = subrange_end;
-        if (subrange_begin != uend)
-            subrange_end = finder.find_end(subrange_begin, uend);
+        finder.go_next(subrange_begin, subrange_end, uend);
         return *this;
     }
 
@@ -203,6 +163,10 @@ struct std::iterator_traits<radr::detail::unidi_chunk_like_iterator<Borrow, Boun
 };
 #endif
 
+// ==========================================================================
+// bidi_chunk_like_iterator [for radr::chunk, radr::chunk_by, radr::slide]
+// ==========================================================================
+
 namespace radr::detail
 {
 
@@ -215,13 +179,6 @@ namespace radr::detail
  * Compared to unidi_chunk_like_iterator, this additionally stores `ubegin` (needed so that searching
  * backwards for a chunk boundary never underflows past the start of the underlying range) and models
  * radr::common_range itself.
- *
- * `BoundaryFinder` must additionally provide `UIt find_start(UIt end, UIt begin) const`.
- *
- * The last chunk is potentially smaller than n, so we cannot use the BoundaryFinder for decrementing
- * the end. Instead the calling function (which knows the size) pre-computes the begin of the last chunk
- * and stores when constructing an iterator as the sentinel.
- * The drawback of this design is an if-check in operator-- (that branch prediction hopefully covers).
  */
 template <borrowed_mp_range Borrow, std::semiregular BoundaryFinder>
     requires std::ranges::bidirectional_range<Borrow> && common_range<Borrow>
@@ -254,13 +211,19 @@ private:
         return it;
     }
 
+    //!\brief The return type determines whether subranges are sized or not.
+    template <typename UIt, typename USen>
+    using chunk_size_t = decltype(finder.chunk_size(std::declval<UIt const &>(),
+                                                    std::declval<UIt const &>(),
+                                                    std::declval<USen const &>()));
+
 public:
     /*!\name Associated types
      * \{
      */
     using iterator_concept  = std::bidirectional_iterator_tag;
     using iterator_category = std::input_iterator_tag;
-    using value_type        = subborrow_t<Borrow, UIt, UIt, chunk_size_t<BoundaryFinder, UIt, UIt>>;
+    using value_type        = subborrow_t<Borrow, UIt, UIt, chunk_size_t<UIt, UIt>>;
     using difference_type   = std::ranges::range_difference_t<value_type>;
     //!\}
 
@@ -275,23 +238,22 @@ public:
 
     //!\brief Construct at the beginning.
     constexpr bidi_chunk_like_iterator(Borrow urange_, BoundaryFinder finder_) :
-      finder{std::move(finder_)}, ubegin{radr::begin(urange_)}, uend{radr::end(urange_)}, subrange_begin{ubegin}
+      finder{std::move(finder_)},
+      ubegin{radr::begin(urange_)},
+      uend{radr::end(urange_)},
+      subrange_begin{ubegin},
+      subrange_end{ubegin}
     {
-        subrange_end = (subrange_begin != uend) ? finder.find_end(subrange_begin, uend) : subrange_begin;
+        finder.init_begin(subrange_begin, subrange_end, uend);
     }
 
     //!\brief Construct at the end.
-    //!\param last_chunk_start The start of the last chunk, precomputed by the caller.
-    //!\      Temporarily stored in `subrange_end`, which is otherwise unused for the end position.
-    constexpr bidi_chunk_like_iterator(Borrow         urange_,
-                                       BoundaryFinder finder_,
-                                       std::default_sentinel_t,
-                                       UIt last_chunk_start) :
+    constexpr bidi_chunk_like_iterator(Borrow urange_, BoundaryFinder finder_, std::default_sentinel_t) :
       finder{std::move(finder_)},
       ubegin{radr::begin(urange_)},
       uend{radr::end(urange_)},
       subrange_begin{uend},
-      subrange_end{std::move(last_chunk_start)}
+      subrange_end{uend}
     {}
 
     //!\brief Construct from compatible iterator, in particular non-const to const.
@@ -312,17 +274,12 @@ public:
      */
     constexpr value_type operator*() const
     {
-        return subborrow(Borrow{},
-                         subrange_begin,
-                         subrange_end,
-                         chunk_size(finder, subrange_begin, subrange_end, uend));
+        return subborrow(Borrow{}, subrange_begin, subrange_end, finder.chunk_size(subrange_begin, subrange_end, uend));
     }
 
     constexpr bidi_chunk_like_iterator & operator++()
     {
-        subrange_begin = subrange_end;
-        if (subrange_begin != uend)
-            subrange_end = finder.find_end(subrange_begin, uend);
+        finder.go_next(subrange_begin, subrange_end, uend);
         return *this;
     }
 
@@ -335,18 +292,7 @@ public:
 
     constexpr bidi_chunk_like_iterator & operator--()
     {
-        if (subrange_begin == uend)
-        {
-            // The first decrement from a freshly obtained end iterator.
-            // subrange_end was initialised with the start of the last chunk.
-            subrange_begin = subrange_end;
-            subrange_end   = uend;
-        }
-        else
-        {
-            subrange_end   = subrange_begin;
-            subrange_begin = finder.find_start(subrange_end, ubegin);
-        }
+        finder.go_prev(subrange_begin, subrange_end, ubegin, uend);
         return *this;
     }
 
@@ -368,7 +314,11 @@ public:
     //!\}
 };
 
-/*!\brief The random-access iterator used by radr::chunk when the underlying range is RA+sized.
+// ==========================================================================
+// ra_chunk_like_iterator [for radr::chunk]
+// ==========================================================================
+
+/*!\brief The random-access iterator used by radr::chunk and radr::slide when the underlying range is RA+sized.
  * \details
  *
  * This iterator design is an optimisation that std::views doesn't do.
@@ -456,8 +406,8 @@ public:
             // The end is a small step (<= n elements) from the begin iterator already computed,
             // instead of a second, independent full-magnitude advance from ubegin. For random-access
             // iterators that are not contiguous (e.g. std::deque, whose operator+= only takes its
-            // cheap pointer-arithmetic path when the jump stays within the current block), the
-            // second full-magnitude advance is measurably more expensive.
+            // cheap pointer-arithmetic path when the jump stays within the current block), a
+            // second full-magnitude advance would be measurably more expensive.
             auto b = ubegin + i;
             return subborrow(Borrow{}, b, b + std::min(n, usize - i));
         }
@@ -542,25 +492,124 @@ public:
     //!\}
 };
 
-/*!\brief BoundaryFinder for radr::chunk: every n-th element is a boundary.
- */
+// ==========================================================================
+// finder types for radr::chunk
+// ==========================================================================
+
+//!\brief Encodes behaviour that is specific to radr::chunk in the unidi case
 template <std::integral Diff>
-struct chunk_size_finder
+struct chunk_size_finder_unidi
 {
     Diff n{};
 
+    //!\brief Find first subrange.
     template <typename UIt, typename USen>
-    constexpr UIt find_end(UIt begin, USen end) const
+    constexpr void init_begin(UIt & subrange_begin, UIt & subrange_end, USen const uend) const
     {
-        return std::ranges::next(std::move(begin), n, end);
+        if (subrange_begin != uend)
+            go_next(subrange_begin, subrange_end, uend);
     }
 
-    template <std::bidirectional_iterator UIt>
-    constexpr UIt find_start(UIt end, UIt begin) const
+    //!\brief Find next subrange.
+    template <typename UIt, typename USen>
+    constexpr void go_next(UIt & subrange_begin, UIt & subrange_end, USen const uend) const
     {
-        return std::ranges::prev(std::move(end), n, begin);
+        assert(subrange_begin != uend); // not already at end
+        subrange_begin = subrange_end;
+        subrange_end   = std::ranges::next(std::move(subrange_end), n, uend);
+    }
+
+    //!\brief Size of subrange.
+    template <typename UIt, typename USen>
+    constexpr auto chunk_size(UIt const subrange_begin, UIt const subrange_end, [[maybe_unused]] USen const uend) const
+    {
+        if constexpr (std::sized_sentinel_for<UIt, UIt>)
+        {
+            return to_unsigned_like(subrange_end - subrange_begin);
+        }
+        else
+        {
+            // only the last chunk may be shorter than n, so the linear count happens at most once per traversal
+            return to_unsigned_like(subrange_end == uend ? std::ranges::distance(subrange_begin, subrange_end) : n);
+        }
     }
 };
+
+//!\brief Encodes behaviour that is specific to radr::chunk in the bidi case
+// (separate from above so unidi saves a member).
+template <std::integral Diff>
+class chunk_size_finder_bidi : protected chunk_size_finder_unidi<Diff>
+{
+private:
+    Diff last_chunk_len = -1;
+
+    using base_t = chunk_size_finder_unidi<Diff>;
+    using base_t::n;
+
+public:
+    constexpr chunk_size_finder_bidi()                                           = default;
+    constexpr chunk_size_finder_bidi(chunk_size_finder_bidi &&)                  = default;
+    constexpr chunk_size_finder_bidi(chunk_size_finder_bidi const &)             = default;
+    constexpr chunk_size_finder_bidi & operator=(chunk_size_finder_bidi &&)      = default;
+    constexpr chunk_size_finder_bidi & operator=(chunk_size_finder_bidi const &) = default;
+
+    template <typename URange>
+    constexpr chunk_size_finder_bidi(Diff n_, URange const & urange) : chunk_size_finder_unidi<Diff>{n_}
+    {
+        static_assert(std::ranges::sized_range<URange>, RADR_BUG(__FILE__, __LINE__));
+        static_assert(common_range<URange>, RADR_BUG(__FILE__, __LINE__));
+
+        auto usize     = std::ranges::size(urange);
+        // length of the last chunk which is potentially shorter than n
+        // 0 only when the whole range is empty
+        last_chunk_len = 0;
+        if (usize != 0)
+        {
+            last_chunk_len = static_cast<Diff>(usize % static_cast<decltype(usize)>(n));
+            if (last_chunk_len == 0)
+                last_chunk_len = n;
+        }
+    }
+
+    using base_t::go_next;
+    using base_t::init_begin;
+
+    template <std::bidirectional_iterator UIt>
+    constexpr void go_prev(UIt & subrange_begin, UIt & subrange_end, UIt const & ubegin, UIt const uend) const
+    {
+        assert(subrange_begin != ubegin);
+
+        subrange_end = subrange_begin;
+
+        if (subrange_begin == uend) // "at-end"
+        {
+            subrange_begin = std::ranges::prev(std::move(subrange_begin), last_chunk_len, ubegin);
+        }
+        else
+        {
+            subrange_begin = std::ranges::prev(std::move(subrange_begin), n, ubegin);
+        }
+    }
+
+    template <typename UIt, typename USen>
+    constexpr auto chunk_size(UIt const &                 subrange_begin,
+                              UIt const &                 subrange_end,
+                              [[maybe_unused]] USen const uend) const
+    {
+        if constexpr (std::sized_sentinel_for<UIt, UIt>)
+        {
+            return to_unsigned_like(subrange_end - subrange_begin);
+        }
+        else
+        {
+            return to_unsigned_like(subrange_end == uend ? last_chunk_len : n);
+        }
+    }
+};
+
+// ==========================================================================
+// chunk_borrow and chunk_coro
+// ==========================================================================
 
 inline constexpr auto chunk_borrow = []<borrowed_mp_range URange, std::integral Diff>(URange && urange, Diff n)
 {
@@ -602,22 +651,9 @@ inline constexpr auto chunk_borrow = []<borrowed_mp_range URange, std::integral 
     else if constexpr (std::ranges::bidirectional_range<URange> && common_range<URange> &&
                        std::ranges::sized_range<URange>)
     {
-        auto finder_ = chunk_size_finder{n};
-
-        // length of the last chunk which is potentially shorter than n
-        // 0 only when the whole range is empty
-        Diff last_chunk_len = 0;
-        if (usize != 0)
-        {
-            last_chunk_len = static_cast<Diff>(usize % static_cast<decltype(usize)>(n));
-            if (last_chunk_len == 0)
-                last_chunk_len = n;
-        }
-        // an iterator pointing to begin of the last chunk; needed to construct common sentinel
-        auto last_chunk_start = std::ranges::prev(radr::end(borrow_), last_chunk_len, radr::begin(borrow_));
-
-        auto it  = bidi_chunk_like_iterator{borrow_, finder_};
-        auto sen = bidi_chunk_like_iterator{borrow_, finder_, std::default_sentinel, last_chunk_start};
+        auto finder_ = chunk_size_finder_bidi{n, borrow_};
+        auto it      = bidi_chunk_like_iterator{borrow_, finder_};
+        auto sen     = bidi_chunk_like_iterator{borrow_, finder_, std::default_sentinel};
 
         using It  = decltype(it);
         using CIt = bidi_chunk_like_iterator<borrow_t<std::remove_cvref_t<URange> const &>, decltype(finder_)>;
@@ -626,7 +662,7 @@ inline constexpr auto chunk_borrow = []<borrowed_mp_range URange, std::integral 
     }
     else // uni-directional (forward), un-common
     {
-        auto finder_ = chunk_size_finder{n};
+        auto finder_ = chunk_size_finder_unidi{n};
 
         // range is un-common → it stores the end
         auto it = unidi_chunk_like_iterator{borrow_, finder_};
@@ -692,15 +728,19 @@ inline namespace cpo
  * Note that there is also radr::lazy_chunk which produces the same values but weaker types.
  * See the respective documentation to decide which to use.
  *
+ * Note that the type of \p n influences the size of the iterators. It may be beneficial to use
+ * int32_t or another type that is smaller than the std::range_difference_t of \p urange.
+ *
  * ## Multi-pass ranges
  *
  * Requirements:
  *   * `radr::mp_range<URange>`
  *
  * The returned "outer range"-type preserves from the underlying range:
- *   * std::ranges::random_access_range, radr::common_range, std::ranges::sized_range (all or none!)
- *   * std::ranges::bidirectional_range, radr::common_range, std::ranges::sized_range (all or none!)
- *   * else it only models std::ranges::forward_range (not common, not sized)
+ *   * std::ranges::random_access_range (only if also sized)
+ *   * std::ranges::bidirectional_range (only if also common and sized)
+ *   * radr::sized_range
+ *   * radr::common_range (only if also sized and at least bidi)
  *   * radr::mutable_range
  *   * radr::constant_range
  *   * radr::inifite_mp_range
