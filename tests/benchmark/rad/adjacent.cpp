@@ -1,4 +1,8 @@
+#include <algorithm>
 #include <benchmark/benchmark.h>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include <radr/version.hpp>
 
@@ -241,31 +245,26 @@ void radr_incr_stride(benchmark::State & state)
     benchmark::DoNotOptimize(count);
 }
 
-/* The deque is 40 MB spread over ~78k separate 512-byte blocks, so a cold traversal pays page faults and TLB
- * misses that dwarf what is being measured: the same benchmark reports ~22 ms cold and ~12 ms warm. Google
- * Benchmark does not warm up by default, and the std_ arm of every pair runs first, so without this the std_ arm
- * would systematically absorb the cold cost. Carried per registration rather than left to a --benchmark_min_warmup_time
- * on the command line, so that the numbers are right by default. */
-inline constexpr double warmup = 1.0;
+/* The reported name of every benchmark is "<container>/<access pattern>/<n>/<arm>", e.g. "deq_t/stride/n4/radr",
+ * instead of the "radr_stride<deq_t, n4>" that BENCHMARK_TEMPLATE would produce on its own. It is shorter, the
+ * arms of one comparison share a common prefix, and --benchmark_filter=deq_t/stride then selects exactly one
+ * group of them. The container and n parts are the spellings used in this file, so they can be grepped back. */
+#    define RADR_BENCH_NAME(bench, Container, N, arm) #Container "/" #bench "/" #N "/" arm
 
-/* Registers the std_/radr_ pair of one benchmark for every container × N combination. The two arms are kept
- * adjacent in the output so each pair can be read off directly; N varies fastest, then the container. */
+/* Registers the std_/radr_ pair of one benchmark for one container × N combination. */
+#    define RADR_BENCH_ONE(bench, Container, N)                                                                        \
+        BENCHMARK_TEMPLATE(std_##bench, Container, N)->Name(RADR_BENCH_NAME(bench, Container, N, "std"));              \
+        BENCHMARK_TEMPLATE(radr_##bench, Container, N)->Name(RADR_BENCH_NAME(bench, Container, N, "radr"))
+
+/* Registers that pair for every container × N combination. The two arms are kept adjacent in the output so
+ * each pair can be read off directly; N varies fastest, then the container. */
 #    define RADR_BENCH_PAIR(bench)                                                                                     \
-        BENCHMARK_TEMPLATE(std_##bench, vec_t, n2)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, vec_t, n2)->MinWarmUpTime(warmup);                                            \
-        BENCHMARK_TEMPLATE(std_##bench, vec_t, n4)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, vec_t, n4)->MinWarmUpTime(warmup);                                            \
-        BENCHMARK_TEMPLATE(std_##bench, vec_t, n8)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, vec_t, n8)->MinWarmUpTime(warmup);                                            \
-        BENCHMARK_TEMPLATE(std_##bench, deq_t, n2)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, deq_t, n2)->MinWarmUpTime(warmup);                                            \
-        BENCHMARK_TEMPLATE(std_##bench, deq_t, n4)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, deq_t, n4)->MinWarmUpTime(warmup);                                            \
-        BENCHMARK_TEMPLATE(std_##bench, deq_t, n8)->MinWarmUpTime(warmup);                                             \
-        BENCHMARK_TEMPLATE(radr_##bench, deq_t, n8)->MinWarmUpTime(warmup)
-
-// warm up
-BENCHMARK_TEMPLATE(radr_pre, vec_t, n4)->MinWarmUpTime(warmup);
+        RADR_BENCH_ONE(bench, vec_t, n2);                                                                              \
+        RADR_BENCH_ONE(bench, vec_t, n4);                                                                              \
+        RADR_BENCH_ONE(bench, vec_t, n8);                                                                              \
+        RADR_BENCH_ONE(bench, deq_t, n2);                                                                              \
+        RADR_BENCH_ONE(bench, deq_t, n4);                                                                              \
+        RADR_BENCH_ONE(bench, deq_t, n8)
 
 // full read, adaptor created before loop
 RADR_BENCH_PAIR(pre);
@@ -281,4 +280,43 @@ RADR_BENCH_PAIR(incr_stride);
 
 #endif
 
-BENCHMARK_MAIN();
+/* The deque is 40 MB spread over ~78k separate 512-byte blocks, so a cold traversal pays page faults and TLB
+ * misses that dwarf what is being measured: the same benchmark reports ~22 ms cold and ~12 ms warm. Google
+ * Benchmark does not warm up by default, and the std_ arm of every pair runs first, so without a warm-up the
+ * std_ arm would systematically absorb the cold cost. It therefore has to be on for a plain run, not only when
+ * asked for on the command line.
+ *
+ * main() below raises the default of --benchmark_min_warmup_time rather than setting the warm-up per
+ * registration: a per-registration MinWarmUpTime() is silently ignored unless that same registration also sets
+ * MinTime(), because Google Benchmark falls back to the flag whenever the benchmark's own min_time is zero,
+ * which it is by default (benchmark_runner.cc, BenchmarkRunner's member initialisation); setting MinTime() to
+ * satisfy that would in turn take precedence over --benchmark_min_time and silently ignore it; and every setting
+ * applied per registration is appended to the reported benchmark name. A separate leading warm-up registration
+ * is not an option either: it duplicates the name of an already registered benchmark, and same-named entries
+ * silently collapse into one when the JSON output is aggregated by name. */
+inline constexpr std::string_view warmup_flag = "--benchmark_min_warmup_time=0.5";
+
+/* Like BENCHMARK_MAIN(), but with the warm-up flag defaulted to warmup_flag (see the rationale above). An
+ * explicit --benchmark_min_warmup_time on the command line is left untouched and therefore still wins. */
+int main(int argc, char ** argv)
+{
+    std::string         warmup_arg{warmup_flag};
+    std::vector<char *> args(argv, argv + argc);
+
+    auto const is_warmup_flag = [](char const * arg)
+    {
+        return std::string_view{arg}.starts_with("--benchmark_min_warmup_time");
+    };
+
+    if (std::ranges::none_of(args, is_warmup_flag))
+        args.push_back(warmup_arg.data());
+
+    int argc_ = static_cast<int>(args.size());
+    benchmark::Initialize(&argc_, args.data());
+    if (benchmark::ReportUnrecognizedArguments(argc_, args.data()))
+        return 1;
+
+    benchmark::RunSpecifiedBenchmarks();
+    benchmark::Shutdown();
+    return 0;
+}
