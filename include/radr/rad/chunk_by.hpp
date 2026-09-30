@@ -25,44 +25,70 @@ namespace radr::detail
 template <typename Func, typename Iter>
 concept chunk_by_func_constraints = object<Func> && std::indirect_binary_predicate<Func const, Iter, Iter>;
 
-/*!\brief BoundaryFinder for radr::chunk_by: the first adjacent pair for which the predicate returns false.
- */
+//!\brief BoundaryFinder for radr::chunk_by: the first adjacent pair for which the predicate returns false.
 template <typename Pred>
 struct chunk_by_finder
 {
     [[no_unique_address]] semiregular_box<Pred> pred{};
 
-    template <std::forward_iterator UIt, std::sentinel_for<UIt> USen>
-        requires chunk_by_func_constraints<Pred, UIt>
-    constexpr UIt find_end(UIt first, USen last) const
+    template <typename UIt, typename USen>
+    constexpr void init_begin(UIt & subrange_begin, UIt & subrange_end, USen const uend) const
     {
-        if (first == last)
-            return first;
-
-        UIt next = first;
-        for (++next; next != last && std::invoke(*pred, *first, *next); ++next)
-            first = next;
-
-        return next;
+        if (subrange_begin != uend)
+            go_next(subrange_begin, subrange_end, uend);
     }
 
-    //!\brief Find the start of the chunk that ends at \p end, searching backwards no further than \p begin.
+    template <std::forward_iterator UIt, std::sentinel_for<UIt> USen>
+        requires chunk_by_func_constraints<Pred, UIt>
+    constexpr void go_next(UIt & subrange_begin, UIt & subrange_end, USen const uend) const
+    {
+        assert(subrange_begin != uend); // not already at end
+
+        subrange_begin = subrange_end;
+
+        if (subrange_end == uend)
+            return;
+
+        UIt next = std::ranges::next(subrange_end);
+        for (; next != uend && std::invoke(*pred, *subrange_end, *next); ++next)
+            subrange_end = next;
+        subrange_end = next;
+    }
+
     template <std::bidirectional_iterator UIt>
         requires chunk_by_func_constraints<Pred, UIt>
-    constexpr UIt find_start(UIt end, UIt begin) const
+    constexpr void go_prev(UIt & subrange_begin, UIt & subrange_end, UIt const ubegin, UIt const /*end*/) const
     {
-        if (end == begin)
-            return end;
+        assert(subrange_begin != ubegin);
 
-        UIt current = std::ranges::prev(end);
-        while (current != begin)
+        subrange_end = subrange_begin;
+
+        if (subrange_begin == ubegin)
+            return;
+
+        --subrange_begin;
+        while (subrange_begin != ubegin)
         {
-            UIt before = std::ranges::prev(current);
-            if (!std::invoke(*pred, *before, *current))
+            UIt prev = std::ranges::prev(subrange_begin);
+            if (std::invoke(*pred, *prev, *subrange_begin))
+                subrange_begin = prev;
+            else
                 break;
-            current = before;
         }
-        return current;
+    }
+
+    //!\brief The return type determines whether subranges are sized or not.
+    template <typename UIt, typename USen>
+    constexpr auto chunk_size(UIt const subrange_begin, UIt const subrange_end, USen const) const
+    {
+        if constexpr (std::sized_sentinel_for<UIt, UIt>)
+        {
+            return to_unsigned_like(subrange_end - subrange_begin);
+        }
+        else
+        {
+            return not_size{};
+        }
     }
 };
 
@@ -79,10 +105,8 @@ inline constexpr auto chunk_by_borrow = []<borrowed_mp_range URange, typename Pr
 
     if constexpr (std::ranges::bidirectional_range<URange> && common_range<URange>)
     {
-        auto last_chunk_start = finder_.find_start(radr::end(borrow_), radr::begin(borrow_));
-
         auto it  = bidi_chunk_like_iterator{borrow_, finder_};
-        auto sen = bidi_chunk_like_iterator{borrow_, finder_, std::default_sentinel, last_chunk_start};
+        auto sen = bidi_chunk_like_iterator{borrow_, finder_, std::default_sentinel};
 
         using It  = decltype(it);
         using CIt = bidi_chunk_like_iterator<borrow_t<std::remove_cvref_t<URange> const &>, decltype(finder_)>;
@@ -182,7 +206,7 @@ inline namespace cpo
  *   * std::ranges::borrowed_range
  *   * radr::common_range
  *
- * It preserves from the underlying range:
+ * And it preserves from the underlying range:
  *   * categories up to std::ranges::contiguous_range
  *   * radr::mutable_range
  *   * radr::constant_range

@@ -352,8 +352,8 @@ TEST(chunk_mp, inner_size_non_sized_sentinel)
 TEST(chunk_mp, reverse_iteration_short_last_chunk)
 {
     // size 5, n 2 -> {1,2} {3,4} {5}; decrementing from end() must reproduce this in reverse
-    std::vector<int> v{1, 2, 3, 4, 5};
-    auto             ra = std::ref(v) | radr::chunk(2);
+    std::list<int> v{1, 2, 3, 4, 5};
+    auto           ra = std::ref(v) | radr::chunk(2);
 
     auto it = ra.end();
     --it;
@@ -363,6 +363,22 @@ TEST(chunk_mp, reverse_iteration_short_last_chunk)
     --it;
     EXPECT_RANGE_EQ(*it, (std::vector<int>{1, 2}));
     EXPECT_TRUE(it == ra.begin());
+
+    /* and back up */
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{1, 2}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{3, 4}));
+    ++it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{5}));
+    ++it;
+    EXPECT_TRUE(it == ra.end());
+
+    /* and back down
+     * Note that this case is special, because now before-the-end needs to be
+     * generated from an end achieved by iteration and not construction.
+     */
+    --it;
+    EXPECT_RANGE_EQ(*it, (std::vector<int>{5}));
 }
 
 TEST(chunk_mp, reverse_iteration_exact_multiple)
