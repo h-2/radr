@@ -140,10 +140,10 @@ public:
         return x.subrange_begin == y.subrange_begin;
     }
 
-    //!\brief The iterator already carries `uend` itself, so std::default_sentinel_t suffices as end-marker.
+    //!\brief Chunks are never empty, so an empty current chunk denotes the end.
     friend constexpr bool operator==(unidi_chunk_like_iterator const & x, std::default_sentinel_t)
     {
-        return x.subrange_begin == x.uend;
+        return x.subrange_begin == x.subrange_end;
     }
     //!\}
 };
@@ -516,7 +516,9 @@ struct chunk_size_finder_unidi
     {
         assert(subrange_begin != uend); // not already at end
         subrange_begin = subrange_end;
-        subrange_end   = std::ranges::next(std::move(subrange_end), n, uend);
+        // not std::ranges::next(it, n, bound), because GCC does not unroll that here
+        for (Diff i = 0; i < n && subrange_end != uend; ++i)
+            ++subrange_end;
     }
 
     //!\brief Size of subrange.
@@ -575,20 +577,18 @@ public:
     using base_t::init_begin;
 
     template <std::bidirectional_iterator UIt>
-    constexpr void go_prev(UIt & subrange_begin, UIt & subrange_end, UIt const & ubegin, UIt const uend) const
+    constexpr void go_prev(UIt &                        subrange_begin,
+                           UIt &                        subrange_end,
+                           [[maybe_unused]] UIt const & ubegin,
+                           UIt const                    uend) const
     {
         assert(subrange_begin != ubegin);
 
         subrange_end = subrange_begin;
 
-        if (subrange_begin == uend) // "at-end"
-        {
-            subrange_begin = std::ranges::prev(std::move(subrange_begin), last_chunk_len, ubegin);
-        }
-        else
-        {
-            subrange_begin = std::ranges::prev(std::move(subrange_begin), n, ubegin);
-        }
+        // the previous chunk is always complete, except when it is the last one; no bounds-check needed
+        auto const len = static_cast<std::iter_difference_t<UIt>>(subrange_begin == uend ? last_chunk_len : n);
+        std::ranges::advance(subrange_begin, -len);
     }
 
     template <typename UIt, typename USen>
@@ -737,9 +737,9 @@ inline namespace cpo
  *   * `radr::mp_range<URange>`
  *
  * The returned "outer range"-type preserves from the underlying range:
- *   * std::ranges::random_access_range (only if also sized)
+ *   * std::ranges::random_access_range (only if also sized TODO or infinite)
  *   * std::ranges::bidirectional_range (only if also common and sized)
- *   * radr::sized_range
+ *   * std::ranges::sized_range
  *   * radr::common_range (only if also sized and at least bidi)
  *   * radr::mutable_range
  *   * radr::constant_range

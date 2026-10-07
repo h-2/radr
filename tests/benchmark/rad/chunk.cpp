@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <benchmark/benchmark.h>
 #include <deque>
+#include <limits>
 #include <list>
 #include <ranges>
 #include <string>
@@ -43,6 +44,22 @@ using n = std::integral_constant<ptrdiff_t, V>;
 using n4 = n<4>;
 using n8 = n<8>;
 
+/* Like n, but the value is only known at run-time: it is read through a volatile during dynamic initialisation,
+ * so the compiler cannot propagate it into the adaptors as a constant. This takes away what radr::lazy_chunk
+ * relies on (unrolling the inner loop, see its documentation), so it is expected to fall behind radr::chunk
+ * here. */
+template <ptrdiff_t V>
+struct rt
+{
+    static inline ptrdiff_t const value = []
+    {
+        ptrdiff_t volatile v = V;
+        return v;
+    }();
+};
+
+using rt4 = rt<4>;
+
 vec_t const vec = radr::test::generate_numeric_sequence<uint32_t>(10'000'000);
 deq_t const deq(vec.begin(), vec.end());
 
@@ -67,25 +84,43 @@ Container const & data()
         return lst;
 }
 
-/* Tag for "vec_t fed through take_while", i.e. a forward, un-common, un-sized underlying range.
+/* Tags for "vec_t fed through take_while", i.e. a forward, un-common, un-sized underlying range.
  *
  * This is the only configuration here in which chunk cannot use its random-access iterator; it falls back to
- * unidi_chunk_like_iterator, which computes every chunk's size on dereference. Neither stride nor any
- * random access is possible on the resulting outer range, so only full and partial are registered for it. */
+ * unidi_chunk_like_iterator. Neither stride nor any random access is possible on the resulting outer range, so
+ * only full and partial are registered for it.
+ *
+ * vec_tw_t uses a predicate that is constant true, so the compiler removes it completely and only the comparison
+ * with the end of vec remains. vec_tp_t uses a predicate that actually reads the element (it is still true for
+ * every element of vec), which is the realistic case: every evaluation of the predicate costs a load and a
+ * comparison, and how often and in which loop shape the adaptor evaluates it becomes observable. */
 struct vec_tw_t
 {};
 
-inline constexpr auto always_true = [](uint32_t)
+struct vec_tp_t
+{};
+
+template <typename Container>
+concept take_while_tag = std::same_as<Container, vec_tw_t> || std::same_as<Container, vec_tp_t>;
+
+template <typename Container>
+inline constexpr auto take_while_pred = [](uint32_t)
 {
     return true;
+};
+
+template <>
+inline constexpr auto take_while_pred<vec_tp_t> = [](uint32_t x)
+{
+    return x != std::numeric_limits<uint32_t>::max();
 };
 
 #ifdef __cpp_lib_ranges_chunk
 template <typename Container, typename N>
 auto std_chunked()
 {
-    if constexpr (std::same_as<Container, vec_tw_t>)
-        return vec | std::views::take_while(always_true) | std::views::chunk(N::value);
+    if constexpr (take_while_tag<Container>)
+        return vec | std::views::take_while(take_while_pred<Container>) | std::views::chunk(N::value);
     else
         return data<Container>() | std::views::chunk(N::value);
 }
@@ -94,8 +129,8 @@ auto std_chunked()
 template <typename Container, typename N>
 auto radr_chunked()
 {
-    if constexpr (std::same_as<Container, vec_tw_t>)
-        return std::ref(vec) | radr::take_while(always_true) | radr::chunk(N::value);
+    if constexpr (take_while_tag<Container>)
+        return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::chunk(N::value);
     else
         return std::ref(data<Container>()) | radr::chunk(N::value);
 }
@@ -105,8 +140,8 @@ auto radr_chunked()
 template <typename Container, typename N>
 auto lazy_chunked()
 {
-    if constexpr (std::same_as<Container, vec_tw_t>)
-        return std::ref(vec) | radr::take_while(always_true) | radr::lazy_chunk(N::value);
+    if constexpr (take_while_tag<Container>)
+        return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::lazy_chunk(N::value);
     else
         return std::ref(data<Container>()) | radr::lazy_chunk(N::value);
 }
@@ -451,6 +486,12 @@ RADR_BENCH_TRIPLE(full, vec_tw_t, n8);
 RADR_BENCH_TRIPLE(partial, vec_tw_t, n4);
 RADR_BENCH_TRIPLE(partial, vec_tw_t, n8);
 
+// the same with a predicate that is not constant (see vec_tp_t)
+RADR_BENCH_TRIPLE(full, vec_tp_t, n4);
+RADR_BENCH_TRIPLE(full, vec_tp_t, n8);
+RADR_BENCH_TRIPLE(partial, vec_tp_t, n4);
+RADR_BENCH_TRIPLE(partial, vec_tp_t, n8);
+
 // the bidirectional, non-random-access underlying range (see lst_t); no stride, because it is not random-access
 RADR_BENCH_TRIPLE(full, lst_t, n4);
 RADR_BENCH_TRIPLE(full, lst_t, n8);
@@ -462,6 +503,11 @@ RADR_BENCH_PAIR(full_rev, lst_t, n4);
 RADR_BENCH_PAIR(full_rev, lst_t, n8);
 RADR_BENCH_PAIR(partial_rev, lst_t, n4);
 RADR_BENCH_PAIR(partial_rev, lst_t, n8);
+
+// n only known at run-time (see rt); one full read per outer iterator type: random-access, forward, bidirectional
+RADR_BENCH_TRIPLE(full, vec_t, rt4);
+RADR_BENCH_TRIPLE(full, vec_tw_t, rt4);
+RADR_BENCH_TRIPLE(full, lst_t, rt4);
 
 #undef RADR_BENCH_ALL
 #undef RADR_BENCH_PAIR
