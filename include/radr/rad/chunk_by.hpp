@@ -174,7 +174,6 @@ inline namespace cpo
 {
 
 /*!\brief radr::chunk_by(urange, pred)
- * \tparam Opt Whether to optimise for size (default, via radr::chunk_by) or for range capabilities.
  * \tparam URange Type of \p urange.
  * \tparam Pred Type of \p pred.
  * \param urange The underlying range.
