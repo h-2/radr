@@ -13,8 +13,10 @@ Most important bits are available in the following files:
 
 The project has high-quality, detailled human-written documentation in the `docs` folder. You may look up the longer files in that folder, but only when the respective topic is actually relevant.
 
-There is little, but highly relevant, doxygen-style in-code documentation for every adaptor/factory object, typically towards the end of the file.
-
+Inline code documentation:
+* There is highly relevant documentation for every adaptor/factory object, typically towards the end of the file.
+* When adding new entities to namespace `radr::`, following existing practice.
+* When adding new entities to `radr::detail` or adding private class members, only add minimal documentation (`\brief`). Be absolutely concise and do not use conversational tone, convoluted grammar or fancy unicode characters.
 
 ## Important bits to keep in mind
 
@@ -54,6 +56,7 @@ ctest
 **You should ask:**
   * If user instructions are vague or contradictory (in themselves or in combination with this file).
   * Before creating any new entities in namespace `radr::` that were not explicitly requested.
+  * If tasked with creating/modifying benchmarks or unit tests, but changes to the library code would be necessary.
 
 **You should:**
   * Always search for and reuse existing entities in the codebase and/or the standard library, if possible.
@@ -66,3 +69,4 @@ ctest
   * Only encode in constraints what is necessary for overload resolution. Implement other requirements as `static_assert()`.
   * For unit tests, follow the `UNIT_TEST_TEMPLATE.cxx` file.
   * Don't worry about formatting details, just reformat code with `clang-format17` after performing changes.
+  * Read more specific AGENTS.md files if available.
