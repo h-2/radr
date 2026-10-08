@@ -18,7 +18,8 @@ endif ()
 # Options
 # ----------------------------------------------------------------------------
 
-option(RADR_BENCHMARK_ALIGN_LOOPS "Pass -falign-loops=32 to the benchmark builds." ON)
+option(RADR_REPRODUCIBLE_BENCHMARKS "Align loops and jump targets to 64 bytes, so that results do not depend on unrelated code changes." ON)
+option(RADR_BENCHMARK_HW_COUNTERS "Report hardware instruction and cycle counts (hwpmc on FreeBSD, libpfm on Linux)." ON)
 
 # ----------------------------------------------------------------------------
 # Paths to folders.
@@ -50,8 +51,40 @@ add_library (radr_benchmark INTERFACE)
 target_link_libraries (radr_benchmark INTERFACE "pthread" benchmark::benchmark_main)
 add_library (radr::test::benchmark ALIAS radr_benchmark)
 
-if (RADR_BENCHMARK_ALIGN_LOOPS)
-    target_compile_options (radr_benchmark INTERFACE "-falign-loops=32")
+# Aligning only loop heads is not sufficient, because hot loops are often entered via jump targets.
+# Labels are deliberately not aligned, because that inserts executed NOPs into hot loops.
+if (RADR_REPRODUCIBLE_BENCHMARKS)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options (radr_benchmark INTERFACE "-falign-loops=64" "-falign-jumps=64")
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options (radr_benchmark INTERFACE "-falign-loops=64" "SHELL:-mllvm -align-all-nofallthru-blocks=6")
+    endif ()
+endif ()
+
+# Hardware counters, see radr/test/hardware_counters.hpp.
+if (RADR_BENCHMARK_HW_COUNTERS)
+    if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+        find_library (RADR_PMC_LIBRARY pmc)
+        find_path (RADR_PMC_INCLUDE_DIR pmc.h)
+        if (RADR_PMC_LIBRARY AND RADR_PMC_INCLUDE_DIR)
+            target_link_libraries (radr_benchmark INTERFACE "${RADR_PMC_LIBRARY}")
+            target_compile_definitions (radr_benchmark INTERFACE RADR_BENCHMARK_HWPMC)
+            set (RADR_HW_COUNTERS_FOUND ON)
+        endif ()
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_library (RADR_PFM_LIBRARY pfm)
+        find_path (RADR_PFM_INCLUDE_DIR perfmon/pfmlib_perf_event.h)
+        if (RADR_PFM_LIBRARY AND RADR_PFM_INCLUDE_DIR)
+            target_link_libraries (radr_benchmark INTERFACE "${RADR_PFM_LIBRARY}")
+            target_include_directories (radr_benchmark INTERFACE "${RADR_PFM_INCLUDE_DIR}")
+            target_compile_definitions (radr_benchmark INTERFACE RADR_BENCHMARK_LIBPFM)
+            set (RADR_HW_COUNTERS_FOUND ON)
+        endif ()
+    endif ()
+
+    if (NOT RADR_HW_COUNTERS_FOUND)
+        message (WARNING "Hardware counters requested, but neither libpmc (FreeBSD) nor libpfm (Linux) was found.")
+    endif ()
 endif ()
 
 # ----------------------------------------------------------------------------
