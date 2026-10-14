@@ -287,10 +287,13 @@ template <typename TValue>
 borrowing_rad(TValue *, TValue *) -> borrowing_rad<TValue *>;
 
 template <typename TValue>
-borrowing_rad(TValue *, TValue *, detail::not_size) -> borrowing_rad<TValue *>;
+borrowing_rad(TValue *, TValue *, std::integral auto) -> borrowing_rad<TValue *>;
 
 template <typename TValue>
-borrowing_rad(TValue *, TValue *, std::integral auto) -> borrowing_rad<TValue *>;
+borrowing_rad(TValue *, TValue *, TValue const *, TValue const *) -> borrowing_rad<TValue *>;
+
+template <typename TValue>
+borrowing_rad(TValue *, TValue *, TValue const *, TValue const *, std::integral auto) -> borrowing_rad<TValue *>;
 
 /* it, sen where it is already a const_iterator */
 template <constant_iterator TCIt, std::sentinel_for<TCIt> TCSen>

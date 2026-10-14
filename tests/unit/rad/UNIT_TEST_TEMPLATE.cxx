@@ -29,9 +29,11 @@
 #include <gtest/gtest.h>
 #include <radr/test/gtest_helpers.hpp>
 #include <radr/test/adaptor_template.hpp>
+#include <radr/detail/detail.hpp>
 
 // avoid visual clutter
 using radr::test::range_cat;
+using radr::detail::decay_copy;
 
 /* INSTRUCTION: add include for the respective adaptor.
  * The header contains valuable documentation of the adaptor towards the end of the file.
@@ -79,7 +81,7 @@ TEST(foobar_sp, other)
  * respective test.
  *
  * for each of the canonical cases, add a second test that uses an rvalue/copy
- * of the input as underlying range (use `auto(var)` to make copies).
+ * of the input as underlying range (use `decay_copy(var)` to make copies).
  */
 
 TEST(foobar_mp, forward)
