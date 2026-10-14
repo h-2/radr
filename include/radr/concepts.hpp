@@ -112,12 +112,15 @@ concept fwdable_range = borrowed_mp_range<Range> || ref_wrapped_mp_range<Range> 
 // size
 //---------------------------------------------------------------------------
 
+//!\brief A multi-pass range that is known (at compile-time) to be infinite.
 template <typename Rng>
 concept infinite_mp_range = mp_range<Rng> && std::same_as<std::ranges::sentinel_t<Rng>, std::unreachable_sentinel_t>;
 
+//!\brief A multi-pass range that is sized or infinite.
 template <typename Rng>
 concept weakly_sized_range = (mp_range<Rng> && std::ranges::sized_range<Rng>) || infinite_mp_range<Rng>;
 
+//!\brief A random-access-range that is sized or infinite.
 template <typename Rng>
 concept safely_indexable_range = std::ranges::random_access_range<Rng> && weakly_sized_range<Rng>;
 
