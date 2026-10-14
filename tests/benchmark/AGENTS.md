@@ -34,7 +34,7 @@
 ## Hardware counters
 
 * Every arm is registered as `radr::test::with_hardware_counters<fn>` (`tests/include/radr/test/hardware_counters.hpp`).
-  It reports `instructions` and `cycles` per iteration, user space only.
+  It reports `instructions`, `cycles`, `taken_branches` and `mispredicted_branches` per iteration, user space only.
 * Never put counting code inside a benchmark function: it changes the compiler's decisions for the timed loop
   (observed: 3× the instructions, a spilled accumulator). The wrapper calls `fn` through an opaque pointer, so `fn`
   is identical to a build without counters.
@@ -42,6 +42,14 @@
   `RADR_BENCHMARK_HW_COUNTERS`; without a backend, no counters are reported.
 * Instruction counts are reproducible to ~1e-7 and independent of code placement; cycles track time (≈4.13 GHz on
   the reference machine).
+* Taken branches depend only on the generated code (including its block layout), not on the microarchitecture, so
+  they transfer to other CPUs. Events: `ex_ret_brn_tkn` (AMD Zen), `br_inst_retired.near_taken` (Intel); the
+  counter is omitted if neither is available.
+* Mispredicted branches (`ex_ret_brn_misp` / `br_misp_retired.all_branches`) depend on the data and on the branch
+  predictor, i.e. they do not transfer to other CPUs in absolute numbers. Use them to identify mispredict-bound rows.
+* Instruction counts include alignment NOPs (see Build and run). These are executed when an inner loop is entered by
+  fallthrough, e.g. once per element in filter loops: up to +30% (clang) and +41% (GCC) instructions, and they differ
+  between the arms. Compare instruction counts between arms only after checking the hot loops for executed NOPs.
 
 Interpreting mismatches:
 
@@ -55,8 +63,11 @@ Interpreting mismatches:
 
 ## Build and run
 
-* Build in Release. `RADR_REPRODUCIBLE_BENCHMARKS` (default `ON`) aligns loops and jump targets to 64 bytes;
-  labels are deliberately not aligned (executed NOPs).
+* Build in Release. `RADR_REPRODUCIBLE_BENCHMARKS` (default `ON`) aligns loops to 64 bytes (GCC: also jump
+  targets); labels are deliberately not aligned (executed NOPs). Measured on the filter benchmark (3 layouts via
+  `-falign-functions`): arms with >5% cycle spread between layouts drop from 17 to 2 (clang) and 15 to 6 (GCC), at
+  +1–2% cycles (geomean). Aligning jump targets with clang (`-mllvm -align-all-nofallthru-blocks=6`) gave no further
+  improvement and is not used.
 * Run pinned to one core, with
   `--benchmark_repetitions=3 --benchmark_enable_random_interleaving=true --benchmark_min_warmup_time=0.5`
 * Keep the SMT sibling of the benchmark core idle; a busy sibling slows all arms by up to 2×. Runs whose repetitions

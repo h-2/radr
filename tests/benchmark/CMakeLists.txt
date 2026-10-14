@@ -51,13 +51,15 @@ add_library (radr_benchmark INTERFACE)
 target_link_libraries (radr_benchmark INTERFACE "pthread" benchmark::benchmark_main)
 add_library (radr::test::benchmark ALIAS radr_benchmark)
 
-# Aligning only loop heads is not sufficient, because hot loops are often entered via jump targets.
+# With GCC, aligning only loop heads is not sufficient, because hot loops are often entered via jump targets.
+# With clang, additionally aligning jump targets (-mllvm -align-all-nofallthru-blocks=6) did not improve stability.
 # Labels are deliberately not aligned, because that inserts executed NOPs into hot loops.
+# Note: loop alignment itself inserts NOPs that are executed when an inner loop is entered by fallthrough.
 if (RADR_REPRODUCIBLE_BENCHMARKS)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         target_compile_options (radr_benchmark INTERFACE "-falign-loops=64" "-falign-jumps=64")
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options (radr_benchmark INTERFACE "-falign-loops=64" "SHELL:-mllvm -align-all-nofallthru-blocks=6")
+        target_compile_options (radr_benchmark INTERFACE "-falign-loops=64")
     endif ()
 endif ()
 
