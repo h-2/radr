@@ -17,6 +17,7 @@
 #include <radr/rad/filter.hpp>
 #include <radr/rad/join.hpp>
 #include <radr/rad/lazy_chunk.hpp>
+#include <radr/rad/slide.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/take_while.hpp>
 #include <radr/rad/transform.hpp>
@@ -580,6 +581,182 @@ TEST(iterator_size, lazy_chunk_ra_unsized)
 #else
     EXPECT_EQ(sizeof(d), 72);
     EXPECT_EQ(sizeof(d.begin()), 72);
+#endif
+    EXPECT_EQ(sizeof(d.end()), 1);
+}
+
+/* slide_iterator stores the first and the last element of the window plus k; the underlying end is only stored
+ * if the underlying range is not common.
+ *
+ * std::views::slide's iterator only stores the first element and k in the bidi+common and ra+sized cases, because
+ * it returns views::counted. radr::slide needs the last element to create the inner range via radr::subborrow. */
+
+TEST(iterator_size, slide_unidi)
+{
+    std::forward_list<int> l{};
+
+#ifdef __cpp_lib_ranges_slide
+    {
+        // "slide-caches-first": stores current, last element and n
+        auto v = l | std::views::slide(2);
+        EXPECT_EQ(sizeof(v), 32);
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 24);
+    }
+#endif
+
+    // common, so the end is an iterator (and the underlying end is not stored)
+    auto v = std::ref(l) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 48);
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 24);
+}
+
+TEST(iterator_size, slide_unidi_uncommon)
+{
+    std::forward_list<int> l{};
+
+    constexpr auto p = [](auto &&)
+    {
+        return true;
+    };
+
+    // two filter iterators, the (empty) filter sentinel and k
+    auto v = std::ref(l) | radr::filter(p) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 40);
+    EXPECT_EQ(sizeof(v.begin()), 40);
+    EXPECT_EQ(sizeof(v.end()), 1);
+}
+
+TEST(iterator_size, slide_bidi_common)
+{
+    std::list<int> l{};
+
+#ifdef __cpp_lib_ranges_slide
+    {
+        // "slide-caches-last": stores current and n; the view caches end
+        auto v = l | std::views::slide(2);
+        EXPECT_EQ(sizeof(v), 32);
+        EXPECT_EQ(sizeof(v.begin()), 16);
+        EXPECT_EQ(sizeof(v.end()), 16);
+    }
+#endif
+
+    // + 8 for size
+    auto v = std::ref(l) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 56);
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 24);
+}
+
+TEST(iterator_size, slide_bidi_uncommon)
+{
+    std::vector<int> vec{};
+
+    constexpr auto p = [](auto &&)
+    {
+        return true;
+    };
+
+#ifdef __cpp_lib_ranges_slide
+    {
+        auto v = vec | std::views::filter(p) | std::views::slide(2);
+        EXPECT_EQ(sizeof(v), 48);
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 24);
+    }
+#endif
+
+    auto v = std::ref(vec) | radr::filter(p) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 40);
+    EXPECT_EQ(sizeof(v.begin()), 40);
+    EXPECT_EQ(sizeof(v.end()), 1);
+}
+
+// TODO: these numbers should change once there is a dedicated iterator for ra+sized.
+TEST(iterator_size, slide_ra_sized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+#ifdef __cpp_lib_ranges_slide
+    {
+        // "slide-caches-nothing": stores current and n
+        auto v = vec | std::views::slide(2);
+        auto d = deq | std::views::slide(2);
+#    if defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE == 13)
+        EXPECT_EQ(sizeof(v), 24);
+        EXPECT_EQ(sizeof(d), 24);
+#    else
+        EXPECT_EQ(sizeof(v), 16);
+        EXPECT_EQ(sizeof(d), 16);
+#    endif
+        EXPECT_EQ(sizeof(v.begin()), 16);
+        EXPECT_EQ(sizeof(v.end()), 16);
+
+        EXPECT_EQ(sizeof(d.begin()), 40);
+        EXPECT_EQ(sizeof(d.end()), 40);
+    }
+#endif
+
+    // the size is not stored, because it can be computed from the iterators
+    auto v = std::ref(vec) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 48);
+    EXPECT_EQ(sizeof(v.begin()), 24);
+    EXPECT_EQ(sizeof(v.end()), 24);
+
+    // two deque iterators plus k, so these numbers follow the deque iterator: 32 bytes in libstdc++, 16 in libc++
+    auto d = std::ref(deq) | radr::slide(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 80);
+    EXPECT_EQ(sizeof(d.begin()), 40);
+    EXPECT_EQ(sizeof(d.end()), 40);
+#else
+    EXPECT_EQ(sizeof(d), 144);
+    EXPECT_EQ(sizeof(d.begin()), 72);
+    EXPECT_EQ(sizeof(d.end()), 72);
+#endif
+}
+
+TEST(iterator_size, slide_ra_unsized)
+{
+    std::vector<int> vec{};
+    std::deque<int>  deq{};
+
+    constexpr auto p = [](auto &&)
+    {
+        return true;
+    };
+
+#ifdef __cpp_lib_ranges_slide
+    {
+        // "slide-caches-first": stores current, last element and n
+        auto v = vec | std::views::take_while(p) | std::views::slide(2);
+        EXPECT_EQ(sizeof(v), 24);
+        EXPECT_EQ(sizeof(v.begin()), 24);
+        EXPECT_EQ(sizeof(v.end()), 16);
+
+        auto d = deq | std::views::take_while(p) | std::views::slide(2);
+        EXPECT_EQ(sizeof(d), 24);
+        EXPECT_EQ(sizeof(d.begin()), 72);
+        EXPECT_EQ(sizeof(d.end()), 40);
+    }
+#endif
+
+    // un-common, so the iterator stores the underlying end, but the sentinel is empty
+    auto v = std::ref(vec) | radr::take_while(p) | radr::slide(2);
+    EXPECT_EQ(sizeof(v), 32);
+    EXPECT_EQ(sizeof(v.begin()), 32);
+    EXPECT_EQ(sizeof(v.end()), 1);
+
+    // three deque iterators (first, last, underlying end) plus k
+    auto d = std::ref(deq) | radr::take_while(p) | radr::slide(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 56);
+    EXPECT_EQ(sizeof(d.begin()), 56);
+#else
+    EXPECT_EQ(sizeof(d), 104);
+    EXPECT_EQ(sizeof(d.begin()), 104);
 #endif
     EXPECT_EQ(sizeof(d.end()), 1);
 }

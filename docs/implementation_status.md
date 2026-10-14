@@ -9,7 +9,7 @@ The latter will likely change at some point.
 | Standard | adaptors | factories | Comment                  |
 |----------|---------:|----------:|--------------------------|
 | C++20    |    14/15 |       5/5 | `lazy_split` not planned |
-| C++23    |    11/15 |       1/1 |                          |
+| C++23    |    12/15 |       1/1 |                          |
 | C++26    |     1/03 |       1/1 |                          |
 | C++29    |     1/?? |        ?? |                          |
 | extra    |        2 |           |                          |
@@ -54,6 +54,8 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::pairwise_transform(fn)`    | C++20     | | `std::views::pairwise_transform` | **C++23** |                                          |
 | `radr::reverse`                   | C++20     | | `std::views::reverse`            | C++20     |                                          |
 | `radr::slice(m, n)`               | C++20     | | *not yet available*              |           | get subrange between m and n             |
+| `radr::slide(k)`                  | C++20     | | `std::views::slide`              | **C++23** |                                          |
+| `radr::slide_counted<K>`          | C++20     | | *not available*                  |           | `radr::slide` with compile-time size     |
 | `radr::split(pat)`                | C++20     | | `std::views::split`              | C++20     |                                          |
 | *not planned*                     | C++20     | | `std::views::lazy_split`         | C++20     | use `radr::to_single_pass ╎ radr::split` |
 | `radr::take(n)`                   | C++20     | | `std::views::take`               | C++20     |                                          |
