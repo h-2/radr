@@ -1,8 +1,7 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) 2023 The LLVM Project
-// Copyright (c) 2023-2025 Hannes Hauswedell
+// Copyright (c) 2023-2026 Hannes Hauswedell
 //
 // Licensed under the Apache License v2.0 with LLVM Exceptions.
 // See the LICENSE file for details.
@@ -40,15 +39,15 @@ struct and_fn
     }
 };
 
-template <typename Func, typename Iter>
-concept filter_func_constraints = object<Func> && std::indirect_unary_predicate<Func const, Iter>;
+template <typename Func, typename It>
+concept filter_func_constraints = object<Func> && std::indirect_unary_predicate<Func const, It>;
 
-template <std::forward_iterator Iter, std::sentinel_for<Iter> Sent, filter_func_constraints<Iter> Func>
+template <std::forward_iterator UIt, std::sentinel_for<UIt> USen, filter_func_constraints<UIt> Func>
 class filter_iterator
 {
-    [[no_unique_address]] semiregular_box<Func> func_;
-    [[no_unique_address]] Iter                  current_{};
-    [[no_unique_address]] Sent                  end_{};
+    [[no_unique_address]] semiregular_box<Func> fn;
+    [[no_unique_address]] UIt                   uit{};
+    [[no_unique_address]] USen                  uend{};
 
     template <typename Container>
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
@@ -56,16 +55,16 @@ class filter_iterator
                                      Container &     container_old,
                                      Container &     container_new)
     {
-        it.current_ = tag_invoke(custom::rebind_iterator_tag{}, it.current_, container_old, container_new);
-        it.end_     = tag_invoke(custom::rebind_iterator_tag{}, it.end_, container_old, container_new);
+        it.uit  = tag_invoke(custom::rebind_iterator_tag{}, it.uit, container_old, container_new);
+        it.uend = tag_invoke(custom::rebind_iterator_tag{}, it.uend, container_old, container_new);
         return it;
     }
 
     template <typename Size>
     static constexpr auto subborrow_impl(filter_iterator it, filter_iterator sen, Size s)
     {
-        using RIt     = filter_iterator<Iter, Iter, Func>;
-        Iter new_uend = sen.base_iter();
+        using RIt    = filter_iterator<UIt, UIt, Func>;
+        UIt new_uend = sen.base_iter();
 
         RIt rit{std::move(it).func(), std::move(it).base_iter(), new_uend};
         RIt rsen{std::move(sen).func(), new_uend, new_uend};
@@ -100,14 +99,14 @@ class filter_iterator
                                                 filter_iterator it,
                                                 std::default_sentinel_t)
     {
-        Iter ubeg = std::move(it).base_iter();
-        Sent uend = std::move(it).base_sent();
+        UIt  ubeg = std::move(it).base_iter();
+        USen uend = std::move(it).base_sent();
         Func fn   = std::move(it).func();
 
-        Iter it_end{};
+        UIt it_end{};
 
         /* search backwards from end if possible */
-        if constexpr (std::bidirectional_iterator<Iter> && std::same_as<Iter, Sent>)
+        if constexpr (std::bidirectional_iterator<UIt> && std::same_as<UIt, USen>)
         {
             it_end = uend;
             while (it_end != ubeg)
@@ -143,38 +142,53 @@ class filter_iterator
 
 public:
     using iterator_concept =
-      std::conditional_t<std::bidirectional_iterator<Iter>, std::bidirectional_iterator_tag, std::forward_iterator_tag>;
+      std::conditional_t<std::bidirectional_iterator<UIt>, std::bidirectional_iterator_tag, std::forward_iterator_tag>;
 
     using iterator_category = std::
-      conditional_t<std::is_lvalue_reference_v<std::iter_reference_t<Iter>>, iterator_concept, std::input_iterator_tag>;
-    using value_type      = std::iter_value_t<Iter>;
-    using difference_type = std::iter_difference_t<Iter>;
+      conditional_t<std::is_lvalue_reference_v<std::iter_reference_t<UIt>>, iterator_concept, std::input_iterator_tag>;
+    using value_type      = std::iter_value_t<UIt>;
+    using difference_type = std::iter_difference_t<UIt>;
 
     filter_iterator() = default;
 
-    constexpr filter_iterator(Func func, Iter current, Sent end) :
-      func_(std::in_place, std::move(func)), current_(std::move(current)), end_(std::move(end))
+    constexpr filter_iterator(Func func, UIt current, USen end) :
+      fn(std::in_place, std::move(func)), uit(std::move(current)), uend(std::move(end))
     {}
 
-    constexpr Iter const & base_iter() const & noexcept { return current_; }
-    constexpr Iter         base_iter() && { return std::move(current_); }
+    constexpr UIt const & base_iter() const & noexcept { return uit; }
+    constexpr UIt         base_iter() && { return std::move(uit); }
 
-    constexpr Sent const & base_sent() const & noexcept { return end_; }
-    constexpr Sent         base_sent() && { return std::move(end_); }
+    constexpr USen const & base_sent() const & noexcept { return uend; }
+    constexpr USen         base_sent() && { return std::move(uend); }
 
-    constexpr Func const & func() const & noexcept { return *func_; }
-    constexpr Func         func() && { return std::move(*func_); }
+    constexpr Func const & func() const & noexcept { return *fn; }
+    constexpr Func         func() && { return std::move(*fn); }
 
-    constexpr std::iter_reference_t<Iter> operator*() const { return *current_; }
-    constexpr Iter                        operator->() const
-        requires has_arrow<Iter>
+    constexpr std::iter_reference_t<UIt> operator*() const { return *uit; }
+    constexpr UIt                        operator->() const
+        requires has_arrow<UIt>
     {
-        return current_;
+        return uit;
     }
 
     constexpr filter_iterator & operator++()
     {
-        current_ = std::ranges::find_if(std::move(++current_), end_, std::cref(*func_));
+        /* The formulation of this loop has a large effect on the generated code (measured on Zen+ with GCC 13 and
+         * clang 20, see the filter benchmarks before changing it):
+         *  - std::ranges::find_if(++uit, uend, *fn): GCC (12–16) cross-jumps that loop's latch with the caller's
+         *    "++it; it != end", which doubles the taken branches per element (up to 1.5x slower than
+         *    std::views::filter). `for (++uit; uit != uend; ++uit) if (pred) break;` has the same problem on lists.
+         *  - do { ++uit; } while (uit != uend && !pred): avoids that, but is slower for folded filters (GCC) and
+         *    places the inner loop's alignment padding on the per-element path (clang).
+         *  - this loop without [[likely]]: same code as the do-while loop (clang); slower than the do-while loop
+         *    for predicates that keep most elements (GCC).
+         * [[likely]] only changes the block layout (no hardware hint is emitted on x86); the dynamic branch
+         * prediction is not affected. It was also measured with predicates that reject most elements and did not
+         * slow these down on average (GCC: faster; clang: equal, except up to 1.1x slower on lists).
+         * Only measured on Zen+; results on other microarchitectures may differ. */
+        while (++uit != uend)
+            if (std::invoke(*fn, *uit)) [[likely]]
+                return *this;
 
         return *this;
     }
@@ -187,68 +201,65 @@ public:
     }
 
     constexpr filter_iterator & operator--()
-        requires std::bidirectional_iterator<Iter>
+        requires std::bidirectional_iterator<UIt>
     {
         do
         {
-            --current_;
+            --uit;
         }
-        while (!std::invoke(*func_, *current_));
+        while (!std::invoke(*fn, *uit));
         return *this;
     }
     constexpr filter_iterator operator--(int)
-        requires std::bidirectional_iterator<Iter>
+        requires std::bidirectional_iterator<UIt>
     {
         auto tmp = *this;
         --*this;
         return tmp;
     }
 
-    friend constexpr bool operator==(filter_iterator const & x, filter_iterator const & y)
-    {
-        return x.current_ == y.current_;
-    }
+    friend constexpr bool operator==(filter_iterator const & x, filter_iterator const & y) { return x.uit == y.uit; }
 
     friend constexpr bool operator==(filter_iterator const & x, std::default_sentinel_t const &)
     {
-        return x.current_ == x.end_;
+        return x.uit == x.uend;
     }
 
-    friend constexpr std::iter_rvalue_reference_t<Iter> iter_move(filter_iterator const & it) noexcept(
-      noexcept(std::ranges::iter_move(it.current_)))
+    friend constexpr std::iter_rvalue_reference_t<UIt> iter_move(filter_iterator const & it) noexcept(
+      noexcept(std::ranges::iter_move(it.uit)))
     {
-        return std::ranges::iter_move(it.current_);
+        return std::ranges::iter_move(it.uit);
     }
 
-    friend constexpr void iter_swap(filter_iterator const & x, filter_iterator const & y) noexcept(
-      noexcept(std::ranges::iter_swap(x.current_, y.current_)))
-        requires std::indirectly_swappable<Iter>
+    friend constexpr void iter_swap(filter_iterator const & x,
+                                    filter_iterator const & y) noexcept(noexcept(std::ranges::iter_swap(x.uit, y.uit)))
+        requires std::indirectly_swappable<UIt>
     {
-        std::ranges::iter_swap(x.current_, y.current_);
+        std::ranges::iter_swap(x.uit, y.uit);
     }
-};
-
-// iterator-based borrow
-inline constexpr auto filter_borrow_impl =
-  []<typename UCIt, typename UCSen, typename Fn_>(UCIt it, UCSen sen, Fn_ _fn) // generic case
-{
-    using CIt  = filter_iterator<UCIt, UCSen, Fn_>;
-    using CSen = std::default_sentinel_t;
-
-    using BorrowingRad = borrowing_rad<CIt, CSen, CIt, CSen, borrowing_rad_kind::unsized>;
-
-    // eagerly search for begin
-    auto begin = std::ranges::find_if(it, sen, std::ref(_fn));
-
-    return BorrowingRad{
-      CIt{_fn, std::move(begin), std::move(sen)},
-      std::default_sentinel
-    };
 };
 
 inline constexpr auto filter_borrow =
   []<borrowed_mp_range URange, filter_func_constraints<radr::const_iterator_t<URange>> Fn>(URange && urange, Fn fn)
 {
+    // iterator-based borrow
+    constexpr auto filter_borrow_impl =
+      []<typename UCIt, typename UCSen, typename Fn_>(UCIt it, UCSen sen, Fn_ _fn) // generic case
+    {
+        using CIt  = filter_iterator<UCIt, UCSen, Fn_>;
+        using CSen = std::default_sentinel_t;
+
+        using BorrowingRad = borrowing_rad<CIt, CSen, CIt, CSen, borrowing_rad_kind::unsized>;
+
+        // eagerly search for begin
+        auto begin = std::ranges::find_if(it, sen, std::ref(_fn));
+
+        return BorrowingRad{
+          CIt{_fn, std::move(begin), std::move(sen)},
+          std::default_sentinel
+        };
+    };
+
     // dispatch between generic case and chained case(s)
     return overloaded{
       filter_borrow_impl,
@@ -256,9 +267,9 @@ inline constexpr auto filter_borrow =
                                                                       std::default_sentinel_t,
                                                                       Fn_ new_fn)
     {
-        return filter_borrow_impl(std::move(citer).base_iter(),
-                                  std::move(citer).base_sent(),
-                                  and_fn{std::move(citer).func(), std::move(new_fn)});
+        return decltype(filter_borrow_impl){}(std::move(citer).base_iter(),
+                                              std::move(citer).base_sent(),
+                                              and_fn{std::move(citer).func(), std::move(new_fn)});
     }}(radr::cbegin(urange), radr::cend(urange), std::move(fn));
 };
 
@@ -311,33 +322,44 @@ inline namespace cpo
  *   * radr::common_range
  *   * radr::mutable_range
  *
- * To prevent UB, the returned range is always a radr::constant_range.
+ * To prevent UB, the returned range is always a radr::constant_range, i.e. you cannot change the underlying range's
+ * elements.
  *
- * Construction of the adaptor is in O(n), because the first matching element is searched and cached.
+ * Construction of the adaptor is in O(n), because the first matching element is searched and cached, and the range
+ * might not contain any matching elements.
  *
- * Multiple nested filter adaptors are folded into one.
+ * Multiple chained filter adaptors are folded into one.
  *
  * ### Notable differences to std::views::filter
  *
  * Like all our multi-pass adaptors (but unlike std::views::filter), this adaptor is const-iterable.
  *
- * Does not preserve radr::common_range. Use `… | radr::filter(Fn) | radr::to_common` if you want a common range.
- * This has the added benefit that the real underlying end is used and the tail of the underlying range is not searched repeatedly.
- * See [caching end](docs/caching_begin.md#caching-end) for more details.
+ * Does not preserve radr::common_range. Use `… | radr::filter(fn) | radr::to_common` if you want a common range.
+ * This has the added benefit that the real underlying end is used and the tail of the underlying range is not searched
+ * repeatedly. See [caching end](docs/caching_begin.md#caching-end) for more details.
  *
  * Does not preserve radr::mutable_range, i.e. it always returns radr::constant_range.
  * This prevents undefined behaviour by accidentally changing values that invalidate the predicate.
  * If you want a mutable range, use the single pass adaptor like this:
  * `… | radr::to_single_pass | radr::filter(fn)`
  *
+ *
+ * ### Performance
+ *
+ * Micro-benchmarks show that radr::filter performs better on average than std::views::filter (≥ speed, ≤ instructions),
+ * although results vary between CPUs, compilers and standard libraries. In few cases it performs worse.
+ *
+ * Note that the folding mechanism reduces iterator size and template instantiations, but that compilers may re-order
+ * the predicates which can influence performance in both directions.
+ *
  * ## Single-pass ranges
  *
  * Requirements:
  *   * `std::ranges::input_range<URange>`
- *   * `radr::weak_indirect_unary_invocable<Predicate, radr::iterator_t<URange>>`
+ *   * `radr::weak_indirect_unary_invocable<Predicate &, radr::iterator_t<URange>>`
  *
- * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's elements.
- * It also allows (observable) changes in the predicate.
+ * The single-pass version of this adaptor preserves mutability, i.e. it allows changes to the underlying range's
+ * elements. It also allows (observable) changes in the predicate.
  *
  * ### Notable differences to std::views::filter
  *
