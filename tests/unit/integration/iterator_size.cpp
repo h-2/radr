@@ -673,7 +673,6 @@ TEST(iterator_size, slide_bidi_uncommon)
     EXPECT_EQ(sizeof(v.end()), 1);
 }
 
-// TODO: these numbers should change once there is a dedicated iterator for ra+sized.
 TEST(iterator_size, slide_ra_sized)
 {
     std::vector<int> vec{};
@@ -701,21 +700,15 @@ TEST(iterator_size, slide_ra_sized)
 
     // the size is not stored, because it can be computed from the iterators
     auto v = std::ref(vec) | radr::slide(2);
-    EXPECT_EQ(sizeof(v), 48);
-    EXPECT_EQ(sizeof(v.begin()), 24);
-    EXPECT_EQ(sizeof(v.end()), 24);
+    EXPECT_EQ(sizeof(v), 32);
+    EXPECT_EQ(sizeof(v.begin()), 16);
+    EXPECT_EQ(sizeof(v.end()), 16);
 
     // two deque iterators plus k, so these numbers follow the deque iterator: 32 bytes in libstdc++, 16 in libc++
     auto d = std::ref(deq) | radr::slide(2);
-#ifdef _LIBCPP_VERSION
     EXPECT_EQ(sizeof(d), 80);
     EXPECT_EQ(sizeof(d.begin()), 40);
     EXPECT_EQ(sizeof(d.end()), 40);
-#else
-    EXPECT_EQ(sizeof(d), 144);
-    EXPECT_EQ(sizeof(d.begin()), 72);
-    EXPECT_EQ(sizeof(d.end()), 72);
-#endif
 }
 
 TEST(iterator_size, slide_ra_unsized)

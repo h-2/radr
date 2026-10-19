@@ -16,10 +16,13 @@
 #include <ranges>
 #include <utility>
 
+#include "radr/concepts.hpp"
 #include "radr/custom/subborrow.hpp"
 #include "radr/detail/detail.hpp"
 #include "radr/detail/fwd.hpp"
 #include "radr/detail/pipe.hpp"
+#include "radr/rad/take.hpp"
+#include "radr/rad/transform.hpp"
 #include "radr/range_access.hpp"
 
 namespace radr::detail
@@ -260,6 +263,19 @@ struct std::iterator_traits<radr::detail::slide_iterator<Borrow, Diff>>
 namespace radr::detail
 {
 
+//!\brief Creates the window [uit, uit + k); default-constructible, so it is not boxed by transform.
+template <typename SubborrowFn, typename Diff>
+struct slide_window_fn
+{
+    Diff k{};
+
+    template <typename UIt>
+    constexpr auto operator()(UIt uit) const
+    {
+        return SubborrowFn{}(uit, uit + k, k);
+    }
+};
+
 inline constexpr auto slide_borrow = []<borrowed_mp_range URange, std::integral Diff>(URange && urange, Diff k)
 {
     assert(k > 0 && "radr::slide requires k > 0.");
@@ -284,26 +300,49 @@ inline constexpr auto slide_borrow = []<borrowed_mp_range URange, std::integral 
     static constexpr auto kind =
       std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
 
-    // TODO dedicated iterator for random_access_range && sized_range
-    using It  = slide_iterator<decltype(borrow_), Diff>;
-    using CIt = slide_iterator<borrow_t<std::remove_cvref_t<URange> const &>, Diff>;
+    /* Special case that reuses non-deref-ing transform iterators */
+    if constexpr (safely_indexable_range<URange>)
+    {
+        // A closure instead of the borrowed range type as template argument; the latter would make the range's
+        // hidden friends visible to ADL for the transform iterator (concept recursion in GCC).
+        auto wrapper = []<typename UIt>(UIt b, UIt e, Diff s)
+        {
+            return subborrow(decltype(borrow_){}, b, e, s);
+        };
+        slide_window_fn<decltype(wrapper), Diff> fn{k};
 
-    if constexpr (common_range<URange>)
-    {
-        return borrowing_rad<It, It, CIt, CIt, kind>{
-          It{borrow_, k},
-          It{borrow_, k, std::default_sentinel},
-          new_size
-        };
+        if constexpr (std::ranges::sized_range<URange>)
+        {
+            return transform_borrow<false>(take_borrow(borrow_, new_size), fn);
+        }
+        else // infinite_mp_range
+        {
+            return transform_borrow<false>(borrow_, fn);
+        }
     }
-    else // iterator stores the end
+    else /* regular case */
     {
-        using Sen = std::conditional_t<infinite_mp_range<URange>, std::unreachable_sentinel_t, std::default_sentinel_t>;
-        return borrowing_rad<It, Sen, CIt, Sen, kind>{
-          It{borrow_, k},
-          Sen{},
-          new_size
-        };
+        using It  = slide_iterator<decltype(borrow_), Diff>;
+        using CIt = slide_iterator<borrow_t<std::remove_cvref_t<URange> const &>, Diff>;
+
+        if constexpr (common_range<URange>)
+        {
+            return borrowing_rad<It, It, CIt, CIt, kind>{
+              It{borrow_, k},
+              It{borrow_, k, std::default_sentinel},
+              new_size
+            };
+        }
+        else // iterator stores the end
+        {
+            using Sen =
+              std::conditional_t<infinite_mp_range<URange>, std::unreachable_sentinel_t, std::default_sentinel_t>;
+            return borrowing_rad<It, Sen, CIt, Sen, kind>{
+              It{borrow_, k},
+              Sen{},
+              new_size
+            };
+        }
     }
 };
 
