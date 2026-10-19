@@ -72,7 +72,7 @@ deq_t const deq(vec.begin(), vec.end());
 lst_t const lst(vec.begin(), vec.begin() + list_size);
 
 template <typename Container>
-[[gnu::always_inline]] inline Container const & data()
+inline Container const & data()
 {
     if constexpr (std::same_as<Container, vec_t>)
         return vec;
@@ -84,7 +84,7 @@ template <typename Container>
 
 #ifdef __cpp_lib_ranges_chunk
 template <typename Container, typename N>
-[[gnu::always_inline]] inline auto std_chunked()
+inline auto std_chunked()
 {
     if constexpr (take_while_tag<Container>)
         return vec | std::views::take_while(take_while_pred<Container>) | std::views::chunk(N::value);
@@ -94,7 +94,7 @@ template <typename Container, typename N>
 #endif
 
 template <typename Container, typename N>
-[[gnu::always_inline]] inline auto radr_chunked()
+inline auto radr_chunked()
 {
     if constexpr (take_while_tag<Container>)
         return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::chunk(N::value);
@@ -103,7 +103,7 @@ template <typename Container, typename N>
 }
 
 template <typename Container, typename N>
-[[gnu::always_inline]] inline auto radr_lazy_chunked()
+inline auto radr_lazy_chunked()
 {
     if constexpr (take_while_tag<Container>)
         return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::lazy_chunk(N::value);

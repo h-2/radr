@@ -117,7 +117,7 @@ deq_t const deq(vec.begin(), vec.end());
 lst_t const lst(vec.begin(), vec.begin() + list_size);
 
 template <typename Container>
-[[gnu::always_inline]] inline Container const & data()
+inline Container const & data()
 {
     if constexpr (std::same_as<Container, vec_t>)
         return vec;
@@ -134,7 +134,7 @@ template <typename Container>
 struct std_arm
 {
     template <typename Container>
-    [[gnu::always_inline]] static auto base()
+    static auto base()
     {
         if constexpr (take_while_tag<Container>)
             return vec | std::views::take_while(take_while_pred<Container>);
@@ -143,7 +143,7 @@ struct std_arm
     }
 
     template <typename Container, typename A>
-    [[gnu::always_inline]] static auto adapted()
+    static auto adapted()
     {
         if constexpr (std::same_as<A, a1>)
             return base<Container>() | std::views::filter(not_div_7);
@@ -164,7 +164,7 @@ struct std_arm
     }
 
     template <typename Container, typename A>
-    [[gnu::always_inline]] static auto adapted_common()
+    static auto adapted_common()
     {
         return adapted<Container, A>() | std::views::common;
     }
@@ -173,7 +173,7 @@ struct std_arm
 struct radr_arm
 {
     template <typename Container>
-    [[gnu::always_inline]] static auto base()
+    static auto base()
     {
         if constexpr (take_while_tag<Container>)
             return std::ref(vec) | radr::take_while(take_while_pred<Container>);
@@ -182,7 +182,7 @@ struct radr_arm
     }
 
     template <typename Container, typename A>
-    [[gnu::always_inline]] static auto adapted()
+    static auto adapted()
     {
         if constexpr (std::same_as<A, a1>)
             return base<Container>() | radr::filter(not_div_7);
@@ -203,7 +203,7 @@ struct radr_arm
     }
 
     template <typename Container, typename A>
-    [[gnu::always_inline]] static auto adapted_common()
+    static auto adapted_common()
     {
         return adapted<Container, A>() | radr::to_common;
     }
