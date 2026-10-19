@@ -13,9 +13,10 @@
 #include <radr/rad/take_while.hpp>
 
 /* Outer iterators:
- *  - radr::slide: one iterator for all categories (two underlying iterators + k; stores the end if the underlying
- *    range is not common); windows are created from the stored last element and are common.
- *    TODO: update once random-access + sized has a dedicated iterator.
+ *  - radr::slide: vec_t, deq_t (safely indexable): transform over the underlying range (limited to the number of
+ *    windows with take if sized); windows are subborrow(it, it + k). Otherwise one iterator (two underlying iterators + k;
+ *    stores the end if the underlying range is not common); windows are created from the stored last element and
+ *    are common.
  *  - std::views::slide: vec_t, deq_t: "caches-nothing"; lst_t: "caches-last" with counted windows;
  *    vec_tw_t, vec_tp_t: "caches-first".
  *  - radr::slide_counted: k is a template argument (no rt4 arms); preserves the category; windows are
@@ -76,7 +77,7 @@ deq_t const deq(vec.begin(), vec.end());
 lst_t const lst(vec.begin(), vec.begin() + list_size);
 
 template <typename Container>
-[[gnu::always_inline]] inline Container const & data()
+inline Container const & data()
 {
     if constexpr (std::same_as<Container, vec_t>)
         return vec;
@@ -88,7 +89,7 @@ template <typename Container>
 
 #ifdef __cpp_lib_ranges_slide
 template <typename Container, typename K>
-[[gnu::always_inline]] inline auto std_slid()
+inline auto std_slid()
 {
     if constexpr (take_while_tag<Container>)
         return vec | std::views::take_while(take_while_pred<Container>) | std::views::slide(K::value);
@@ -98,7 +99,7 @@ template <typename Container, typename K>
 #endif
 
 template <typename Container, typename K>
-[[gnu::always_inline]] inline auto radr_slid()
+inline auto radr_slid()
 {
     if constexpr (take_while_tag<Container>)
         return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::slide(K::value);
@@ -107,7 +108,7 @@ template <typename Container, typename K>
 }
 
 template <typename Container, typename K>
-[[gnu::always_inline]] inline auto radr_counted_slid()
+inline auto radr_counted_slid()
 {
     if constexpr (take_while_tag<Container>)
         return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::slide_counted<K::value>;
