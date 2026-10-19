@@ -23,8 +23,10 @@
 
 * Data: 65'536 `uint32_t` (256 KiB, L2-resident); the list has `data_size / 8` nodes (same footprint). Larger data
   measures the memory system and physical placement, not the adaptor; the results then depend on code layout.
-* Helpers that create the ranges are `[[gnu::always_inline]]`, so the sizes stay compile-time constants in the timed
-  loop.
+* Helpers that create the ranges are plain `inline` functions, which is sufficient for the sizes to stay compile-time
+  constants in the timed loop. Do not mark them `[[gnu::always_inline]]`: with GCC <= 13, the functions they call
+  are then optimised too late, and the radr view construction is not inlined before the early loop passes (observed:
+  1.8x slower `radr` arms, results dependent on unrelated code in the same file). Benchmark with GCC >= 14.
 * Access patterns: `full` (read everything), `stride` (random access at specific interval), `*_rev` (only for `lst_t`);
   `partial` (for adaptors that produce range-of-ranges, access only first two elements of each chunk).
 * Names: `<container>/<pattern>/<n>/<arm>`, e.g. `lst_t/full/n4/radr`; arms are `std` and `radr`, and in some cases
