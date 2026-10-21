@@ -698,17 +698,22 @@ TEST(iterator_size, slide_ra_sized)
     }
 #endif
 
-    // the size is not stored, because it can be computed from the iterators
     auto v = std::ref(vec) | radr::slide(2);
-    EXPECT_EQ(sizeof(v), 32);
-    EXPECT_EQ(sizeof(v.begin()), 16);
-    EXPECT_EQ(sizeof(v.end()), 16);
+    EXPECT_EQ(sizeof(v), 32);         // begin and end (size implicit)
+    EXPECT_EQ(sizeof(v.begin()), 16); // one uit + k
+    EXPECT_EQ(sizeof(v.end()), 16);   // one uit + k
 
-    // two deque iterators plus k, so these numbers follow the deque iterator: 32 bytes in libstdc++, 16 in libc++
+    // one deque iterator plus k, so these numbers follow the deque iterator: 32 bytes in libstdc++, 16 in libc++
     auto d = std::ref(deq) | radr::slide(2);
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(d), 48);
+    EXPECT_EQ(sizeof(d.begin()), 24);
+    EXPECT_EQ(sizeof(d.end()), 24);
+#else
     EXPECT_EQ(sizeof(d), 80);
     EXPECT_EQ(sizeof(d.begin()), 40);
     EXPECT_EQ(sizeof(d.end()), 40);
+#endif
 }
 
 TEST(iterator_size, slide_ra_unsized)
