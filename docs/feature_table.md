@@ -26,6 +26,10 @@
 | `radr::pairwise_transform(fn)`    |                | fwd     | ra       |  =    |  =        |                                          |
 | `radr::reverse`                   | non-common     | bidi    | ra       |  =    |  +        |                                          |
 | `radr::slice(m, n)`               | !(ra+sized)    | input   | contig   |  =    |  =        | get subrange between m and n             |
+| `radr::slide(k)`                  |                | fwd     | ra       |  =    |  =        |                                          |
+|  ↳ inner range type               |                | fwd     | contig   |  +    |  ⊕        |                                          |
+| `radr::slide_counted<k>`          |                | fwd     | ra       |  =    |  =        |                                          |
+|  ↳ inner range type               |                | fwd     | contig   |  +    |  -        |                                          |
 | `radr::split(pat)`                | always         | input   | fwd      |  -    |  ⊝        |                                          |
 |  ↳ inner range type               |                | input   | contig   |  +    |  +        |                                          |
 | `radr::take(n)`                   |                | input   | contig   |  =    |  ra+sized |                                          |
