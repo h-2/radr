@@ -392,7 +392,7 @@ inline namespace cpo
  *   * radr::infinite_mp_range
  *
  * In general, the returned "inner range" is a pair of std::counted_iterator and std::default_sentinel_t. It always
- * models std::ranges::borrowed_range and std::ranges::sized_range, and radr::common_range only if the underlying
+ * models std::ranges::borrowed_range and std::ranges::sized_range, but radr::common_range only if the underlying
  * range is random-access (via radr::end).
  *
  * It preserves from the underlying range:
@@ -407,6 +407,13 @@ inline namespace cpo
  *
  * Construction of the adaptor is in O(K), because the end of the first window (or, for bidirectional+common
  * underlying ranges, the begin of the end position) is searched on construction.
+ *
+ * ### Performance
+ *
+ * Considerably faster than std::views::slide and radr::slide on small windows sizes and especially on underlying
+ * ranges that are random access but not contiguous.
+ *
+ * Iterator size is smaller or equal to std::views:slide.
  *
  * ## Single-pass ranges
  *

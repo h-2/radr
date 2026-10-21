@@ -406,6 +406,16 @@ inline namespace cpo
  *  * std::ranges::slide never preserves std::ranges::borrowed_range, this adaptor does.
  *  * std::ranges::slide does not preserve radr::common_range for forward ranges, this adaptor does.
  *
+ * ### Performance
+ *
+ * Equal to std::views::slide in general; slightly slower when \p k is constant and small, and \p urange is not
+ * at least random-access.
+ *
+ * If you are iterating over tight loops and have a small, constant \p k, radr::slide_counted may be a better choice.
+ *
+ * Iterator size is equal to std::views:slide, except if \p urange is non-common (it is slightly larger) or if it
+ * is radr::safely_indexable_range (it is smaller).
+ *
  * ## Single-pass ranges
  *
  * radr::slide cannot be created on single-pass ranges.
