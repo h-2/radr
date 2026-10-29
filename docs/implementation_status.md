@@ -40,8 +40,9 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::adjacent_transform<N>(fn)` | C++20     | | `std::views::adjacent_transform` | **C++23** |                                          |
 | `radr::as_const`                  | C++20     | | `std::views::as_const`           | **C++23** | make the range *and* its elements const  |
 | `radr::as_rvalue`                 | C++20     | | `std::views::as_rvalue`          | **C++23** | *returns only input ranges in C++20      |
-| `radr::chunk(n)`                  | C++20     | | `std::views::chunk`              | **C++23** |                                          |
+| `radr::chunk(k)`                  | C++20     | | `std::views::chunk`              | **C++23** |                                          |
 | `radr::chunk_by(pred)`            | C++20     | | `std::views::chunk_by`           | **C++23** |                                          |
+| `radr::chunk_counted<K>`          | C++20     | | *not available*                  |           | `radr::chunk` with compile-time size     |
 | `radr::drop(n)`                   | C++20     | | `std::views::drop`               | C++20     |                                          |
 | `radr::drop_while(fn)`            | C++20     | | `std::views::drop_while`         | C++20     |                                          |
 | `radr::elements<I>`               | C++20     | | `std::views::elements`           | C++20     |                                          |
@@ -49,7 +50,6 @@ We plan to add equivalent objects for all standard library adaptors.
 | `radr::filter(fn)`                | C++20     | | `std::views::filter`             | C++20     |                                          |
 | `radr::join`                      | C++20     | | `std::views::join`               | C++20     |                                          |
 | `radr::keys`                      | C++20     | | `std::views::keys`               | C++20     |                                          |
-| `radr::lazy_chunk(n)`             | C++20     | | *not available*                  |           | faster `radr::chunk`, weaker range types |
 | `radr::pairwise`                  | **C++23** | | `std::views::pairwise`           | **C++23** |                                          |
 | `radr::pairwise_transform(fn)`    | C++20     | | `std::views::pairwise_transform` | **C++23** |                                          |
 | `radr::reverse`                   | C++20     | | `std::views::reverse`            | C++20     |                                          |

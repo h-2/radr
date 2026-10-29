@@ -9,10 +9,12 @@
 | `radr::adjacent_transform<N>(fn)` |                | fwd     | ra       |  =    |  =        |                                          |
 | `radr::as_const`                  |                | fwd     | contig   |  =    |  =        | make the range *and* its elements const  |
 | `radr::as_rvalue`                 |                | input   | input/ra |  =    |  =        | returns only input ranges in C++20       |
-| `radr::chunk(n)`                  | !(ra+sized)    | input   | ra       |  =    |  bidi     |                                          |
+| `radr::chunk(k)`                  |                | input   | ra       |  =    |  bidi     |                                          |
 |  ↳ inner range type               |                | input   | contig   |  +    |  +        |                                          |
 | `radr::chunk_by(fn)`              | always         | input   | bidi     |  -    |  bidi     |                                          |
 |  ↳ inner range type               |                | input   | contig   |  ra   |  +        |                                          |
+| `radr::chunk_counted<k>`          |                | fwd     | ra       |  =    |  =        |                                          |
+|  ↳ inner range type               |                | fwd     | contig   |  +    |  -        |                                          |
 | `radr::drop(n)`                   | !(ra+sized)    | input   | contig   |  =    |  ⊜        |                                          |
 | `radr::drop_while(fn)`            | always         | input   | contig   |  ⊜    |  ⊜        |                                          |
 | `radr::elements<I>`               |                | input   | ra       |  =    |  =        |                                          |
