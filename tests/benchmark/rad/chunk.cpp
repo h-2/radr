@@ -9,14 +9,15 @@
 #include <radr/test/hardware_counters.hpp>
 
 #include <radr/rad/chunk.hpp>
-#include <radr/rad/lazy_chunk.hpp>
 #include <radr/rad/take_while.hpp>
 
 /* Iterator selected by radr::chunk:
  *  - vec_t, deq_t: ra_chunk_like_iterator (deq_t: largest size difference to std's iterator)
  *  - lst_t: bidi_chunk_like_iterator (the only one with operator-- and BoundaryFinder)
  *  - vec_tw_t, vec_tp_t: unidi_chunk_like_iterator
- * radr::lazy_chunk is always forward-only, so it has no stride and no reverse arms. */
+ * n is always a run-time value (see chunk_counted.cpp for compile-time constants).
+ * The accumulator is copied before benchmark::DoNotOptimize(), so that it is not address-taken; otherwise clang
+ * keeps it in memory in some loops (one store per element). */
 
 using vec_t = std::vector<uint32_t>;
 using deq_t = std::deque<uint32_t>;
@@ -43,13 +44,7 @@ inline constexpr auto take_while_pred<vec_tp_t> = [](uint32_t x)
     return x != std::numeric_limits<uint32_t>::max();
 };
 
-template <ptrdiff_t V>
-using n = std::integral_constant<ptrdiff_t, V>;
-
-using n4 = n<4>;
-using n8 = n<8>;
-
-// run-time chunk size; radr::lazy_chunk relies on a constant one (unrolling)
+// run-time chunk size; prevents unrolling of loops over a chunk
 template <ptrdiff_t V>
 struct rt
 {
@@ -61,6 +56,7 @@ struct rt
 };
 
 using rt4 = rt<4>;
+using rt8 = rt<8>;
 
 inline constexpr ptrdiff_t stride = 10;
 
@@ -102,15 +98,6 @@ inline auto radr_chunked()
         return std::ref(data<Container>()) | radr::chunk(N::value);
 }
 
-template <typename Container, typename N>
-inline auto radr_lazy_chunked()
-{
-    if constexpr (take_while_tag<Container>)
-        return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::lazy_chunk(N::value);
-    else
-        return std::ref(data<Container>()) | radr::lazy_chunk(N::value);
-}
-
 // --------------------------------------------------------------------------
 // full
 // --------------------------------------------------------------------------
@@ -129,7 +116,8 @@ void std_full(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -146,23 +134,8 @@ void radr_full(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
-}
-
-template <typename Container, typename N>
-void radr_lazy_full(benchmark::State & state)
-{
-    auto v = radr_lazy_chunked<Container, N>();
-
-    uint32_t count = 0;
-    for (auto _ : state)
-    {
-        for (auto && ch : v)
-            for (uint32_t elem : ch)
-                count += elem;
-    }
-
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 // --------------------------------------------------------------------------
@@ -187,7 +160,8 @@ void std_partial(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -208,27 +182,8 @@ void radr_partial(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
-}
-
-template <typename Container, typename N>
-void radr_lazy_partial(benchmark::State & state)
-{
-    auto v = radr_lazy_chunked<Container, N>();
-
-    uint32_t count = 0;
-    for (auto _ : state)
-    {
-        for (auto && ch : v)
-        {
-            auto it = ch.begin();
-            count += *it;
-            if (++it != ch.end())
-                count += *it;
-        }
-    }
-
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 // --------------------------------------------------------------------------
@@ -252,7 +207,8 @@ void std_full_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -272,7 +228,8 @@ void radr_full_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 #ifdef __cpp_lib_ranges_chunk
@@ -295,7 +252,8 @@ void std_partial_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -318,7 +276,8 @@ void radr_partial_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 // --------------------------------------------------------------------------
@@ -342,7 +301,8 @@ void std_stride(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -362,7 +322,8 @@ void radr_stride(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 // --------------------------------------------------------------------------
@@ -383,44 +344,36 @@ void radr_stride(benchmark::State & state)
 #    define RADR_BENCH_PAIR(bench, Container, N) RADR_BENCH_ARM(radr, bench, Container, N)
 #endif
 
-#define RADR_BENCH_TRIPLE(bench, Container, N)                                                                         \
-    RADR_BENCH_PAIR(bench, Container, N);                                                                              \
-    RADR_BENCH_ARM(radr_lazy, bench, Container, N)
+RADR_BENCH_PAIR(full, vec_t, rt4);
+RADR_BENCH_PAIR(full, vec_t, rt8);
+RADR_BENCH_PAIR(full, deq_t, rt4);
+RADR_BENCH_PAIR(full, deq_t, rt8);
+RADR_BENCH_PAIR(full, vec_tw_t, rt4);
+RADR_BENCH_PAIR(full, vec_tw_t, rt8);
+RADR_BENCH_PAIR(full, vec_tp_t, rt4);
+RADR_BENCH_PAIR(full, vec_tp_t, rt8);
+RADR_BENCH_PAIR(full, lst_t, rt4);
+RADR_BENCH_PAIR(full, lst_t, rt8);
 
-RADR_BENCH_TRIPLE(full, vec_t, n4);
-RADR_BENCH_TRIPLE(full, vec_t, n8);
-RADR_BENCH_TRIPLE(full, deq_t, n4);
-RADR_BENCH_TRIPLE(full, deq_t, n8);
-RADR_BENCH_TRIPLE(full, vec_tw_t, n4);
-RADR_BENCH_TRIPLE(full, vec_tw_t, n8);
-RADR_BENCH_TRIPLE(full, vec_tp_t, n4);
-RADR_BENCH_TRIPLE(full, vec_tp_t, n8);
-RADR_BENCH_TRIPLE(full, lst_t, n4);
-RADR_BENCH_TRIPLE(full, lst_t, n8);
+RADR_BENCH_PAIR(partial, vec_t, rt4);
+RADR_BENCH_PAIR(partial, vec_t, rt8);
+RADR_BENCH_PAIR(partial, deq_t, rt4);
+RADR_BENCH_PAIR(partial, deq_t, rt8);
+RADR_BENCH_PAIR(partial, vec_tw_t, rt4);
+RADR_BENCH_PAIR(partial, vec_tw_t, rt8);
+RADR_BENCH_PAIR(partial, vec_tp_t, rt4);
+RADR_BENCH_PAIR(partial, vec_tp_t, rt8);
+RADR_BENCH_PAIR(partial, lst_t, rt4);
+RADR_BENCH_PAIR(partial, lst_t, rt8);
 
-RADR_BENCH_TRIPLE(partial, vec_t, n4);
-RADR_BENCH_TRIPLE(partial, vec_t, n8);
-RADR_BENCH_TRIPLE(partial, deq_t, n4);
-RADR_BENCH_TRIPLE(partial, deq_t, n8);
-RADR_BENCH_TRIPLE(partial, vec_tw_t, n4);
-RADR_BENCH_TRIPLE(partial, vec_tw_t, n8);
-RADR_BENCH_TRIPLE(partial, vec_tp_t, n4);
-RADR_BENCH_TRIPLE(partial, vec_tp_t, n8);
-RADR_BENCH_TRIPLE(partial, lst_t, n4);
-RADR_BENCH_TRIPLE(partial, lst_t, n8);
+RADR_BENCH_PAIR(stride, vec_t, rt4);
+RADR_BENCH_PAIR(stride, vec_t, rt8);
+RADR_BENCH_PAIR(stride, deq_t, rt4);
+RADR_BENCH_PAIR(stride, deq_t, rt8);
 
-RADR_BENCH_PAIR(stride, vec_t, n4);
-RADR_BENCH_PAIR(stride, vec_t, n8);
-RADR_BENCH_PAIR(stride, deq_t, n4);
-RADR_BENCH_PAIR(stride, deq_t, n8);
-
-RADR_BENCH_PAIR(full_rev, lst_t, n4);
-RADR_BENCH_PAIR(full_rev, lst_t, n8);
-RADR_BENCH_PAIR(partial_rev, lst_t, n4);
-RADR_BENCH_PAIR(partial_rev, lst_t, n8);
-
-RADR_BENCH_TRIPLE(full, vec_t, rt4);
-RADR_BENCH_TRIPLE(full, vec_tw_t, rt4);
-RADR_BENCH_TRIPLE(full, lst_t, rt4);
+RADR_BENCH_PAIR(full_rev, lst_t, rt4);
+RADR_BENCH_PAIR(full_rev, lst_t, rt8);
+RADR_BENCH_PAIR(partial_rev, lst_t, rt4);
+RADR_BENCH_PAIR(partial_rev, lst_t, rt8);
 
 BENCHMARK_MAIN();
