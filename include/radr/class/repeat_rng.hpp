@@ -291,16 +291,8 @@ class repeat_rng : public range_interface<repeat_rng<TVal, Bound, storage>>
 {
     using TValNoConst = std::remove_const_t<TVal>;
 
-    struct empty_t
-    {
-        constexpr empty_t() noexcept                            = default;
-        constexpr empty_t(empty_t const &) noexcept             = default;
-        constexpr empty_t(empty_t &&) noexcept                  = default;
-        constexpr empty_t & operator=(empty_t const &) noexcept = default;
-        constexpr empty_t & operator=(empty_t &&) noexcept      = default;
-
-        constexpr empty_t(auto) noexcept {}
-    };
+    struct value_tag;
+    struct bound_tag;
 
     static_assert(detail::bound_reqs<Bound>,
                   "The bound must be one of:\n"
@@ -333,12 +325,13 @@ class repeat_rng : public range_interface<repeat_rng<TVal, Bound, storage>>
     }
 
     //!\brief The constant bound is not passed to the iterator.
-    using IteratorBound =
-      std::conditional_t<static_size() == 0, empty_t, std::conditional_t<static_size() >= 1, ptrdiff_t, Bound>>;
+    using IteratorBound = std::conditional_t<static_size() == 0,
+                                             detail::empty_t<bound_tag>,
+                                             std::conditional_t<static_size() >= 1, ptrdiff_t, Bound>>;
 
     using storage_type = std::conditional_t<
       static_size() == 0,
-      empty_t,
+      detail::empty_t<value_tag>,
       std::conditional_t<storage == repeat_rng_storage::indirect, TVal *, detail::semiregular_box<TValNoConst>>>;
 
     [[no_unique_address]] storage_type  value{};
