@@ -13,11 +13,12 @@
 #include <radr/concepts.hpp>
 #include <radr/rad/chunk.hpp>
 #include <radr/rad/chunk_by.hpp>
+#include <radr/rad/chunk_counted.hpp>
 #include <radr/rad/drop.hpp>
 #include <radr/rad/filter.hpp>
 #include <radr/rad/join.hpp>
-#include <radr/rad/lazy_chunk.hpp>
 #include <radr/rad/slide.hpp>
+#include <radr/rad/slide_counted.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/take_while.hpp>
 #include <radr/rad/transform.hpp>
@@ -390,6 +391,13 @@ TEST(iterator_size, chunk_unidi)
     EXPECT_EQ(sizeof(v), 32);
     EXPECT_EQ(sizeof(v.begin()), 32);
     EXPECT_EQ(sizeof(v.end()), 1); // un-common, so we save empty sentinel
+
+    // chunk_counted_unsized_iterator stores the underlying end, the chunk's begin and end, and the chunk's length;
+    // common, so the end is an iterator
+    auto vc = std::ref(vec) | radr::chunk_counted<2>;
+    EXPECT_EQ(sizeof(vc), 64);
+    EXPECT_EQ(sizeof(vc.begin()), 32);
+    EXPECT_EQ(sizeof(vc.end()), 32);
 }
 
 TEST(iterator_size, chunk_bidi_common)
@@ -412,6 +420,12 @@ TEST(iterator_size, chunk_bidi_common)
     EXPECT_EQ(sizeof(v), 88);
     EXPECT_EQ(sizeof(v.begin()), 40);
     EXPECT_EQ(sizeof(v.end()), 40);
+
+    // chunk_counted_sized_iterator stores one underlying iterator plus the underlying size and the chunk's offset
+    auto vc = std::ref(l) | radr::chunk_counted<2>;
+    EXPECT_EQ(sizeof(vc), 48);
+    EXPECT_EQ(sizeof(vc.begin()), 24);
+    EXPECT_EQ(sizeof(vc.end()), 24);
 }
 
 // ra_chunk_like_iterator stores one underlying iterator plus three cheap integers, instead of
@@ -455,6 +469,23 @@ TEST(iterator_size, chunk_ra_sized)
     EXPECT_EQ(sizeof(d.begin()), 56);
     EXPECT_EQ(sizeof(d.end()), 56);
 #endif
+
+    // chunk_counted_sized_iterator stores one underlying iterator plus two integers
+    auto vc = std::ref(vec) | radr::chunk_counted<2>;
+    EXPECT_EQ(sizeof(vc), 48);
+    EXPECT_EQ(sizeof(vc.begin()), 24);
+    EXPECT_EQ(sizeof(vc.end()), 24);
+
+    auto dc = std::ref(deq) | radr::chunk_counted<2>;
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(dc), 64);
+    EXPECT_EQ(sizeof(dc.begin()), 32);
+    EXPECT_EQ(sizeof(dc.end()), 32);
+#else
+    EXPECT_EQ(sizeof(dc), 96);
+    EXPECT_EQ(sizeof(dc.begin()), 48);
+    EXPECT_EQ(sizeof(dc.end()), 48);
+#endif
 }
 
 TEST(iterator_size, chunk_ra_unsized)
@@ -496,93 +527,22 @@ TEST(iterator_size, chunk_ra_unsized)
     EXPECT_EQ(sizeof(d.begin()), 104);
 #endif
     EXPECT_EQ(sizeof(d.end()), 1);
-}
 
-/* lazy_chunk_like_iterator stores the underlying end, the current chunk's begin and n -- it never
- * computes the chunk's end, so compared to unidi_chunk_like_iterator (which also stores that end) it
- * saves one underlying iterator, and compared to bidi_chunk_like_iterator it saves two.
- *
- * Against ra_chunk_like_iterator (one iterator plus three integers) the comparison flips as soon as
- * the underlying iterator gets fat: see the deque numbers below. */
+    // chunk_counted_unsized_iterator stores the same three iterators plus the chunk's length
+    auto vc = std::ref(vec) | radr::take_while(p) | radr::chunk_counted<2>;
+    EXPECT_EQ(sizeof(vc), 32);
+    EXPECT_EQ(sizeof(vc.begin()), 32);
+    EXPECT_EQ(sizeof(vc.end()), 1);
 
-TEST(iterator_size, lazy_chunk_unidi)
-{
-    std::forward_list<int> vec{};
-
-    // std::views::chunk is the closest equivalent; see chunk_unidi above for its numbers
-    auto v = std::ref(vec) | radr::lazy_chunk(2);
-    EXPECT_EQ(sizeof(v), 24); // un-sized, so no size stored either
-    EXPECT_EQ(sizeof(v.begin()), 24);
-    EXPECT_EQ(sizeof(v.end()), 1); // un-common, so we save empty sentinel
-
-    // radr::chunk is 32 here: unidi_chunk_like_iterator stores the chunk's end on top of that
-}
-
-TEST(iterator_size, lazy_chunk_bidi_common)
-{
-    std::list<int> l{};
-
-    auto v = std::ref(l) | radr::lazy_chunk(2);
-    EXPECT_EQ(sizeof(v), 32); // + 8 for size
-    EXPECT_EQ(sizeof(v.begin()), 24);
-    EXPECT_EQ(sizeof(v.end()), 1);
-
-    // radr::chunk is 88/40/40 here, because it uses bidi_chunk_like_iterator and becomes common
-}
-
-TEST(iterator_size, lazy_chunk_ra_sized)
-{
-    std::vector<int> vec{};
-    std::deque<int>  deq{};
-
-    auto v = std::ref(vec) | radr::lazy_chunk(2);
-    EXPECT_EQ(sizeof(v), 32); // + 8 for size
-    EXPECT_EQ(sizeof(v.begin()), 24);
-    EXPECT_EQ(sizeof(v.end()), 1);
-
-    // radr::chunk is 64/32/32 here, i.e. its iterator is bigger and it stores two of them
-
-    /* Two deque iterators plus n, so these numbers follow the deque iterator: 32 bytes in libstdc++,
-     * 16 in libc++. Note that this iterator is *bigger* than radr::chunk's ra_chunk_like_iterator
-     * under libstdc++ (72 vs 56), and the same size under libc++ (40 vs 40). */
-    auto d = std::ref(deq) | radr::lazy_chunk(2);
+    auto dc = std::ref(deq) | radr::take_while(p) | radr::chunk_counted<2>;
 #ifdef _LIBCPP_VERSION
-    EXPECT_EQ(sizeof(d), 48);
-    EXPECT_EQ(sizeof(d.begin()), 40);
+    EXPECT_EQ(sizeof(dc), 56);
+    EXPECT_EQ(sizeof(dc.begin()), 56);
 #else
-    EXPECT_EQ(sizeof(d), 80);
-    EXPECT_EQ(sizeof(d.begin()), 72);
+    EXPECT_EQ(sizeof(dc), 104);
+    EXPECT_EQ(sizeof(dc.begin()), 104);
 #endif
-    EXPECT_EQ(sizeof(d.end()), 1);
-}
-
-TEST(iterator_size, lazy_chunk_ra_unsized)
-{
-    std::vector<int> vec{};
-    std::deque<int>  deq{};
-
-    constexpr auto p = [](auto &&)
-    {
-        return true;
-    };
-
-    auto v = std::ref(vec) | radr::take_while(p) | radr::lazy_chunk(2);
-    EXPECT_EQ(sizeof(v), 24);
-    EXPECT_EQ(sizeof(v.begin()), 24);
-    EXPECT_EQ(sizeof(v.end()), 1);
-
-    // radr::chunk is 32/32/1 here; std::views::chunk 16/40/1 (see chunk_ra_unsized above)
-
-    // here radr::chunk is the bigger one on both implementations (104 vs 72, and 56 vs 40)
-    auto d = std::ref(deq) | radr::take_while(p) | radr::lazy_chunk(2);
-#ifdef _LIBCPP_VERSION
-    EXPECT_EQ(sizeof(d), 40);
-    EXPECT_EQ(sizeof(d.begin()), 40);
-#else
-    EXPECT_EQ(sizeof(d), 72);
-    EXPECT_EQ(sizeof(d.begin()), 72);
-#endif
-    EXPECT_EQ(sizeof(d.end()), 1);
+    EXPECT_EQ(sizeof(dc.end()), 1);
 }
 
 /* slide_iterator stores the first and the last element of the window plus k; the underlying end is only stored
@@ -610,6 +570,12 @@ TEST(iterator_size, slide_unidi)
     EXPECT_EQ(sizeof(v), 48);
     EXPECT_EQ(sizeof(v.begin()), 24);
     EXPECT_EQ(sizeof(v.end()), 24);
+
+    // slide_counted_iterator stores the first and the last element of the window
+    auto vc = std::ref(l) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 32);
+    EXPECT_EQ(sizeof(vc.begin()), 16);
+    EXPECT_EQ(sizeof(vc.end()), 16);
 }
 
 TEST(iterator_size, slide_unidi_uncommon)
@@ -626,6 +592,12 @@ TEST(iterator_size, slide_unidi_uncommon)
     EXPECT_EQ(sizeof(v), 40);
     EXPECT_EQ(sizeof(v.begin()), 40);
     EXPECT_EQ(sizeof(v.end()), 1);
+
+    // two filter iterators; the (empty) filter sentinel is not stored
+    auto vc = std::ref(l) | radr::filter(p) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 32);
+    EXPECT_EQ(sizeof(vc.begin()), 32);
+    EXPECT_EQ(sizeof(vc.end()), 1);
 }
 
 TEST(iterator_size, slide_bidi_common)
@@ -647,6 +619,12 @@ TEST(iterator_size, slide_bidi_common)
     EXPECT_EQ(sizeof(v), 56);
     EXPECT_EQ(sizeof(v.begin()), 24);
     EXPECT_EQ(sizeof(v.end()), 24);
+
+    // slide_counted_iterator only stores the first element of the window; + 8 for size
+    auto vc = std::ref(l) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 24);
+    EXPECT_EQ(sizeof(vc.begin()), 8);
+    EXPECT_EQ(sizeof(vc.end()), 8);
 }
 
 TEST(iterator_size, slide_bidi_uncommon)
@@ -671,6 +649,11 @@ TEST(iterator_size, slide_bidi_uncommon)
     EXPECT_EQ(sizeof(v), 40);
     EXPECT_EQ(sizeof(v.begin()), 40);
     EXPECT_EQ(sizeof(v.end()), 1);
+
+    auto vc = std::ref(vec) | radr::filter(p) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 32);
+    EXPECT_EQ(sizeof(vc.begin()), 32);
+    EXPECT_EQ(sizeof(vc.end()), 1);
 }
 
 TEST(iterator_size, slide_ra_sized)
@@ -713,6 +696,23 @@ TEST(iterator_size, slide_ra_sized)
     EXPECT_EQ(sizeof(d), 80);
     EXPECT_EQ(sizeof(d.begin()), 40);
     EXPECT_EQ(sizeof(d.end()), 40);
+#endif
+
+    // slide_counted_iterator only stores the first element of the window
+    auto vc = std::ref(vec) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 16);
+    EXPECT_EQ(sizeof(vc.begin()), 8);
+    EXPECT_EQ(sizeof(vc.end()), 8);
+
+    auto dc = std::ref(deq) | radr::slide_counted<2>;
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(dc), 32);
+    EXPECT_EQ(sizeof(dc.begin()), 16);
+    EXPECT_EQ(sizeof(dc.end()), 16);
+#else
+    EXPECT_EQ(sizeof(dc), 64);
+    EXPECT_EQ(sizeof(dc.begin()), 32);
+    EXPECT_EQ(sizeof(dc.end()), 32);
 #endif
 }
 
@@ -757,6 +757,22 @@ TEST(iterator_size, slide_ra_unsized)
     EXPECT_EQ(sizeof(d.begin()), 104);
 #endif
     EXPECT_EQ(sizeof(d.end()), 1);
+
+    // same as radr::slide, but without k
+    auto vc = std::ref(vec) | radr::take_while(p) | radr::slide_counted<2>;
+    EXPECT_EQ(sizeof(vc), 24);
+    EXPECT_EQ(sizeof(vc.begin()), 24);
+    EXPECT_EQ(sizeof(vc.end()), 1);
+
+    auto dc = std::ref(deq) | radr::take_while(p) | radr::slide_counted<2>;
+#ifdef _LIBCPP_VERSION
+    EXPECT_EQ(sizeof(dc), 48);
+    EXPECT_EQ(sizeof(dc.begin()), 48);
+#else
+    EXPECT_EQ(sizeof(dc), 96);
+    EXPECT_EQ(sizeof(dc.begin()), 96);
+#endif
+    EXPECT_EQ(sizeof(dc.end()), 1);
 }
 
 #if RADR_FEATURE_ZIP

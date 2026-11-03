@@ -87,6 +87,8 @@ struct overloaded : Fn...
 template <typename... Fn>
 overloaded(Fn...) -> overloaded<Fn...>;
 
+//!\brief Empty placeholder for optional members; use distinct tags for members that could share an address.
+template <typename Tag = void>
 struct empty_t
 {
     constexpr empty_t() noexcept = default;

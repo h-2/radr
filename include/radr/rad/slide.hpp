@@ -46,10 +46,10 @@ private:
 
     static constexpr bool store_end = !common_range<Borrow>;
 
-    [[no_unique_address]] UIt                                          subrange_begin{};
-    [[no_unique_address]] UIt                                          subrange_last{};
-    [[no_unique_address]] std::conditional_t<store_end, USen, empty_t> uend{};
-    [[no_unique_address]] Diff                                         k{};
+    [[no_unique_address]] UIt                                                          subrange_begin{};
+    [[no_unique_address]] UIt                                                          subrange_last{};
+    [[no_unique_address]] std::conditional_t<store_end, USen, empty_t<slide_iterator>> uend{};
+    [[no_unique_address]] Diff                                                         k{};
 
     template <borrowed_mp_range Borrow2, std::integral Diff2>
     friend class slide_iterator;

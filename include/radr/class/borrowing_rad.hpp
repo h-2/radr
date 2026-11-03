@@ -61,7 +61,8 @@ public:
 
 private:
     static constexpr bool MustProvideSizeAtConstruction = !StoreSize; // just to improve compiler diagnostics
-    using Size = std::conditional_t<StoreSize, std::make_unsigned_t<std::iter_difference_t<Iter>>, detail::empty_t>;
+    using Size =
+      std::conditional_t<StoreSize, std::make_unsigned_t<std::iter_difference_t<Iter>>, detail::empty_t<borrowing_rad>>;
 
     static constexpr bool const_symmetric = std::same_as<CIter, Iter> && std::same_as<CSent, Sent>;
 

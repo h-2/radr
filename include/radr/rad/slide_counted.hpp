@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <iterator>
 #include <ranges>
+#include <type_traits>
 #include <utility>
 
 #include "radr/class/borrowing_rad.hpp"
@@ -35,7 +36,7 @@ namespace radr::detail
  * If the underlying range is bidirectional+common, only the begin of the window is stored and the end iterator
  * is created once, at the begin of the (non-existent) window after the last one; iterators compare their begins.
  * Otherwise, the last element of the window (inclusive) is stored and compared; the underlying end is only stored
- * if the underlying range is not common.
+ * if the underlying range is not common and the sentinel is not empty.
  */
 template <borrowed_mp_range Borrow, ptrdiff_t K>
 class slide_counted_iterator
@@ -47,18 +48,15 @@ private:
 
     static constexpr bool bidi_common = std::ranges::bidirectional_range<Borrow> && common_range<Borrow>;
     static constexpr bool store_last  = !bidi_common;
-    static constexpr bool store_end   = !common_range<Borrow>;
+    static constexpr bool uncommon    = !common_range<Borrow>;
+    //!\brief Empty sentinels are not stored, because they could share the address of the outer range's sentinel.
+    static constexpr bool store_end   = uncommon && !std::is_empty_v<USen>;
 
-    //!\brief Distinct from empty_t, so that uend and subrange_last can both share the address of subrange_begin.
-    struct no_last_t
-    {
-        constexpr no_last_t() noexcept = default;
-        constexpr no_last_t(auto &&) noexcept {}
-    };
+    struct last_tag;
 
-    [[no_unique_address]] std::conditional_t<store_end, USen, empty_t>   uend{};
-    [[no_unique_address]] UIt                                            subrange_begin{};
-    [[no_unique_address]] std::conditional_t<store_last, UIt, no_last_t> subrange_last{};
+    [[no_unique_address]] std::conditional_t<store_end, USen, empty_t<slide_counted_iterator>> uend{};
+    [[no_unique_address]] UIt                                                                  subrange_begin{};
+    [[no_unique_address]] std::conditional_t<store_last, UIt, empty_t<last_tag>>               subrange_last{};
 
     template <borrowed_mp_range Borrow2, ptrdiff_t K2>
     friend class slide_counted_iterator;
@@ -77,6 +75,15 @@ private:
               tag_invoke(custom::rebind_iterator_tag{}, it.subrange_last, container_old, container_new);
 
         return it;
+    }
+
+    //!\brief The underlying end.
+    constexpr USen get_uend() const
+    {
+        if constexpr (store_end)
+            return uend;
+        else
+            return USen{};
     }
 
     //!\brief The position that determines equality.
@@ -129,7 +136,7 @@ public:
 
     //!\brief Construct at the end (common ranges only); O(K) if bidi_common, O(1) otherwise.
     constexpr slide_counted_iterator(Borrow urange_, std::default_sentinel_t)
-        requires(!store_end)
+        requires(!uncommon)
     {
         if constexpr (bidi_common)
         {
@@ -251,15 +258,15 @@ public:
     }
 
     friend constexpr difference_type operator-(std::default_sentinel_t, slide_counted_iterator const & x)
-        requires(store_end && std::sized_sentinel_for<USen, UIt>)
+        requires(uncommon && std::sized_sentinel_for<USen, UIt>)
     {
-        return x.uend - x.subrange_last;
+        return x.get_uend() - x.subrange_last;
     }
 
     friend constexpr difference_type operator-(slide_counted_iterator const & x, std::default_sentinel_t)
-        requires(store_end && std::sized_sentinel_for<USen, UIt>)
+        requires(uncommon && std::sized_sentinel_for<USen, UIt>)
     {
-        return x.subrange_last - x.uend;
+        return x.subrange_last - x.get_uend();
     }
     //!\}
 
@@ -272,9 +279,9 @@ public:
     }
 
     friend constexpr bool operator==(slide_counted_iterator const & x, std::default_sentinel_t)
-        requires store_end
+        requires uncommon
     {
-        return x.subrange_last == x.uend;
+        return x.subrange_last == x.get_uend();
     }
 
     friend constexpr auto operator<=>(slide_counted_iterator const & x, slide_counted_iterator const & y)

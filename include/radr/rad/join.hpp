@@ -36,19 +36,17 @@ private:
 
     static constexpr bool bidi_common = bidi && std::same_as<UIt, USen>;
 
-    //!\brief If we use empty_t defined in detail/detail.hpp, it is not optimised out ¯\_(ツ)_/¯
-    struct empty_t
-    {
-        constexpr empty_t() noexcept = default;
-        constexpr empty_t(auto &&) noexcept {}
-    };
+    struct outer_begin_tag;
+    struct inner_begin_tag;
 
-    [[no_unique_address]] std::conditional_t<bidi, UIt, empty_t>     outer_begin{}; // begin of underlying outer rng
-    [[no_unique_address]] UIt                                        outer_it{};    // position in underlying outer rng
-    [[no_unique_address]] USen                                       outer_end{};   // end of underlying outer rng
-    [[no_unique_address]] std::conditional_t<bidi, InnerIt, empty_t> inner_begin{}; // begin of underlying inner rng
-    [[no_unique_address]] InnerIt                                    inner_it{};    // position in underlying inner rng
-    [[no_unique_address]] InnerSen                                   inner_end{};   // end of underlying inner rng
+    [[no_unique_address]] std::conditional_t<bidi, UIt, empty_t<outer_begin_tag>>
+                               outer_begin{}; // begin of underlying outer rng
+    [[no_unique_address]] UIt  outer_it{};    // position in underlying outer rng
+    [[no_unique_address]] USen outer_end{};   // end of underlying outer rng
+    [[no_unique_address]] std::conditional_t<bidi, InnerIt, empty_t<inner_begin_tag>>
+                                   inner_begin{}; // begin of underlying inner rng
+    [[no_unique_address]] InnerIt  inner_it{};    // position in underlying inner rng
+    [[no_unique_address]] InnerSen inner_end{};   // end of underlying inner rng
 
     void update_inner()
     {

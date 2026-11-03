@@ -143,11 +143,9 @@ public:
     /*!\name Associated types
      * \{
      */
-    using iterator_concept  = std::conditional_t<ra,
-                                                 std::random_access_iterator_tag,
-                                                 std::conditional_t<std::ranges::bidirectional_range<Borrow>,
-                                                                    std::bidirectional_iterator_tag,
-                                                                    std::forward_iterator_tag>>;
+    using iterator_concept  = std::conditional_t<std::ranges::contiguous_range<Borrow>,
+                                                std::random_access_iterator_tag,
+                                                iterator_tag_t<iterator_t<Borrow>>>;
     using iterator_category = std::input_iterator_tag;
     using value_type        = chunk_counted_inner_t<Borrow, K, false>;
     using difference_type   = Diff;

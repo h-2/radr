@@ -28,8 +28,8 @@ TEST(empty_rng, concepts)
     radr::test::generic_adaptor_checks<R, std::vector<int> /*irrelevant*/>();
     radr::test::generic_adaptor_checks<C, std::vector<int> /*irrelevant*/>();
 
-    EXPECT_EQ(sizeof(R), 2);
-    EXPECT_EQ(sizeof(C), 2);
+    EXPECT_EQ(sizeof(R), 1);
+    EXPECT_EQ(sizeof(C), 1);
 }
 
 TEST(empty_rng, members)
