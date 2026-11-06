@@ -44,17 +44,6 @@ inline auto const lt6 = [](int i)
 
 inline auto const eq = std::equal_to<>{};
 
-// radr::borrowing_rad (and radr::generator) have no cross-type operator== against std::vector,
-// so range-of-range comparisons are done by first collecting into nested std::vector<int>s.
-template <typename RangeOfRanges>
-std::vector<std::vector<int>> flatten(RangeOfRanges && r)
-{
-    std::vector<std::vector<int>> out;
-    for (auto && sub : r)
-        out.emplace_back(sub.begin(), sub.end());
-    return out;
-}
-
 // --------------------------------------------------------------------------
 // single-pass tests
 // --------------------------------------------------------------------------
@@ -98,7 +87,7 @@ TEST(chunk_by_mp, forward)
 {
     auto ra = std::ref(flst) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>({.cat = range_cat::fwd, .common = true, .mut = true, .borrowed = true});
@@ -108,7 +97,7 @@ TEST(chunk_by_mp, forward_rvalue)
 {
     auto ra = std::forward_list<int>{1, 1, 2, 2, 2, 3, 1, 1} | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>({.cat = range_cat::fwd, .common = true, .mut = true, .borrowed = true});
@@ -118,7 +107,7 @@ TEST(chunk_by_mp, bidi_common)
 {
     auto ra = std::ref(lst) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     // bidirectional_range + common_range are preserved when the input models both (regardless of
     // sizedness/random-access); the outer range is never sized or random-access, though (see docs).
     radr::test::check_adaptor_concepts<decltype(ra)>(
@@ -131,7 +120,7 @@ TEST(chunk_by_mp, bidi_common_rvalue)
 {
     auto ra = std::list<int>{1, 1, 2, 2, 2, 3, 1, 1} | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>({.cat = range_cat::bidi, .common = true, .mut = true, .borrowed = true});
@@ -141,7 +130,7 @@ TEST(chunk_by_mp, ra_sized)
 {
     auto ra = std::ref(deq) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     // outer is capped at bidirectional_range even though the input is random-access+sized (see docs)
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .common = true, .mut = true, .borrowed = true});
@@ -154,7 +143,7 @@ TEST(chunk_by_mp, ra_sized_rvalue)
 {
     auto ra = std::deque<int>{1, 1, 2, 2, 2, 3, 1, 1} | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -165,7 +154,7 @@ TEST(chunk_by_mp, contig_sized)
 {
     auto ra = std::ref(vec) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     // outer is capped at bidirectional_range even though the input is contiguous+sized (see docs)
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .common = true, .mut = true, .borrowed = true});
@@ -180,7 +169,7 @@ TEST(chunk_by_mp, contig_sized_rvalue)
 {
     auto ra = std::vector<int>{1, 1, 2, 2, 2, 3, 1, 1} | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -216,7 +205,7 @@ TEST(chunk_by_mp, constant)
 {
     auto ra = std::cref(vec) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     // outer is capped at bidirectional_range even though the input is contiguous+sized (see docs)
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .common = true, .constant = true, .borrowed = true});
@@ -248,11 +237,11 @@ TEST(chunk_by_mp, fwd_uncommon)
     // {1,1,2,2,2,3,1,1} | filter(!=3) -> {1,1,2,2,2,1,1} | chunk_by(eq) -> {1,1} {2,2,2} {1,1}
     auto ra = std::ref(flst) | radr::filter([](int i) { return i != 3; }) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra),
-              (std::vector<std::vector<int>>{
-                {1, 1},
-                {2, 2, 2},
-                {1, 1}
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::vector<int>>{
+                      {1, 1},
+                      {2, 2, 2},
+                      {1, 1}
     }));
     // radr::filter is a constant range, hence .mut == false
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
@@ -265,11 +254,11 @@ TEST(chunk_by_mp, bidi_uncommon)
 {
     auto ra = std::ref(vec) | radr::filter([](int i) { return i != 3; }) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra),
-              (std::vector<std::vector<int>>{
-                {1, 1},
-                {2, 2, 2},
-                {1, 1}
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::vector<int>>{
+                      {1, 1},
+                      {2, 2, 2},
+                      {1, 1}
     }));
     // radr::filter is a constant range, hence .mut == false
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
@@ -282,7 +271,7 @@ TEST(chunk_by_mp, ra_nonsized)
 {
     auto ra = std::ref(vec) | radr::take_while(lt6) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped); // all elements of vec are < 6
+    EXPECT_RANGE_EQ(ra, grouped); // all elements of vec are < 6
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -293,7 +282,7 @@ TEST(chunk_by_mp, contig_nonsized)
 {
     auto ra = std::ref(deq) | radr::take_while(lt6) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra), grouped);
+    EXPECT_RANGE_EQ(ra, grouped);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -308,7 +297,7 @@ TEST(chunk_by_mp, always_false_predicate)
     // every element its own chunk, no phantom trailing empty chunk
     auto ra = std::ref(vec) | radr::chunk_by([](int, int) { return false; });
 
-    EXPECT_EQ(flatten(ra), (std::vector<std::vector<int>>{{1}, {1}, {2}, {2}, {2}, {3}, {1}, {1}}));
+    EXPECT_RANGE_EQ(ra, (std::vector<std::vector<int>>{{1}, {1}, {2}, {2}, {2}, {3}, {1}, {1}}));
 }
 
 TEST(chunk_by_mp, ascending_runs)
@@ -316,11 +305,11 @@ TEST(chunk_by_mp, ascending_runs)
     std::vector<int> v{1, 2, 3, 1, 5, 2, 3};
     auto             ra = std::ref(v) | radr::chunk_by(std::less<>{});
 
-    EXPECT_EQ(flatten(ra),
-              (std::vector<std::vector<int>>{
-                {1, 2, 3},
-                {1, 5},
-                {2, 3}
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::vector<int>>{
+                      {1, 2, 3},
+                      {1, 5},
+                      {2, 3}
     }));
 }
 
@@ -330,10 +319,10 @@ TEST(chunk_by_mp, boundary_at_very_end)
     std::vector<int> v{1, 1, 2};
     auto             ra = std::ref(v) | radr::chunk_by(eq);
 
-    EXPECT_EQ(flatten(ra),
-              (std::vector<std::vector<int>>{
-                {1, 1},
-                {2}
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::vector<int>>{
+                      {1, 1},
+                      {2}
     }));
     EXPECT_EQ(std::ranges::distance(ra), 2);
 }
@@ -343,7 +332,7 @@ TEST(chunk_by_mp, always_true_predicate)
     // a single chunk containing everything; decrementing from end() must land directly on begin()
     auto ra = std::ref(vec) | radr::chunk_by([](int, int) { return true; });
 
-    EXPECT_EQ(flatten(ra), (std::vector<std::vector<int>>{vec}));
+    EXPECT_RANGE_EQ(ra, (std::vector<std::vector<int>>{vec}));
 
     auto it = ra.end();
     --it;
@@ -405,8 +394,8 @@ TEST(chunk_by_mp, deep_copy)
     T cpy;
     {
         T own = std::vector<int>{1, 1, 2, 2, 2, 3, 1, 1} | radr::chunk_by(eq);
-        EXPECT_EQ(flatten(own), grouped);
+        EXPECT_RANGE_EQ(own, grouped);
         cpy = own;
     }
-    EXPECT_EQ(flatten(cpy), grouped);
+    EXPECT_RANGE_EQ(cpy, grouped);
 }

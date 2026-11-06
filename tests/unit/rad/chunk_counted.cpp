@@ -57,20 +57,6 @@ inline std::vector<std::vector<int>> const taken_chunks_of_2{
   {3}
 };
 
-/* The inner ranges are not always common, so they are collected element-wise. */
-template <typename RangeOfRanges>
-std::vector<std::vector<int>> flatten(RangeOfRanges && r)
-{
-    std::vector<std::vector<int>> out;
-    for (auto && sub : r)
-    {
-        auto & back = out.emplace_back();
-        for (auto && elem : sub)
-            back.push_back(elem);
-    }
-    return out;
-}
-
 // --------------------------------------------------------------------------
 // multi-pass tests I – canonical cases
 // --------------------------------------------------------------------------
@@ -79,7 +65,7 @@ TEST(chunk_counted_mp, forward)
 {
     auto ra = std::ref(flst) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::fwd, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -90,7 +76,7 @@ TEST(chunk_counted_mp, bidi_common)
 {
     auto ra = std::ref(lst) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .sized = true, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -101,7 +87,7 @@ TEST(chunk_counted_mp, ra_sized)
 {
     auto ra = std::ref(deq) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
 
@@ -115,7 +101,7 @@ TEST(chunk_counted_mp, contig_sized)
 {
     auto ra = std::ref(vec) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
     // the chunks are counted ranges, also for contiguous ranges
@@ -129,7 +115,7 @@ TEST(chunk_counted_mp, contig_sized_rvalue)
 {
     auto ra = std::vector<int>{1, 2, 3, 4, 5} | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true});
 }
@@ -176,7 +162,7 @@ TEST(chunk_counted_mp, fwd_uncommon)
 {
     auto ra = std::ref(flst) | radr::filter(not_four) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), filtered_chunks_of_2);
+    EXPECT_RANGE_EQ(ra, filtered_chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
 }
 
@@ -184,7 +170,7 @@ TEST(chunk_counted_mp, contig_nonsized)
 {
     auto ra = std::ref(vec) | radr::take_while(less_four) | radr::chunk_counted<2>;
 
-    EXPECT_EQ(flatten(ra), taken_chunks_of_2);
+    EXPECT_RANGE_EQ(ra, taken_chunks_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -201,7 +187,7 @@ TEST(chunk_counted_mp, sized_uncommon)
     EXPECT_TRUE((std::sized_sentinel_for<std::default_sentinel_t, It>));
     EXPECT_EQ(std::ranges::size(ra), 3u);
     EXPECT_EQ(std::ranges::distance(ra.begin(), std::default_sentinel), 3);
-    EXPECT_EQ(flatten(ra), chunks_of_2);
+    EXPECT_RANGE_EQ(ra, chunks_of_2);
 }
 
 // --------------------------------------------------------------------------
@@ -212,11 +198,11 @@ TEST(chunk_counted_mp, same_chunks_as_chunk)
 {
     auto check = [](auto && urange)
     {
-        EXPECT_EQ(flatten(urange | radr::chunk_counted<1>), flatten(urange | radr::chunk(1)));
-        EXPECT_EQ(flatten(urange | radr::chunk_counted<2>), flatten(urange | radr::chunk(2)));
-        EXPECT_EQ(flatten(urange | radr::chunk_counted<3>), flatten(urange | radr::chunk(3)));
-        EXPECT_EQ(flatten(urange | radr::chunk_counted<5>), flatten(urange | radr::chunk(5)));
-        EXPECT_EQ(flatten(urange | radr::chunk_counted<6>), flatten(urange | radr::chunk(6)));
+        EXPECT_RANGE_EQ(urange | radr::chunk_counted<1>, urange | radr::chunk(1));
+        EXPECT_RANGE_EQ(urange | radr::chunk_counted<2>, urange | radr::chunk(2));
+        EXPECT_RANGE_EQ(urange | radr::chunk_counted<3>, urange | radr::chunk(3));
+        EXPECT_RANGE_EQ(urange | radr::chunk_counted<5>, urange | radr::chunk(5));
+        EXPECT_RANGE_EQ(urange | radr::chunk_counted<6>, urange | radr::chunk(6));
     };
 
     check(std::ref(vec));
@@ -348,10 +334,10 @@ TEST(chunk_counted_mp, deep_copy)
         V cpy;
         {
             V own = T{1, 2, 3, 4, 5} | radr::chunk_counted<2>;
-            EXPECT_EQ(flatten(own), chunks_of_2);
+            EXPECT_RANGE_EQ(own, chunks_of_2);
             cpy = own;
         }
-        EXPECT_EQ(flatten(cpy), chunks_of_2);
+        EXPECT_RANGE_EQ(cpy, chunks_of_2);
     };
 
     check(std::vector<int>{});

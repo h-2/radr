@@ -5,6 +5,7 @@
 #include <memory>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <typeinfo>
 #include <vector>
 
@@ -25,13 +26,24 @@ namespace radr::test
 
 struct expect_range_eq
 {
+    /* Nested ranges (except string-like ones) are copied recursively into nested std::vectors. */
     template <typename rng_t>
     auto copy_range(rng_t && rng)
     {
         using value_t = std::ranges::range_value_t<rng_t>;
-        std::vector<value_t> rng_copy{};
-        std::ranges::copy(rng, std::back_inserter(rng_copy));
-        return rng_copy;
+        if constexpr (std::ranges::input_range<value_t> && !std::convertible_to<value_t, std::string_view>)
+        {
+            std::vector<decltype(copy_range(std::declval<std::ranges::range_reference_t<rng_t>>()))> rng_copy{};
+            for (auto && elem : rng)
+                rng_copy.push_back(copy_range(std::forward<decltype(elem)>(elem)));
+            return rng_copy;
+        }
+        else
+        {
+            std::vector<value_t> rng_copy{};
+            std::ranges::copy(rng, std::back_inserter(rng_copy));
+            return rng_copy;
+        }
     }
 
     auto copy_range(char const * const rng)

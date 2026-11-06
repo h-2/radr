@@ -57,21 +57,6 @@ inline std::vector<std::vector<int>> const taken_slides_of_2{
   {2, 3}
 };
 
-// radr::borrowing_rad (and radr::generator) have no cross-type operator== against std::vector,
-// so range-of-range comparisons are done by first collecting into nested std::vector<int>s.
-template <typename T = int, typename RangeOfRanges>
-std::vector<std::vector<T>> materialise(RangeOfRanges && r)
-{
-    std::vector<std::vector<T>> out;
-    for (auto && sub : r)
-    {
-        out.emplace_back();
-        for (auto && elem : sub)
-            out.back().push_back(elem);
-    }
-    return out;
-}
-
 // --------------------------------------------------------------------------
 // single-pass tests
 // --------------------------------------------------------------------------
@@ -86,7 +71,7 @@ TEST(slide_mp, forward)
 {
     auto ra = std::ref(flst) | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::fwd, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -98,7 +83,7 @@ TEST(slide_mp, forward_rvalue)
 {
     auto ra = std::forward_list<int>{1, 2, 3, 4, 5} | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -109,7 +94,7 @@ TEST(slide_mp, bidi_common)
 {
     auto ra = std::ref(lst) | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .sized = true, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -121,7 +106,7 @@ TEST(slide_mp, bidi_common_rvalue)
 {
     auto ra = std::list<int>{1, 2, 3, 4, 5} | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::bidi, .sized = true, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -133,7 +118,7 @@ TEST(slide_mp, ra_sized)
 {
     auto ra = std::ref(deq) | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -145,7 +130,7 @@ TEST(slide_mp, ra_sized_rvalue)
 {
     auto ra = std::deque<int>{1, 2, 3, 4, 5} | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -157,7 +142,7 @@ TEST(slide_mp, contig_sized)
 {
     auto ra = std::ref(vec) | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -169,7 +154,7 @@ TEST(slide_mp, contig_sized_rvalue)
 {
     auto ra = std::vector<int>{1, 2, 3, 4, 5} | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .mut = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -207,7 +192,7 @@ TEST(slide_mp, constant)
 {
     auto ra = std::cref(vec) | radr::slide(3);
 
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .sized = true, .common = true, .constant = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
@@ -235,7 +220,7 @@ TEST(slide_mp, fwd_uncommon)
 {
     auto ra = std::ref(flst) | radr::filter(not_four) | radr::slide(2);
 
-    EXPECT_EQ(materialise(ra), filtered_slides_of_2);
+    EXPECT_RANGE_EQ(ra, filtered_slides_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -246,7 +231,7 @@ TEST(slide_mp, bidi_uncommon)
 {
     auto ra = std::ref(vec) | radr::filter(not_four) | radr::slide(2);
 
-    EXPECT_EQ(materialise(ra), filtered_slides_of_2);
+    EXPECT_RANGE_EQ(ra, filtered_slides_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .constant = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -257,7 +242,7 @@ TEST(slide_mp, ra_nonsized)
 {
     auto ra = std::ref(deq) | radr::take_while(less_four) | radr::slide(2);
 
-    EXPECT_EQ(materialise(ra), taken_slides_of_2);
+    EXPECT_RANGE_EQ(ra, taken_slides_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -268,7 +253,7 @@ TEST(slide_mp, contig_nonsized)
 {
     auto ra = std::ref(vec) | radr::take_while(less_four) | radr::slide(2);
 
-    EXPECT_EQ(materialise(ra), taken_slides_of_2);
+    EXPECT_RANGE_EQ(ra, taken_slides_of_2);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .mut = true, .borrowed = true});
     using val_t = std::ranges::range_value_t<decltype(ra)>;
     radr::test::check_adaptor_concepts<val_t>(
@@ -282,7 +267,7 @@ TEST(slide_mp, contig_nonsized)
 TEST(slide_mp, n1)
 {
     auto ra = std::ref(lst) | radr::slide(1);
-    EXPECT_EQ(materialise(ra), (std::vector<std::vector<int>>{{1}, {2}, {3}, {4}, {5}}));
+    EXPECT_RANGE_EQ(ra, (std::vector<std::vector<int>>{{1}, {2}, {3}, {4}, {5}}));
     EXPECT_EQ(std::ranges::size(ra), 5u);
 }
 
@@ -291,10 +276,10 @@ TEST(slide_mp, n_equals_size)
     auto expected = std::vector<std::vector<int>>{
       {1, 2, 3, 4, 5}
     };
-    EXPECT_EQ(materialise(std::ref(flst) | radr::slide(5)), expected);
-    EXPECT_EQ(materialise(std::ref(lst) | radr::slide(5)), expected);
-    EXPECT_EQ(materialise(std::ref(vec) | radr::slide(5)), expected);
-    EXPECT_EQ(materialise(std::ref(vec) | radr::filter([](int) { return true; }) | radr::slide(5)), expected);
+    EXPECT_RANGE_EQ(std::ref(flst) | radr::slide(5), expected);
+    EXPECT_RANGE_EQ(std::ref(lst) | radr::slide(5), expected);
+    EXPECT_RANGE_EQ(std::ref(vec) | radr::slide(5), expected);
+    EXPECT_RANGE_EQ(std::ref(vec) | radr::filter([](int) { return true; }) | radr::slide(5), expected);
 }
 
 TEST(slide_mp, shorter_than_n)
@@ -325,7 +310,7 @@ TEST(slide_mp, n_type)
 {
     // the type of n is stored in the iterator
     auto ra = std::ref(lst) | radr::slide(int8_t{3});
-    EXPECT_EQ(materialise(ra), slides_of_3);
+    EXPECT_RANGE_EQ(ra, slides_of_3);
     EXPECT_EQ(std::ranges::size(ra), 3u);
 }
 
@@ -412,11 +397,11 @@ TEST(slide_mp, sized_sentinel)
     EXPECT_TRUE((std::sized_sentinel_for<std::default_sentinel_t, It>));
     EXPECT_EQ(std::ranges::distance(ra.begin(), std::default_sentinel), 3);
     EXPECT_EQ(std::ranges::size(ra), 3u);
-    EXPECT_EQ(materialise(ra),
-              (std::vector<std::vector<int>>{
-                {1, 2},
-                {2, 3},
-                {3, 4}
+    EXPECT_RANGE_EQ(ra,
+                    (std::vector<std::vector<int>>{
+                      {1, 2},
+                      {2, 3},
+                      {3, 4}
     }));
 }
 
@@ -450,10 +435,10 @@ TEST(slide_mp, deep_copy)
     T cpy;
     {
         T own = std::vector<int>{1, 2, 3, 4, 5} | radr::slide(3);
-        EXPECT_EQ(materialise(own), slides_of_3);
+        EXPECT_RANGE_EQ(own, slides_of_3);
         cpy = own;
     }
-    EXPECT_EQ(materialise(cpy), slides_of_3);
+    EXPECT_RANGE_EQ(cpy, slides_of_3);
 }
 
 TEST(slide_mp, deep_copy_bidi)
@@ -465,7 +450,7 @@ TEST(slide_mp, deep_copy_bidi)
         T own = std::list<int>{1, 2, 3, 4, 5} | radr::slide(3);
         cpy   = own;
     }
-    EXPECT_EQ(materialise(cpy), slides_of_3);
+    EXPECT_RANGE_EQ(cpy, slides_of_3);
 
     auto it = cpy.end();
     --it;
