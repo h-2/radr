@@ -33,13 +33,23 @@ namespace radr
 
 inline namespace cpo
 {
-/*!\brief Create a sliding tuple of fixed size N over the range.
- * \tparam N The size of the tuple (>= 1).
+/*!\brief radr::adjacent<K>(urange)
+ * \tparam K The size of the tuple (>= 1).
  * \param urange The underlying range.
  *
- * Requires C++23!
+ * Turns a range into a range of overlapping tuples, each of size N.
  *
- * ### Multi-pass adaptor
+ * Requires C++23.
+ *
+ * Be aware of the following similar adaptors:
+ *
+ * |                     |  parameter        | element-type  |
+ * |---------------------|-------------------|---------------|
+ * | radr::adjacent      | compile-time      | tuple         |
+ * | radr::slide_counted | compile-time      | range         |
+ * | radr::slide         | runtime           | range         |
+ *
+ * ## Multi-pass adaptor
  *
  * Requirements on \p urange :
  *   * radr::mp_range
@@ -51,13 +61,26 @@ inline namespace cpo
  *   * radr::common_range
  *   * radr::constant_range
  *   * radr::mutable_range
+ *   * radr::infinite_mp_range
  *
- * ### Single-pass adaptor
+ * ### Notable differences to std::views::adjacent
+ *
+ * For underlying ranges that model radr::safely_indexable_range, this adaptor's iterator stores only one underlying
+ * iterator.
+ *
+ * ### Performance
+ *
+ * Can be faster than std::views::adjacent, radr::slide_counted and radr::slide on bidirectional ranges.
+ *
+ * Can be faster than std::views::adjacent on random access ranges, especially ones that are
+ * not contiguous.
+ *
+ * ## Single-pass adaptor
  *
  * radr::adjacent cannot be created on single-pass ranges.
  */
-template <ptrdiff_t N>
-inline constexpr auto adjacent = detail::pipe_without_args_fn<void, decltype(detail::adjacent_borrow<N>)>{};
+template <ptrdiff_t K>
+inline constexpr auto adjacent = detail::pipe_without_args_fn<void, decltype(detail::adjacent_borrow<K>)>{};
 } // namespace cpo
 } // namespace radr
 

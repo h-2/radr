@@ -163,9 +163,8 @@ void radr_partial(benchmark::State & state)
 
 /* The deque is spread over many separate small blocks, so a cold traversal pays page faults and TLB misses
  * that dwarf what is being measured, and Google Benchmark does not warm up by default. The std_ arm of every
- * pair runs first, so without a warm-up it would systematically absorb that cold cost; adjacent.cpp quantifies
- * the difference. The warm-up therefore has to be on for a plain run, not only when asked for on the command
- * line.
+ * pair runs first, so without a warm-up it would systematically absorb that cold cost. The warm-up therefore
+ * has to be on for a plain run, not only when asked for on the command line.
  *
  * main() below raises the default of --benchmark_min_warmup_time rather than setting the warm-up per
  * registration: a per-registration MinWarmUpTime() is silently ignored unless that same registration also sets

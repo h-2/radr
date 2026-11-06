@@ -338,7 +338,17 @@ public:
 
     constexpr zip_iterator & operator++()
     {
-        if constexpr (_all_same)
+        /* adjacent: the iterators are consecutive, so shift and advance only the last (one node load instead
+         * of N); not for random-access iterators, where it prevents vectorisation */
+        if constexpr (kind == zip_iterator_kind::adjacent && !is_random_access)
+        {
+            [&]<size_t... Is>(std::index_sequence<Is...>)
+            {
+                ((current[Is] = current[Is + 1]), ...);
+            }(std::make_index_sequence<_size - 1>{});
+            ++current.back();
+        }
+        else if constexpr (_all_same)
         {
             for (auto & it : current)
                 ++it;
@@ -360,7 +370,16 @@ public:
     constexpr zip_iterator & operator--()
         requires is_bidi
     {
-        if constexpr (_all_same)
+        /* adjacent: see operator++ */
+        if constexpr (kind == zip_iterator_kind::adjacent && !is_random_access)
+        {
+            [&]<size_t... Is>(std::index_sequence<Is...>)
+            {
+                ((current[_size - 1 - Is] = current[_size - 2 - Is]), ...);
+            }(std::make_index_sequence<_size - 1>{});
+            --current.front();
+        }
+        else if constexpr (_all_same)
         {
             for (auto & it : current)
                 --it;

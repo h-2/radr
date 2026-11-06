@@ -45,6 +45,20 @@ struct nest_fn
 template <class UIt, bool deref>
 using arg_t = std::conditional_t<deref, std::iter_reference_t<UIt>, UIt>;
 
+//!\brief The value type; for !deref, Fn may provide it as `Fn::value_type<UIt>`.
+template <class UIt, class Fn, bool deref>
+struct value_type_impl
+{
+    using type = std::remove_cvref_t<std::invoke_result_t<Fn const &, arg_t<UIt, deref>>>;
+};
+
+template <class UIt, class Fn>
+    requires requires { typename Fn::template value_type<UIt>; }
+struct value_type_impl<UIt, Fn, false>
+{
+    using type = typename Fn::template value_type<UIt>;
+};
+
 template <class UIt, class Fn, bool deref = true>
 concept fn_constraints = std::is_object_v<Fn> && std::regular_invocable<Fn const &, arg_t<UIt, deref>> &&
                          can_reference<std::invoke_result_t<Fn const &, arg_t<UIt, deref>>>;
@@ -85,6 +99,8 @@ class transform_iterator
 
     static constexpr bool nothrow_invoke = noexcept(std::invoke(std::declval<Fn const &>(), std::declval<arg_t>()));
 
+    static constexpr bool has_custom_iter_move = !deref && requires(Fn const & f, UIt const & u) { f.iter_move(u); };
+
     template <typename Container>
     constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
                                      transform_iterator it,
@@ -99,7 +115,7 @@ public:
     using iterator_concept =
       std::conditional_t<std::contiguous_iterator<UIt>, std::random_access_iterator_tag, iterator_tag_t<UIt>>;
     using difference_type = std::iter_difference_t<UIt>;
-    using value_type      = std::remove_cvref_t<std::invoke_result_t<Fn const &, arg_t>>;
+    using value_type      = typename transform::value_type_impl<UIt, Fn, deref>::type;
 
     transform_iterator() = default;
 
@@ -257,11 +273,26 @@ public:
     }
 
     friend constexpr decltype(auto) iter_move(transform_iterator const & i) noexcept(noexcept(*i))
+        requires(!has_custom_iter_move)
     {
         if constexpr (std::is_lvalue_reference_v<decltype(*i)>)
             return std::move(*i);
         else
             return *i;
+    }
+
+    /* !deref only: Fn may customise iter_move/iter_swap via members taking the underlying iterator(s) */
+    friend constexpr decltype(auto) iter_move(transform_iterator const & i) noexcept(noexcept((*i.fn).iter_move(i.uit)))
+        requires has_custom_iter_move
+    {
+        return (*i.fn).iter_move(i.uit);
+    }
+
+    friend constexpr void iter_swap(transform_iterator const & x,
+                                    transform_iterator const & y) noexcept(noexcept((*x.fn).iter_swap(x.uit, y.uit)))
+        requires(!deref && requires(Fn const & f, UIt const & u) { f.iter_swap(u, u); })
+    {
+        (*x.fn).iter_swap(x.uit, y.uit);
     }
 };
 

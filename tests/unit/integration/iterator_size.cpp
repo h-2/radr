@@ -778,9 +778,7 @@ TEST(iterator_size, slide_ra_unsized)
 #if RADR_FEATURE_ZIP
 
 /* radr::adjacent<N> stores N copies of the underlying iterator, so its iterator grows linearly in N.
- * For random-access ranges the copies are redundant (they differ by a compile-time constant offset) and a
- * single-iterator representation would make these numbers constant in N; this test pins down the status quo,
- * so that such a change becomes visible here. */
+ * For radr::safely_indexable_range, it stores a single iterator instead, so the sizes are constant in N. */
 
 TEST(iterator_size, adjacent_contig)
 {
@@ -812,18 +810,18 @@ TEST(iterator_size, adjacent_contig)
         auto v2 = std::ref(vec) | radr::adjacent<2>;
         auto v4 = std::ref(vec) | radr::adjacent<4>;
 
-        // begin and end are both zip_iterators; the size is derived from them, not stored
+        // begin and end are transform iterators over a single underlying iterator; the size is not stored
         EXPECT_EQ(sizeof(v1), 16);
-        EXPECT_EQ(sizeof(v2), 32);
-        EXPECT_EQ(sizeof(v4), 64);
+        EXPECT_EQ(sizeof(v2), 16);
+        EXPECT_EQ(sizeof(v4), 16);
 
         EXPECT_EQ(sizeof(v1.begin()), 8);
-        EXPECT_EQ(sizeof(v2.begin()), 16);
-        EXPECT_EQ(sizeof(v4.begin()), 32);
+        EXPECT_EQ(sizeof(v2.begin()), 8);
+        EXPECT_EQ(sizeof(v4.begin()), 8);
 
         EXPECT_EQ(sizeof(v1.end()), 8);
-        EXPECT_EQ(sizeof(v2.end()), 16);
-        EXPECT_EQ(sizeof(v4.end()), 32);
+        EXPECT_EQ(sizeof(v2.end()), 8);
+        EXPECT_EQ(sizeof(v4.end()), 8);
     }
 }
 

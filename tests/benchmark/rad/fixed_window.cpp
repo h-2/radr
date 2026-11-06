@@ -3,6 +3,7 @@
 #include <limits>
 #include <list>
 #include <ranges>
+#include <tuple>
 #include <vector>
 
 #include <radr/test/aux_ranges.hpp>
@@ -11,8 +12,14 @@
 #include <radr/rad/slide.hpp>
 #include <radr/rad/slide_counted.hpp>
 #include <radr/rad/take_while.hpp>
+#include <radr/version.hpp>
 
-/* Outer iterators:
+#if RADR_FEATURE_ZIP
+#    include <radr/rad/adjacent.hpp>
+#endif
+
+/* Window adaptors with a window size known at compile time (see slide.cpp for run-time values).
+ * Outer iterators:
  *  - radr::slide: vec_t, deq_t (safely indexable): transform over the underlying range (limited to the number of
  *    windows with take if sized); windows are subborrow(it, it + k). Otherwise one iterator (two underlying iterators + k;
  *    stores the end if the underlying range is not common); windows are created from the stored last element and
@@ -21,7 +28,11 @@
  *    vec_tw_t, vec_tp_t: "caches-first".
  *  - radr::slide_counted: k is a template argument; preserves the category; windows are
  *    subborrow(it, it + k) for random-access ranges and counted otherwise.
- * vec_tw_t and vec_tp_t are not sized, so they have no stride arms. */
+ *  - radr::adjacent, std::views::adjacent: k underlying iterators; windows are tuples of references, summed by
+ *    folding over the tuple.
+ * vec_tw_t and vec_tp_t are not sized, so they have no stride arms.
+ * The accumulator is copied before benchmark::DoNotOptimize(), so that it is not address-taken; otherwise clang
+ * keeps it in memory in some loops (one store per element). */
 
 using vec_t = std::vector<uint32_t>;
 using deq_t = std::deque<uint32_t>;
@@ -51,6 +62,7 @@ inline constexpr auto take_while_pred<vec_tp_t> = [](uint32_t x)
 template <ptrdiff_t V>
 using k = std::integral_constant<ptrdiff_t, V>;
 
+using k2 = k<2>;
 using k4 = k<4>;
 using k8 = k<8>;
 
@@ -73,6 +85,12 @@ inline Container const & data()
     else
         return lst;
 }
+
+/* sum of all elements of a tuple-window */
+inline constexpr auto tuple_sum = [](auto && win)
+{
+    return std::apply([](auto &&... elems) { return (elems + ...); }, win);
+};
 
 #ifdef __cpp_lib_ranges_slide
 template <typename Container, typename K>
@@ -103,6 +121,28 @@ inline auto radr_counted_slid()
         return std::ref(data<Container>()) | radr::slide_counted<K::value>;
 }
 
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+inline auto std_adjacent_slid()
+{
+    if constexpr (take_while_tag<Container>)
+        return vec | std::views::take_while(take_while_pred<Container>) | std::views::adjacent<K::value>;
+    else
+        return data<Container>() | std::views::adjacent<K::value>;
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+inline auto radr_adjacent_slid()
+{
+    if constexpr (take_while_tag<Container>)
+        return std::ref(vec) | radr::take_while(take_while_pred<Container>) | radr::adjacent<K::value>;
+    else
+        return std::ref(data<Container>()) | radr::adjacent<K::value>;
+}
+#endif
+
 // --------------------------------------------------------------------------
 // full
 // --------------------------------------------------------------------------
@@ -121,7 +161,8 @@ void std_full(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -138,7 +179,8 @@ void radr_full(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 template <typename Container, typename K>
@@ -154,8 +196,45 @@ void radr_counted_full(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
+
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+void std_adjacent_full(benchmark::State & state)
+{
+    auto v = std_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto && win : v)
+            count += tuple_sum(win);
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+void radr_adjacent_full(benchmark::State & state)
+{
+    auto v = radr_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto && win : v)
+            count += tuple_sum(win);
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
 
 // --------------------------------------------------------------------------
 // partial
@@ -179,7 +258,8 @@ void std_partial(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -200,7 +280,8 @@ void radr_partial(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 template <typename Container, typename K>
@@ -220,8 +301,51 @@ void radr_counted_partial(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
+
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+void std_adjacent_partial(benchmark::State & state)
+{
+    auto v = std_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto && win : v)
+        {
+            count += std::get<0>(win);
+            count += std::get<1>(win);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+void radr_adjacent_partial(benchmark::State & state)
+{
+    auto v = radr_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto && win : v)
+        {
+            count += std::get<0>(win);
+            count += std::get<1>(win);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
 
 // --------------------------------------------------------------------------
 // reverse (lst_t only)
@@ -244,7 +368,8 @@ void std_full_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -264,7 +389,8 @@ void radr_full_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 template <typename Container, typename K>
@@ -283,8 +409,51 @@ void radr_counted_full_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
+
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+void std_adjacent_full_rev(benchmark::State & state)
+{
+    auto v = std_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto it = v.end(); it != v.begin();)
+        {
+            --it;
+            count += tuple_sum(*it);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+void radr_adjacent_full_rev(benchmark::State & state)
+{
+    auto v = radr_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto it = v.end(); it != v.begin();)
+        {
+            --it;
+            count += tuple_sum(*it);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
 
 #ifdef __cpp_lib_ranges_slide
 template <typename Container, typename K>
@@ -306,7 +475,8 @@ void std_partial_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -329,7 +499,8 @@ void radr_partial_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 template <typename Container, typename K>
@@ -351,8 +522,55 @@ void radr_counted_partial_rev(benchmark::State & state)
         }
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
+
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+void std_adjacent_partial_rev(benchmark::State & state)
+{
+    auto v = std_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto it = v.end(); it != v.begin();)
+        {
+            --it;
+            auto && win = *it;
+            count += std::get<0>(win);
+            count += std::get<1>(win);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+void radr_adjacent_partial_rev(benchmark::State & state)
+{
+    auto v = radr_adjacent_slid<Container, K>();
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        for (auto it = v.end(); it != v.begin();)
+        {
+            --it;
+            auto && win = *it;
+            count += std::get<0>(win);
+            count += std::get<1>(win);
+        }
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
 
 // --------------------------------------------------------------------------
 // stride
@@ -375,7 +593,8 @@ void std_stride(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 #endif
 
@@ -395,7 +614,8 @@ void radr_stride(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
 
 template <typename Container, typename K>
@@ -414,8 +634,51 @@ void radr_counted_stride(benchmark::State & state)
                 count += elem;
     }
 
-    benchmark::DoNotOptimize(count);
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
 }
+
+#ifdef __cpp_lib_ranges_zip
+template <typename Container, typename K>
+void std_adjacent_stride(benchmark::State & state)
+{
+    auto            v  = std_adjacent_slid<Container, K>();
+    ptrdiff_t const sz = std::ranges::ssize(v);
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        auto beg = v.begin();
+
+        for (ptrdiff_t i = 0; i < sz; i += stride)
+            count += tuple_sum(beg[i]);
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
+
+#if RADR_FEATURE_ZIP
+template <typename Container, typename K>
+void radr_adjacent_stride(benchmark::State & state)
+{
+    auto            v  = radr_adjacent_slid<Container, K>();
+    ptrdiff_t const sz = std::ranges::ssize(v);
+
+    uint32_t count = 0;
+    for (auto _ : state)
+    {
+        auto beg = v.begin();
+
+        for (ptrdiff_t i = 0; i < sz; i += stride)
+            count += tuple_sum(beg[i]);
+    }
+
+    uint32_t result = count;
+    benchmark::DoNotOptimize(result);
+}
+#endif
 
 // --------------------------------------------------------------------------
 // registration
@@ -427,49 +690,77 @@ void radr_counted_stride(benchmark::State & state)
     BENCHMARK(radr::test::with_hardware_counters<arm##_##bench<Container, K>>)                                         \
       ->Name(RADR_BENCH_NAME(bench, Container, K, #arm))
 
+/* arms whose adaptor is not available expand to a no-op declaration */
 #ifdef __cpp_lib_ranges_slide
-#    define RADR_BENCH_PAIR(bench, Container, K)                                                                       \
-        RADR_BENCH_ARM(std, bench, Container, K);                                                                      \
-        RADR_BENCH_ARM(radr, bench, Container, K)
+#    define RADR_BENCH_ARM_STD(bench, Container, K) RADR_BENCH_ARM(std, bench, Container, K)
 #else
-#    define RADR_BENCH_PAIR(bench, Container, K) RADR_BENCH_ARM(radr, bench, Container, K)
+#    define RADR_BENCH_ARM_STD(bench, Container, K) static_assert(true)
 #endif
 
-// std, radr, radr_counted
-#define RADR_BENCH_TRIPLE(bench, Container, K)                                                                         \
-    RADR_BENCH_PAIR(bench, Container, K);                                                                              \
-    RADR_BENCH_ARM(radr_counted, bench, Container, K)
+#ifdef __cpp_lib_ranges_zip
+#    define RADR_BENCH_ARM_STD_ADJACENT(bench, Container, K) RADR_BENCH_ARM(std_adjacent, bench, Container, K)
+#else
+#    define RADR_BENCH_ARM_STD_ADJACENT(bench, Container, K) static_assert(true)
+#endif
 
-RADR_BENCH_TRIPLE(full, vec_t, k4);
-RADR_BENCH_TRIPLE(full, vec_t, k8);
-RADR_BENCH_TRIPLE(full, deq_t, k4);
-RADR_BENCH_TRIPLE(full, deq_t, k8);
-RADR_BENCH_TRIPLE(full, vec_tw_t, k4);
-RADR_BENCH_TRIPLE(full, vec_tw_t, k8);
-RADR_BENCH_TRIPLE(full, vec_tp_t, k4);
-RADR_BENCH_TRIPLE(full, vec_tp_t, k8);
-RADR_BENCH_TRIPLE(full, lst_t, k4);
-RADR_BENCH_TRIPLE(full, lst_t, k8);
+#if RADR_FEATURE_ZIP
+#    define RADR_BENCH_ARM_RADR_ADJACENT(bench, Container, K) RADR_BENCH_ARM(radr_adjacent, bench, Container, K)
+#else
+#    define RADR_BENCH_ARM_RADR_ADJACENT(bench, Container, K) static_assert(true)
+#endif
 
-RADR_BENCH_TRIPLE(partial, vec_t, k4);
-RADR_BENCH_TRIPLE(partial, vec_t, k8);
-RADR_BENCH_TRIPLE(partial, deq_t, k4);
-RADR_BENCH_TRIPLE(partial, deq_t, k8);
-RADR_BENCH_TRIPLE(partial, vec_tw_t, k4);
-RADR_BENCH_TRIPLE(partial, vec_tw_t, k8);
-RADR_BENCH_TRIPLE(partial, vec_tp_t, k4);
-RADR_BENCH_TRIPLE(partial, vec_tp_t, k8);
-RADR_BENCH_TRIPLE(partial, lst_t, k4);
-RADR_BENCH_TRIPLE(partial, lst_t, k8);
+// std, radr, radr_counted, std_adjacent, radr_adjacent
+#define RADR_BENCH_ALL(bench, Container, K)                                                                            \
+    RADR_BENCH_ARM_STD(bench, Container, K);                                                                           \
+    RADR_BENCH_ARM(radr, bench, Container, K);                                                                         \
+    RADR_BENCH_ARM(radr_counted, bench, Container, K);                                                                 \
+    RADR_BENCH_ARM_STD_ADJACENT(bench, Container, K);                                                                  \
+    RADR_BENCH_ARM_RADR_ADJACENT(bench, Container, K)
 
-RADR_BENCH_TRIPLE(stride, vec_t, k4);
-RADR_BENCH_TRIPLE(stride, vec_t, k8);
-RADR_BENCH_TRIPLE(stride, deq_t, k4);
-RADR_BENCH_TRIPLE(stride, deq_t, k8);
+RADR_BENCH_ALL(full, vec_t, k2);
+RADR_BENCH_ALL(full, vec_t, k4);
+RADR_BENCH_ALL(full, vec_t, k8);
+RADR_BENCH_ALL(full, deq_t, k2);
+RADR_BENCH_ALL(full, deq_t, k4);
+RADR_BENCH_ALL(full, deq_t, k8);
+RADR_BENCH_ALL(full, vec_tw_t, k2);
+RADR_BENCH_ALL(full, vec_tw_t, k4);
+RADR_BENCH_ALL(full, vec_tw_t, k8);
+RADR_BENCH_ALL(full, vec_tp_t, k2);
+RADR_BENCH_ALL(full, vec_tp_t, k4);
+RADR_BENCH_ALL(full, vec_tp_t, k8);
+RADR_BENCH_ALL(full, lst_t, k2);
+RADR_BENCH_ALL(full, lst_t, k4);
+RADR_BENCH_ALL(full, lst_t, k8);
 
-RADR_BENCH_TRIPLE(full_rev, lst_t, k4);
-RADR_BENCH_TRIPLE(full_rev, lst_t, k8);
-RADR_BENCH_TRIPLE(partial_rev, lst_t, k4);
-RADR_BENCH_TRIPLE(partial_rev, lst_t, k8);
+RADR_BENCH_ALL(partial, vec_t, k2);
+RADR_BENCH_ALL(partial, vec_t, k4);
+RADR_BENCH_ALL(partial, vec_t, k8);
+RADR_BENCH_ALL(partial, deq_t, k2);
+RADR_BENCH_ALL(partial, deq_t, k4);
+RADR_BENCH_ALL(partial, deq_t, k8);
+RADR_BENCH_ALL(partial, vec_tw_t, k2);
+RADR_BENCH_ALL(partial, vec_tw_t, k4);
+RADR_BENCH_ALL(partial, vec_tw_t, k8);
+RADR_BENCH_ALL(partial, vec_tp_t, k2);
+RADR_BENCH_ALL(partial, vec_tp_t, k4);
+RADR_BENCH_ALL(partial, vec_tp_t, k8);
+RADR_BENCH_ALL(partial, lst_t, k2);
+RADR_BENCH_ALL(partial, lst_t, k4);
+RADR_BENCH_ALL(partial, lst_t, k8);
+
+RADR_BENCH_ALL(stride, vec_t, k2);
+RADR_BENCH_ALL(stride, vec_t, k4);
+RADR_BENCH_ALL(stride, vec_t, k8);
+RADR_BENCH_ALL(stride, deq_t, k2);
+RADR_BENCH_ALL(stride, deq_t, k4);
+RADR_BENCH_ALL(stride, deq_t, k8);
+
+RADR_BENCH_ALL(full_rev, lst_t, k2);
+RADR_BENCH_ALL(full_rev, lst_t, k4);
+RADR_BENCH_ALL(full_rev, lst_t, k8);
+RADR_BENCH_ALL(partial_rev, lst_t, k2);
+RADR_BENCH_ALL(partial_rev, lst_t, k4);
+RADR_BENCH_ALL(partial_rev, lst_t, k8);
 
 BENCHMARK_MAIN();
