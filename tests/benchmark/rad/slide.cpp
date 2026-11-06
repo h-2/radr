@@ -19,7 +19,7 @@
  *  - std::views::slide: vec_t, deq_t: "caches-nothing"; lst_t: "caches-last" with counted windows;
  *    vec_tw_t, vec_tp_t: "caches-first".
  * vec_tw_t and vec_tp_t are not sized, so they have no stride arms.
- * k is always a run-time value (see slide_counted.cpp for compile-time constants). */
+ * k is always a run-time value (see fixed_window.cpp for compile-time constants). */
 
 using vec_t = std::vector<uint32_t>;
 using deq_t = std::deque<uint32_t>;

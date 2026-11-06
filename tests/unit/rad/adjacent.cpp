@@ -331,6 +331,7 @@ TEST(adjacent_mp, value_and_reference_types)
 
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int &, int &>));
     EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(ra)>, (std::tuple<int, int>));
+    EXPECT_SAME_TYPE(std::ranges::range_rvalue_reference_t<decltype(ra)>, (std::tuple<int &&, int &&>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
 }
 
