@@ -18,6 +18,7 @@
 #include <radr/rad/filter.hpp>
 #include <radr/rad/take.hpp>
 #include <radr/rad/take_while.hpp>
+#include <radr/rad/transform.hpp>
 
 using radr::test::range_cat;
 
@@ -363,6 +364,52 @@ TEST(adjacent_transform_mp, nested)
 
     // {3,5,7,9} -> {8,12,16}
     EXPECT_RANGE_EQ(ra, (std::vector<int>{8, 12, 16}));
+}
+
+TEST(adjacent_transform_mp, fold_transform)
+{
+    auto neg = [](int i)
+    {
+        return -i;
+    };
+    auto ra = std::ref(vec) | radr::adjacent_transform<2>(add) | radr::transform(neg);
+
+    EXPECT_RANGE_EQ(ra, (std::vector<int>{-3, -5, -7, -9}));
+    EXPECT_EQ(ra.begin()[2], -7);
+
+    using uit_t  = radr::iterator_t<std::vector<int>>;
+    using ucit_t = radr::const_iterator_t<std::vector<int>>;
+    using nest_t = radr::detail::transform::nest_fn<std::remove_cvref_t<decltype(add)>, decltype(neg)>;
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::adjacent_transform_ra_iterator<uit_t, 2, nest_t>));
+    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>,
+                     (radr::detail::adjacent_transform_ra_iterator<ucit_t, 2, nest_t>));
+    EXPECT_EQ(sizeof(radr::iterator_t<decltype(ra)>), sizeof(uit_t));
+}
+
+TEST(adjacent_transform_mp, fold_transform_infinite)
+{
+    auto neg = [](int i)
+    {
+        return -i;
+    };
+    auto ra = radr::iota(0) | radr::adjacent_transform<2>(add) | radr::transform(neg);
+
+    EXPECT_EQ(ra.begin()[3], -7);
+    EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::unreachable_sentinel_t);
+}
+
+TEST(adjacent_transform_mp, no_fold_transform_regular)
+{
+    auto neg = [](int i)
+    {
+        return -i;
+    };
+    auto inner = std::ref(lst) | radr::adjacent_transform<2>(add);
+    auto ra    = inner | radr::transform(neg);
+
+    EXPECT_RANGE_EQ(ra, (std::vector<int>{-3, -5, -7, -9}));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>,
+                     (radr::detail::transform_iterator<radr::iterator_t<decltype(inner)>, decltype(neg)>));
 }
 
 // --------------------------------------------------------------------------

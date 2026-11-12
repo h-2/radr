@@ -63,7 +63,7 @@ inline std::vector<int> const taken_comp{2, 4, 6};
 
 TEST(transform_it_mp, forward)
 {
-    auto ra = std::ref(flst) | radr::detail::transform_it(times2);
+    auto ra = std::ref(flst) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .common = true, .borrowed = true});
@@ -71,7 +71,7 @@ TEST(transform_it_mp, forward)
 
 TEST(transform_it_mp, forward_rvalue)
 {
-    auto ra = decay_copy(flst) | radr::detail::transform_it(times2);
+    auto ra = decay_copy(flst) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .common = true});
@@ -79,7 +79,7 @@ TEST(transform_it_mp, forward_rvalue)
 
 TEST(transform_it_mp, bidi_common)
 {
-    auto ra = std::ref(lst) | radr::detail::transform_it(times2);
+    auto ra = std::ref(lst) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>(
@@ -88,7 +88,7 @@ TEST(transform_it_mp, bidi_common)
 
 TEST(transform_it_mp, bidi_common_rvalue)
 {
-    auto ra = decay_copy(lst) | radr::detail::transform_it(times2);
+    auto ra = decay_copy(lst) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .sized = true, .common = true});
@@ -96,7 +96,7 @@ TEST(transform_it_mp, bidi_common_rvalue)
 
 TEST(transform_it_mp, ra_sized)
 {
-    auto ra = std::ref(deq) | radr::detail::transform_it(times2);
+    auto ra = std::ref(deq) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>(
@@ -105,7 +105,7 @@ TEST(transform_it_mp, ra_sized)
 
 TEST(transform_it_mp, ra_sized_rvalue)
 {
-    auto ra = decay_copy(deq) | radr::detail::transform_it(times2);
+    auto ra = decay_copy(deq) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .sized = true, .common = true});
@@ -113,7 +113,7 @@ TEST(transform_it_mp, ra_sized_rvalue)
 
 TEST(transform_it_mp, contig_sized)
 {
-    auto ra = std::ref(vec) | radr::detail::transform_it(times2);
+    auto ra = std::ref(vec) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     // contiguity is never preserved
@@ -123,7 +123,7 @@ TEST(transform_it_mp, contig_sized)
 
 TEST(transform_it_mp, contig_sized_rvalue)
 {
-    auto ra = decay_copy(vec) | radr::detail::transform_it(times2);
+    auto ra = decay_copy(vec) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .sized = true, .common = true});
@@ -138,14 +138,14 @@ TEST(transform_it_mp, contig_sized_rvalue)
 TEST(transform_it_mp, empty)
 {
     std::vector<int> empty;
-    auto             ra = std::ref(empty) | radr::detail::transform_it(times2);
+    auto             ra = std::ref(empty) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, std::vector<int>{});
 }
 
 TEST(transform_it_mp, constant)
 {
-    auto ra = std::cref(vec) | radr::detail::transform_it(times2);
+    auto ra = std::cref(vec) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, comp);
     radr::test::check_adaptor_concepts<decltype(ra)>(
@@ -154,7 +154,7 @@ TEST(transform_it_mp, constant)
 
 TEST(transform_it_mp, infinite)
 {
-    auto ra = radr::iota(0) | radr::detail::transform_it(times2);
+    auto ra = radr::iota(0) | radr::detail::indirect_transform(times2);
 
     auto it = radr::begin(ra);
     EXPECT_EQ(*it, 0);
@@ -166,7 +166,7 @@ TEST(transform_it_mp, infinite)
 
 TEST(transform_it_mp, fwd_uncommon)
 {
-    auto ra = std::ref(flst) | radr::filter(not_four) | radr::detail::transform_it(times2);
+    auto ra = std::ref(flst) | radr::filter(not_four) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, filtered_comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::fwd, .constant = true, .borrowed = true});
@@ -174,7 +174,7 @@ TEST(transform_it_mp, fwd_uncommon)
 
 TEST(transform_it_mp, bidi_uncommon)
 {
-    auto ra = std::ref(vec) | radr::filter(not_four) | radr::detail::transform_it(times2);
+    auto ra = std::ref(vec) | radr::filter(not_four) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, filtered_comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::bidi, .constant = true, .borrowed = true});
@@ -182,7 +182,7 @@ TEST(transform_it_mp, bidi_uncommon)
 
 TEST(transform_it_mp, ra_nonsized)
 {
-    auto ra = std::ref(deq) | radr::take_while(less_four) | radr::detail::transform_it(times2);
+    auto ra = std::ref(deq) | radr::take_while(less_four) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, taken_comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .borrowed = true});
@@ -190,7 +190,7 @@ TEST(transform_it_mp, ra_nonsized)
 
 TEST(transform_it_mp, contig_nonsized)
 {
-    auto ra = std::ref(vec) | radr::take_while(less_four) | radr::detail::transform_it(times2);
+    auto ra = std::ref(vec) | radr::take_while(less_four) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, taken_comp);
     radr::test::check_adaptor_concepts<decltype(ra)>({.cat = range_cat::ra, .borrowed = true});
@@ -203,7 +203,7 @@ TEST(transform_it_mp, contig_nonsized)
 TEST(transform_it_mp, receives_iterator)
 {
     // the address of the element can only be obtained from the iterator, not from a copy of the element
-    auto ra = std::ref(vec) | radr::detail::transform_it([](auto it) { return std::addressof(*it); });
+    auto ra = std::ref(vec) | radr::detail::indirect_transform([](auto it) { return std::addressof(*it); });
 
     ASSERT_EQ(std::ranges::size(ra), vec.size());
     for (size_t i = 0; i < vec.size(); ++i)
@@ -215,12 +215,13 @@ TEST(transform_it_mp, receives_iterator)
 
 TEST(transform_it_mp, iterator_type)
 {
-    auto ra = std::ref(vec) | radr::detail::transform_it(times2);
+    auto ra = std::ref(vec) | radr::detail::indirect_transform(times2);
 
     using uit_t  = radr::iterator_t<std::vector<int>>;
     using ucit_t = radr::const_iterator_t<std::vector<int>>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, times2_t, false>));
-    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>, (radr::detail::transform_iterator<ucit_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, times2_t>));
+    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>,
+                     (radr::detail::indirect_transform_iterator<ucit_t, times2_t>));
 }
 
 TEST(transform_it_mp, fold_transform_over_transform_it)
@@ -229,13 +230,13 @@ TEST(transform_it_mp, fold_transform_over_transform_it)
     {
         return i + 1;
     };
-    auto ra = std::ref(vec) | radr::detail::transform_it(times2) | radr::transform(plus1);
+    auto ra = std::ref(vec) | radr::detail::indirect_transform(times2) | radr::transform(plus1);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{3, 5, 7, 9, 11}));
 
     using uit_t  = radr::iterator_t<std::vector<int>>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
 }
 
 TEST(transform_it_mp, no_fold_transform_it_over_transform)
@@ -244,13 +245,13 @@ TEST(transform_it_mp, no_fold_transform_it_over_transform)
     {
         return i + 1;
     };
-    auto ra = std::ref(vec) | radr::transform(plus1) | radr::detail::transform_it(times2);
+    auto ra = std::ref(vec) | radr::transform(plus1) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{4, 6, 8, 10, 12}));
 
     using uit_t   = radr::iterator_t<std::vector<int>>;
     using inner_t = radr::detail::transform_iterator<uit_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, times2_t>));
 }
 
 // regression test: folding radr::transform on a non-common range used the wrong functor type for the sentinel
@@ -269,10 +270,7 @@ TEST(transform_it_mp, fold_transform_noncommon)
     EXPECT_RANGE_EQ(ra, (std::vector<int>{20, 30, 40}));
 
     using urange_t = decltype(std::ref(vec) | radr::take_while(less_four));
-    using nest_t   = radr::detail::transform::nest_fn<decltype(plus1), decltype(times10)>;
-    EXPECT_SAME_TYPE(
-      radr::sentinel_t<decltype(ra)>,
-      (radr::detail::transform_sentinel<radr::iterator_t<urange_t>, radr::sentinel_t<urange_t>, nest_t>));
+    EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, (radr::detail::generic_sentinel<radr::sentinel_t<urange_t>>));
 }
 
 TEST(transform_it_mp, fold_transform_infinite)
@@ -281,7 +279,7 @@ TEST(transform_it_mp, fold_transform_infinite)
     {
         return i + 1;
     };
-    auto ra = radr::iota(0) | radr::detail::transform_it(times2) | radr::transform(plus1);
+    auto ra = radr::iota(0) | radr::detail::indirect_transform(times2) | radr::transform(plus1);
 
     auto it = radr::begin(ra);
     EXPECT_EQ(*it, 1);
@@ -290,7 +288,7 @@ TEST(transform_it_mp, fold_transform_infinite)
 
     using uit_t  = radr::iterator_t<decltype(radr::iota(0))>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::unreachable_sentinel_t);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .infinite = true, .constant = true, .borrowed = true});
@@ -302,7 +300,7 @@ TEST(transform_it_mp, no_fold_transform_it_infinite)
     {
         return i + 1;
     };
-    auto ra = radr::iota(0) | radr::transform(plus1) | radr::detail::transform_it(times2);
+    auto ra = radr::iota(0) | radr::transform(plus1) | radr::detail::indirect_transform(times2);
 
     auto it = radr::begin(ra);
     EXPECT_EQ(*it, 2);
@@ -321,12 +319,12 @@ TEST(transform_it_mp, no_fold_through_take_while)
     {
         return i + 1;
     };
-    auto ra = std::ref(vec) | radr::detail::transform_it(times2) | radr::take_while([](int i) { return i < 7; }) |
+    auto ra = std::ref(vec) | radr::detail::indirect_transform(times2) | radr::take_while([](int i) { return i < 7; }) |
               radr::transform(plus1);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{3, 5, 7}));
 
-    using inner_t = radr::detail::transform_iterator<radr::iterator_t<std::vector<int>>, times2_t, false>;
+    using inner_t = radr::detail::indirect_transform_iterator<radr::iterator_t<std::vector<int>>, times2_t>;
     EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, decltype(plus1)>));
 }
 
@@ -338,7 +336,7 @@ TEST(transform_it_mp, no_fold_through_take_while_noncommon)
     };
     auto urange =
       std::ref(vec) | radr::filter(not_four) | radr::transform(plus1) | radr::take_while([](int i) { return i < 5; });
-    auto ra = urange | radr::detail::transform_it(times2) | radr::transform(plus1);
+    auto ra = urange | radr::detail::indirect_transform(times2) | radr::transform(plus1);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{5, 7, 9}));
 
@@ -349,12 +347,12 @@ TEST(transform_it_mp, no_fold_through_take_while_noncommon)
 
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
     // the outer transform is folded into transform_it, but neither is folded into the transform below take_while
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, nest_t>));
 }
 
 TEST(transform_it_mp, default_sentinel)
 {
-    auto ra = std::ref(lst) | radr::take(3) | radr::detail::transform_it(times2);
+    auto ra = std::ref(lst) | radr::take(3) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{2, 4, 6}));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::default_sentinel_t);
@@ -371,13 +369,13 @@ TEST(transform_it_mp, fold_transform_default_sentinel)
     {
         return i + 1;
     };
-    auto ra = std::ref(lst) | radr::take(3) | radr::detail::transform_it(times2) | radr::transform(plus1);
+    auto ra = std::ref(lst) | radr::take(3) | radr::detail::indirect_transform(times2) | radr::transform(plus1);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{3, 5, 7}));
 
     using uit_t  = radr::iterator_t<decltype(std::ref(lst) | radr::take(3))>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::default_sentinel_t);
 }
 
@@ -387,13 +385,13 @@ TEST(transform_it_mp, no_fold_transform_it_default_sentinel)
     {
         return i + 1;
     };
-    auto ra = std::ref(lst) | radr::take(3) | radr::transform(plus1) | radr::detail::transform_it(times2);
+    auto ra = std::ref(lst) | radr::take(3) | radr::transform(plus1) | radr::detail::indirect_transform(times2);
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{4, 6, 8}));
 
     using uit_t   = radr::iterator_t<decltype(std::ref(lst) | radr::take(3))>;
     using inner_t = radr::detail::transform_iterator<uit_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, times2_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::default_sentinel_t);
 }
 
@@ -403,10 +401,10 @@ TEST(transform_it_mp, no_fold_transform_it_default_sentinel)
 
 TEST(transform_it_mp, deep_copy)
 {
-    using T = decltype(std::vector<int>{1, 2, 3, 4, 5} | radr::detail::transform_it(times2));
+    using T = decltype(std::vector<int>{1, 2, 3, 4, 5} | radr::detail::indirect_transform(times2));
     T cpy;
     {
-        T own = std::vector<int>{1, 2, 3, 4, 5} | radr::detail::transform_it(times2);
+        T own = std::vector<int>{1, 2, 3, 4, 5} | radr::detail::indirect_transform(times2);
         EXPECT_RANGE_EQ(own, comp);
         cpy = own;
     }
