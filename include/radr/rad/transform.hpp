@@ -19,6 +19,7 @@
 
 #include "../concepts.hpp"
 #include "../detail/detail.hpp"
+#include "../detail/generic_iterator.hpp"
 #include "../detail/pipe.hpp"
 #include "../detail/semiregular_box.hpp"
 #include "../generator.hpp"
@@ -27,17 +28,18 @@
 namespace radr::detail::transform
 {
 
+//!\brief Invokes \p in2 on the result of \p in1.
 template <typename Invoc1, typename Invoc2>
 struct nest_fn
 {
     [[no_unique_address]] Invoc1 in1;
     [[no_unique_address]] Invoc2 in2;
 
-    template <typename Val>
-    constexpr decltype(auto) operator()(Val && val) const
-      noexcept(noexcept(in1(std::forward<Val>(val))) && noexcept(in2(in1(std::forward<Val>(val)))))
+    template <typename... Vals>
+    constexpr decltype(auto) operator()(Vals &&... vals) const
+      noexcept(noexcept(in1(std::forward<Vals>(vals)...)) && noexcept(in2(in1(std::forward<Vals>(vals)...))))
     {
-        return in2(in1(std::forward<Val>(val)));
+        return in2(in1(std::forward<Vals>(vals)...));
     }
 };
 
@@ -45,16 +47,16 @@ struct nest_fn
 template <class UIt, bool deref>
 using arg_t = std::conditional_t<deref, std::iter_reference_t<UIt>, UIt>;
 
-//!\brief The value type; for !deref, Fn may provide it as `Fn::value_type<UIt>`.
-template <class UIt, class Fn, bool deref>
-struct value_type_impl
+//!\brief The value type of radr::detail::indirect_transform_iterator; Fn may provide it as `Fn::value_type<UIt>`.
+template <class UIt, class Fn>
+struct it_value_type
 {
-    using type = std::remove_cvref_t<std::invoke_result_t<Fn const &, arg_t<UIt, deref>>>;
+    using type = std::remove_cvref_t<std::invoke_result_t<Fn const &, UIt>>;
 };
 
 template <class UIt, class Fn>
     requires requires { typename Fn::template value_type<UIt>; }
-struct value_type_impl<UIt, Fn, false>
+struct it_value_type<UIt, Fn>
 {
     using type = typename Fn::template value_type<UIt>;
 };
@@ -68,363 +70,149 @@ concept fn_constraints = std::is_object_v<Fn> && std::regular_invocable<Fn const
 namespace radr::detail
 {
 
-template <std::forward_iterator UIt, std::sentinel_for<UIt> Sent, typename Fn, bool deref = true>
-    requires detail::transform::fn_constraints<UIt, Fn, deref>
-class transform_sentinel;
-
-/*!\brief Iterator for radr::transform.
- * \tparam UIt   Type of the underlying iterator.
- * \tparam Fn    Type of the transformer.
- * \tparam deref Whether to pass underlying value oder underlying iterator to the transformer.
- * \details
- *
- * If deref == false, the invocable receives a copy of the underlying iterator, instead of a reference
- * to the value behind it. This mechanism is used for the (internal) radr::detail::transform_it adaptor.
- */
-template <std::forward_iterator UIt, typename Fn, bool deref = true>
-    requires detail::transform::fn_constraints<UIt, Fn, deref>
-class transform_iterator
+//!\brief Iterator of radr::transform: invokes \p Fn on the element.
+template <std::forward_iterator UIt, typename Fn>
+    requires transform::fn_constraints<UIt, Fn>
+class transform_iterator : public generic_iterator_base<transform_iterator<UIt, Fn>, UIt>
 {
+    using base_t = generic_iterator_base<transform_iterator, UIt>;
+
     [[no_unique_address]] semiregular_box<Fn> fn{};
-    [[no_unique_address]] UIt                 uit{};
 
-    template <std::forward_iterator UIt2, typename Fn2, bool deref2>
-        requires detail::transform::fn_constraints<UIt2, Fn2, deref2>
+    template <std::forward_iterator UIt2, typename Fn2>
+        requires transform::fn_constraints<UIt2, Fn2>
     friend class transform_iterator;
-    template <std::forward_iterator UIt2, std::sentinel_for<UIt2> Sent_, typename Fn2, bool deref2>
-        requires detail::transform::fn_constraints<UIt2, Fn2, deref2>
-    friend class transform_sentinel;
-
-    using arg_t = transform::arg_t<UIt, deref>;
-
-    static constexpr bool nothrow_invoke = noexcept(std::invoke(std::declval<Fn const &>(), std::declval<arg_t>()));
-
-    static constexpr bool has_custom_iter_move = !deref && requires(Fn const & f, UIt const & u) { f.iter_move(u); };
-
-    template <typename Container>
-    constexpr friend auto tag_invoke(custom::rebind_iterator_tag,
-                                     transform_iterator it,
-                                     Container &        container_old,
-                                     Container &        container_new)
-    {
-        it.uit = tag_invoke(custom::rebind_iterator_tag{}, it.uit, container_old, container_new);
-        return it;
-    }
 
 public:
-    using iterator_concept =
-      std::conditional_t<std::contiguous_iterator<UIt>, std::random_access_iterator_tag, iterator_tag_t<UIt>>;
-    using difference_type = std::iter_difference_t<UIt>;
-    using value_type      = typename transform::value_type_impl<UIt, Fn, deref>::type;
+    using value_type = std::remove_cvref_t<std::invoke_result_t<Fn const &, std::iter_reference_t<UIt>>>;
+    using typename base_t::difference_type;
 
     transform_iterator() = default;
 
-    constexpr transform_iterator(Fn func, UIt current) : fn(std::in_place, std::move(func)), uit(std::move(current)) {}
+    constexpr transform_iterator(Fn f, UIt u) : base_t{std::move(u)}, fn{std::in_place, std::move(f)} {}
 
-    template <detail::different_from<UIt> OtherUIt>
-    constexpr transform_iterator(transform_iterator<OtherUIt, Fn, deref> i)
-        requires std::convertible_to<OtherUIt, UIt>
-      : fn(std::move(i.fn)), uit(std::move(i.uit))
+    template <different_from<UIt> UIt2>
+        requires std::convertible_to<UIt2, UIt>
+    constexpr transform_iterator(transform_iterator<UIt2, Fn> i) : base_t{std::move(i).base()}, fn{std::move(i.fn)}
     {}
 
-    constexpr UIt const & base() const & noexcept { return uit; }
-    constexpr UIt         base() && { return std::move(uit); }
+    constexpr Fn const & func() const & noexcept { return *fn; }
+    constexpr Fn         func() && { return std::move(*fn); }
+
+    constexpr decltype(auto) operator*() const noexcept(noexcept(std::invoke(*fn, *this->base())))
+    {
+        return std::invoke(*fn, *this->base());
+    }
+
+    //!\brief Preserves the codegen of fn(uit[n]).
+    constexpr decltype(auto) operator[](difference_type n) const noexcept(noexcept(std::invoke(*fn, this->base()[n])))
+        requires std::random_access_iterator<UIt>
+    {
+        return std::invoke(*fn, this->base()[n]);
+    }
+
+    //!\brief This iterator with \p fn2 applied after Fn; used by radr::transform's folding.
+    template <typename Fn2>
+    constexpr auto fold(Fn2 fn2) const
+    {
+        using fn_t = transform::nest_fn<Fn, Fn2>;
+        return transform_iterator<UIt, fn_t>{
+          fn_t{*fn, std::move(fn2)},
+          this->base()
+        };
+    }
+};
+
+/*!\brief Iterator of radr::detail::transform_it: invokes \p Fn on a copy of the underlying iterator.
+ * \details Fn may provide the value type as `Fn::value_type<UIt>`.
+ */
+template <std::forward_iterator UIt, typename Fn>
+    requires transform::fn_constraints<UIt, Fn, false>
+class indirect_transform_iterator : public generic_iterator_base<indirect_transform_iterator<UIt, Fn>, UIt>
+{
+    using base_t = generic_iterator_base<indirect_transform_iterator, UIt>;
+
+    [[no_unique_address]] semiregular_box<Fn> fn{};
+
+    template <std::forward_iterator UIt2, typename Fn2>
+        requires transform::fn_constraints<UIt2, Fn2, false>
+    friend class indirect_transform_iterator;
+
+public:
+    using value_type = typename transform::it_value_type<UIt, Fn>::type;
+    using typename base_t::difference_type;
+
+    indirect_transform_iterator() = default;
+
+    constexpr indirect_transform_iterator(Fn f, UIt u) : base_t{std::move(u)}, fn{std::in_place, std::move(f)} {}
+
+    template <different_from<UIt> UIt2>
+        requires std::convertible_to<UIt2, UIt>
+    constexpr indirect_transform_iterator(indirect_transform_iterator<UIt2, Fn> i) :
+      base_t{std::move(i).base()}, fn{std::move(i.fn)}
+    {}
 
     constexpr Fn const & func() const & noexcept { return *fn; }
     constexpr Fn         func() && { return std::move(*fn); }
 
     constexpr decltype(auto) operator*() const
-      noexcept(nothrow_invoke && (deref ? noexcept(*uit) : std::is_nothrow_copy_constructible_v<UIt>))
+      noexcept(noexcept(std::invoke(*fn, UIt{this->base()})) && std::is_nothrow_copy_constructible_v<UIt>)
     {
-        if constexpr (deref)
-            return std::invoke(*fn, *uit);
-        else
-            return std::invoke(*fn, UIt{uit});
+        return std::invoke(*fn, UIt{this->base()});
     }
 
-    constexpr transform_iterator & operator++()
-    {
-        ++uit;
-        return *this;
-    }
-
-    constexpr transform_iterator operator++(int)
-    {
-        auto tmp = *this;
-        ++*this;
-        return tmp;
-    }
-
-    constexpr transform_iterator & operator--()
-        requires std::bidirectional_iterator<UIt>
-    {
-        --uit;
-        return *this;
-    }
-
-    constexpr transform_iterator operator--(int)
-        requires std::bidirectional_iterator<UIt>
-    {
-        auto tmp = *this;
-        --*this;
-        return tmp;
-    }
-
-    constexpr transform_iterator & operator+=(difference_type n)
+    //!\brief Avoids copying fn.
+    constexpr decltype(auto) operator[](difference_type n) const noexcept(noexcept(std::invoke(*fn, this->base() + n)))
         requires std::random_access_iterator<UIt>
     {
-        uit += n;
-        return *this;
+        return std::invoke(*fn, this->base() + n);
     }
 
-    constexpr transform_iterator & operator-=(difference_type n)
-        requires std::random_access_iterator<UIt>
+    //!\brief This iterator with \p fn2 applied after Fn; used by radr::transform's folding.
+    template <typename Fn2>
+    constexpr auto fold(Fn2 fn2) const
     {
-        uit -= n;
-        return *this;
-    }
-
-    constexpr decltype(auto) operator[](difference_type n) const
-      noexcept(nothrow_invoke && (deref ? noexcept(uit[n]) : noexcept(uit + n)))
-        requires std::random_access_iterator<UIt>
-    {
-        if constexpr (deref)
-            return std::invoke(*fn, uit[n]);
-        else
-            return std::invoke(*fn, uit + n);
-    }
-
-    friend constexpr bool operator==(transform_iterator const & x, transform_iterator const & y)
-    {
-        return x.uit == y.uit;
-    }
-
-    friend constexpr bool operator<(transform_iterator const & x, transform_iterator const & y)
-        requires std::random_access_iterator<UIt>
-    {
-        return x.uit < y.uit;
-    }
-
-    friend constexpr bool operator>(transform_iterator const & x, transform_iterator const & y)
-        requires std::random_access_iterator<UIt>
-    {
-        return x.uit > y.uit;
-    }
-
-    friend constexpr bool operator<=(transform_iterator const & x, transform_iterator const & y)
-        requires std::random_access_iterator<UIt>
-    {
-        return x.uit <= y.uit;
-    }
-
-    friend constexpr bool operator>=(transform_iterator const & x, transform_iterator const & y)
-        requires std::random_access_iterator<UIt>
-    {
-        return x.uit >= y.uit;
-    }
-
-    friend constexpr auto operator<=>(transform_iterator const & x, transform_iterator const & y)
-        requires std::random_access_iterator<UIt> && std::three_way_comparable<UIt>
-    {
-        return x.uit <=> y.uit;
-    }
-
-    friend constexpr transform_iterator operator+(transform_iterator i, difference_type n)
-        requires std::random_access_iterator<UIt>
-    {
-        return transform_iterator{*i.fn, i.uit + n};
-    }
-
-    friend constexpr transform_iterator operator+(difference_type n, transform_iterator i)
-        requires std::random_access_iterator<UIt>
-    {
-        return transform_iterator{*i.fn, i.uit + n};
-    }
-
-    friend constexpr transform_iterator operator-(transform_iterator i, difference_type n)
-        requires std::random_access_iterator<UIt>
-    {
-        return transform_iterator{*i.fn, i.uit - n};
-    }
-
-    friend constexpr difference_type operator-(transform_iterator const & x, transform_iterator const & y)
-        requires std::sized_sentinel_for<UIt, UIt>
-    {
-        return x.uit - y.uit;
-    }
-
-    /* std::default_sentinel_t is preserved as sentinel (instead of being wrapped in transform_sentinel) */
-    friend constexpr bool operator==(transform_iterator const & x, std::default_sentinel_t)
-        requires std::sentinel_for<std::default_sentinel_t, UIt>
-    {
-        return x.uit == std::default_sentinel;
-    }
-
-    friend constexpr difference_type operator-(transform_iterator const & x, std::default_sentinel_t)
-        requires std::sized_sentinel_for<std::default_sentinel_t, UIt>
-    {
-        return x.uit - std::default_sentinel;
-    }
-
-    friend constexpr difference_type operator-(std::default_sentinel_t, transform_iterator const & y)
-        requires std::sized_sentinel_for<std::default_sentinel_t, UIt>
-    {
-        return std::default_sentinel - y.uit;
-    }
-
-    friend constexpr decltype(auto) iter_move(transform_iterator const & i) noexcept(noexcept(*i))
-        requires(!has_custom_iter_move)
-    {
-        if constexpr (std::is_lvalue_reference_v<decltype(*i)>)
-            return std::move(*i);
-        else
-            return *i;
-    }
-
-    /* !deref only: Fn may customise iter_move/iter_swap via members taking the underlying iterator(s) */
-    friend constexpr decltype(auto) iter_move(transform_iterator const & i) noexcept(noexcept((*i.fn).iter_move(i.uit)))
-        requires has_custom_iter_move
-    {
-        return (*i.fn).iter_move(i.uit);
-    }
-
-    friend constexpr void iter_swap(transform_iterator const & x,
-                                    transform_iterator const & y) noexcept(noexcept((*x.fn).iter_swap(x.uit, y.uit)))
-        requires(!deref && requires(Fn const & f, UIt const & u) { f.iter_swap(u, u); })
-    {
-        (*x.fn).iter_swap(x.uit, y.uit);
+        using fn_t = transform::nest_fn<Fn, Fn2>;
+        return indirect_transform_iterator<UIt, fn_t>{
+          fn_t{*fn, std::move(fn2)},
+          this->base()
+        };
     }
 };
 
-template <std::forward_iterator UIt, std::sentinel_for<UIt> USen, typename Fn, bool deref>
-    requires detail::transform::fn_constraints<UIt, Fn, deref>
-class transform_sentinel
-{
-    [[no_unique_address]] USen end_{};
-
-    template <std::forward_iterator UIt2, std::sentinel_for<UIt2> Sent_, typename Fn2, bool deref2>
-        requires detail::transform::fn_constraints<UIt2, Fn2, deref2>
-    friend class transform_sentinel;
-
-    using iterator_t = transform_iterator<UIt, Fn, deref>;
-
-public:
-    transform_sentinel() = default;
-
-    constexpr explicit transform_sentinel(USen end) : end_(end) {}
-
-    constexpr transform_sentinel(Fn, USen end) : end_(end) {}
-
-    template <std::forward_iterator OtherUIt, typename OtherSent>
-    constexpr transform_sentinel(transform_sentinel<OtherUIt, OtherSent, Fn, deref> i)
-        requires std::convertible_to<OtherSent, USen> && std::convertible_to<OtherUIt, UIt>
-      : end_(std::move(i.end_))
-    {}
-
-    constexpr USen base() const { return end_; }
-
-    /* All three go through transform_iterator::base() instead of `.current_`: GCC<=12 does not grant a
-     * befriended class's friendship to functions *defined inside* that class, which is what these are. */
-    friend constexpr bool operator==(iterator_t const & x, transform_sentinel const & y) { return x.base() == y.end_; }
-
-    friend constexpr std::iter_difference_t<iterator_t> operator-(iterator_t const & x, transform_sentinel const & y)
-        requires std::sized_sentinel_for<USen, UIt>
-    {
-        return x.base() - y.end_;
-    }
-
-    friend constexpr std::iter_difference_t<iterator_t> operator-(transform_sentinel const & x, iterator_t const & y)
-        requires std::sized_sentinel_for<USen, UIt>
-    {
-        return x.end_ - y.base();
-    }
-};
-
-template <bool deref = true>
 inline constexpr auto transform_borrow = []<typename URange, typename Fn>(URange && urange, Fn fn)
 {
     static_assert(borrowed_mp_range<URange>, "The constraints for radr::transform's underlying range are not met.");
-    static_assert(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn, deref> &&
-                    detail::transform::fn_constraints<radr::const_iterator_t<URange>, Fn, deref>,
+    static_assert(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn> &&
+                    detail::transform::fn_constraints<radr::const_iterator_t<URange>, Fn>,
                   "The constraints for radr::transform's functor are not met.");
 
-    // clang-format off
-    constexpr auto foldable = overloaded{
-    /* default is not foldable */
-    [](auto, auto)
-    {
-        return std::pair<bool, bool>{false, false}; // second bool is never read
-    },
-    /* foldable if `it` is transform_iterator and sen is also transform_iterator or stateless sentinel.
-     * A stateful sentinel of different type (e.g. radr::take_while's) shall NOT be folded!
-     */
-    []<typename UIt, typename UFn, bool UDeref, typename USen>(
-        std::type_identity<transform_iterator<UIt, UFn, UDeref>>,
-        std::type_identity<USen>)
-    {
-        return std::pair<bool, bool>{
-            one_of<USen, transform_iterator<UIt, UFn, UDeref>, std::unreachable_sentinel_t, std::default_sentinel_t>,
-            UDeref};
-    },
-    /* foldable if `it` is transform_iterator and sen is transform_sentinel */
-    []<typename UIt, typename USen, typename UFn, bool UDeref>(
-        std::type_identity<transform_iterator<UIt, UFn, UDeref>>,
-        std::type_identity<transform_sentinel<UIt, USen, UFn, UDeref>>)
-    {
-        return std::pair<bool, bool>{true, UDeref};
-    }};
-    // clang-format on
+    using UIt   = iterator_t<URange>;
+    using USen  = sentinel_t<URange>;
+    using UCIt  = const_iterator_t<URange>;
+    using UCSen = const_sentinel_t<URange>;
 
-    /* only a dereferencing transform is folded into the underlying one */
     static constexpr bool folds =
-      deref && foldable(std::type_identity<iterator_t<URange>>{}, std::type_identity<sentinel_t<URange>>{}).first &&
-      foldable(std::type_identity<const_iterator_t<URange>>{}, std::type_identity<const_sentinel_t<URange>>{}).first;
-    static constexpr bool uderef =
-      foldable(std::type_identity<iterator_t<URange>>{}, std::type_identity<sentinel_t<URange>>{}).second;
+      (requires(UIt it) { it.fold(fn); }) && (requires(UCIt it) { it.fold(fn); }) &&
+      (one_of<USen, UIt, std::unreachable_sentinel_t, std::default_sentinel_t> || is_generic_sentinel<USen>)&&(
+        one_of<UCSen, UCIt, std::unreachable_sentinel_t, std::default_sentinel_t> || is_generic_sentinel<UCSen>);
 
-    /* creates the iterator-sentinel pair; stateless sentinels are preserved */
-    constexpr auto make =
-      []<typename UIt, typename USen, typename Fn2, bool D>(UIt uit, USen usen, Fn2 fn_, std::bool_constant<D>)
-    {
-        using it_t = transform_iterator<UIt, Fn2, D>;
-
-        if constexpr (std::same_as<UIt, USen>)
-            return std::pair{
-              it_t{fn_,  std::move(uit)},
-              it_t{fn_, std::move(usen)}
-            };
-        else if constexpr (one_of<USen, std::unreachable_sentinel_t, std::default_sentinel_t>)
-            return std::pair{
-              it_t{fn_, std::move(uit)},
-              usen
-            };
-        else
-            return std::pair{
-              it_t{fn_, std::move(uit)},
-              transform_sentinel<UIt, USen, Fn2, D>{std::move(usen)}
-            };
-    };
-
-    auto adapt = [&](auto uit, auto usen)
+    auto adapt = [&]<typename UIt, typename USen>(UIt uit, USen usen)
     {
         if constexpr (folds)
         {
-            auto usen_base = [&]
-            {
-                if constexpr (one_of<decltype(usen), std::unreachable_sentinel_t, std::default_sentinel_t>)
-                    return usen;
-                else
-                    return std::move(usen).base();
-            }();
-
-            return make(uit.base(),
-                        std::move(usen_base),
-                        transform::nest_fn{uit.func(), fn},
-                        std::bool_constant<uderef>{});
+            if constexpr (std::same_as<UIt, USen>)
+                return std::pair{uit.fold(fn), usen.fold(fn)};
+            else
+                return std::pair{uit.fold(fn), std::move(usen)};
         }
         else
         {
-            return make(std::move(uit), std::move(usen), fn, std::bool_constant<deref>{});
+            return generic_wrap(std::move(uit),
+                                std::move(usen),
+                                [&]<typename UIt2>(UIt2 uit2) {
+                return transform_iterator<UIt2, Fn>{fn, std::move(uit2)};
+            });
         }
     };
 
@@ -432,6 +220,20 @@ inline constexpr auto transform_borrow = []<typename URange, typename Fn>(URange
     auto [cbeg, cend] = adapt(radr::cbegin(urange), radr::cend(urange));
 
     return borrowing_rad{beg, end, cbeg, cend, detail::size_or_not(urange)};
+};
+
+//!\brief Never folds into the underlying range.
+inline constexpr auto transform_it_borrow = []<typename URange, typename Fn>(URange && urange, Fn fn)
+{
+    static_assert(borrowed_mp_range<URange>, "The constraints for radr::transform's underlying range are not met.");
+    static_assert(detail::transform::fn_constraints<radr::iterator_t<URange>, Fn, false> &&
+                    detail::transform::fn_constraints<radr::const_iterator_t<URange>, Fn, false>,
+                  "The constraints for radr::transform's functor are not met.");
+
+    return generic_borrow(std::forward<URange>(urange),
+                          [&]<typename UIt>(UIt uit) {
+        return indirect_transform_iterator<UIt, Fn>{fn, std::move(uit)};
+    });
 };
 
 inline constexpr auto transform_coro = []<std::ranges::input_range URange, typename Fn>(URange && urange, Fn fn)
@@ -455,7 +257,7 @@ inline constexpr auto transform_coro = []<std::ranges::input_range URange, typen
 };
 
 //!\brief Like radr::transform, but invokes fn with (a copy of) the underlying iterator instead of the element. Multi-pass only.
-inline constexpr auto transform_it = pipe_with_args_fn<void, decltype(transform_borrow<false>)>{};
+inline constexpr auto transform_it = pipe_with_args_fn<void, decltype(transform_it_borrow)>{};
 
 } // namespace radr::detail
 
@@ -495,7 +297,8 @@ inline namespace cpo
  *
  * * radr::transform on borrowed ranges is always borrowed; std::views::transform never is.
  * * \p fn is stored within the iterator, not the range.
- * * Multiple chained transforms are folded into one.
+ * * Multiple chained transforms are folded into one; so is a transform over radr::adjacent or
+ *   radr::adjacent_transform on a radr::safely_indexable_range.
  *
  * ### Performance
  *
@@ -517,6 +320,6 @@ inline namespace cpo
  * std::regular_invocable).
  *
  */
-inline constexpr auto transform = detail::pipe_with_args_fn{detail::transform_coro, detail::transform_borrow<>};
+inline constexpr auto transform = detail::pipe_with_args_fn{detail::transform_coro, detail::transform_borrow};
 } // namespace cpo
 } // namespace radr

@@ -21,9 +21,10 @@
 #include "radr/class/borrowing_rad.hpp"
 #include "radr/class/zip_container.hpp"
 #include "radr/concepts.hpp"
+#include "radr/detail/generic_iterator.hpp"
 #include "radr/rad/take.hpp"
-#include "radr/rad/transform.hpp"
 #include "radr/range_access.hpp"
+#include "radr/version.hpp"
 
 namespace radr::detail
 {
@@ -88,6 +89,37 @@ constexpr auto make_adj_it(Deref deref, UIt uit, USen usen)
     return make_adj_it<N>(std::move(deref), make_adj_it_array<N>(std::move(uit), std::move(usen)));
 }
 
+//!\brief The value type of \p Policy for sizeof...(Is) copies of \p UIt.
+template <typename Policy, typename UIt, typename Seq>
+struct adjacent_window_value;
+
+template <typename Policy, typename UIt, size_t... Is>
+struct adjacent_window_value<Policy, UIt, std::index_sequence<Is...>>
+{
+    using type = typename Policy::template value_type<pack_helper<Is, UIt>...>;
+};
+
+//!\brief The N consecutive iterators starting at \p uit, created by sequential increments.
+template <size_t N, std::random_access_iterator UIt>
+constexpr std::array<UIt, N> make_adj_window_its(UIt uit)
+{
+    return [&]<size_t... Is>(std::index_sequence<Is...>)
+    {
+        /* braced-init-list: evaluated left to right */
+        return std::array<UIt, N>{(Is == 0 ? uit : ++uit)...};
+    }(std::make_index_sequence<N>{});
+}
+
+//!\brief Invokes \p f on the N iterators [uit, uit + N).
+template <size_t N, std::random_access_iterator UIt, typename F>
+constexpr decltype(auto) with_adj_window(UIt const & uit, F && f)
+{
+    return [&]<size_t... Is>(std::array<UIt, N> const & its, std::index_sequence<Is...>) -> decltype(auto)
+    {
+        return f(its[Is]...);
+    }(make_adj_window_its<N>(uit), std::make_index_sequence<N>{});
+}
+
 template <typename UIt, typename USen>
 class adjacent_sentinel
 {
@@ -146,68 +178,7 @@ public:
 template <typename Deref, typename It1, typename... Its, typename USen>
 adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, Deref, It1, Its...>, USen) -> adjacent_sentinel<It1, USen>;
 
-//!\brief The value type of radr::detail::adjacent_window_fn.
-template <typename Deref, typename UIt, typename Seq>
-struct adjacent_window_value;
-
-template <typename Deref, typename UIt, size_t... Is>
-struct adjacent_window_value<Deref, UIt, std::index_sequence<Is...>>
-{
-    using type = typename Deref::template value_type<pack_helper<Is, UIt>...>;
-};
-
-//!\brief The N consecutive iterators starting at \p uit, created by sequential increments.
-template <size_t N, std::random_access_iterator UIt>
-constexpr std::array<UIt, N> make_adj_window_its(UIt uit)
-{
-    return [&]<size_t... Is>(std::index_sequence<Is...>)
-    {
-        /* braced-init-list: evaluated left to right */
-        return std::array<UIt, N>{(Is == 0 ? uit : ++uit)...};
-    }(std::make_index_sequence<N>{});
-}
-
-//!\brief Creates the window from [uit, uit + N) for radr::detail::transform_it; random-access only.
-template <size_t N, typename Deref>
-struct adjacent_window_fn
-{
-    [[no_unique_address]] Deref deref{};
-
-    template <typename UIt>
-    using value_type = typename adjacent_window_value<Deref, UIt, std::make_index_sequence<N>>::type;
-
-    template <std::random_access_iterator UIt>
-    constexpr decltype(auto) operator()(UIt const & uit) const
-    {
-        return [&]<size_t... Is>(std::array<UIt, N> const & its, std::index_sequence<Is...>) -> decltype(auto)
-        {
-            return deref(its[Is]...);
-        }(make_adj_window_its<N>(uit), std::make_index_sequence<N>{});
-    }
-
-    template <std::random_access_iterator UIt>
-    constexpr auto iter_move(UIt const & uit) const
-        requires(Deref::proxy)
-    {
-        return [&]<size_t... Is>(std::array<UIt, N> const & its, std::index_sequence<Is...>)
-        {
-            return std::tuple<pack_helper<Is, std::iter_rvalue_reference_t<UIt>>...>(
-              std::ranges::iter_move(its[Is])...);
-        }(make_adj_window_its<N>(uit), std::make_index_sequence<N>{});
-    }
-
-    template <std::random_access_iterator UIt>
-    constexpr void iter_swap(UIt const & lhs, UIt const & rhs) const
-        requires(Deref::proxy && std::indirectly_swappable<UIt>)
-    {
-        [&]<size_t... Is>(std::array<UIt, N> const & l, std::array<UIt, N> const & r, std::index_sequence<Is...>)
-        {
-            (std::ranges::iter_swap(l[Is], r[Is]), ...);
-        }(make_adj_window_its<N>(lhs), make_adj_window_its<N>(rhs), std::make_index_sequence<N>{});
-    }
-};
-
-//!\brief radr::detail::adjacent_borrow_impl for ranges that are not radr::safely_indexable_range.
+//!\brief Borrow function of radr::adjacent(_transform) for ranges that are not radr::safely_indexable_range.
 template <ptrdiff_t N>
 inline constexpr auto adjacent_borrow_impl_regular =
   []<typename Deref, std::ranges::borrowed_range URange>(Deref deref, URange && urange)
@@ -278,41 +249,20 @@ inline constexpr auto adjacent_borrow_impl_regular =
     return borrowing_rad{beg, end, cbeg, cend, s};
 };
 
+//!\brief radr::adjacent_borrow_impl_regular for radr::safely_indexable_range; \p make_it creates the iterator.
 template <ptrdiff_t N>
-inline constexpr auto adjacent_borrow_impl =
-  []<typename Deref, std::ranges::borrowed_range URange>(Deref deref, URange && urange)
-    requires std::ranges::forward_range<URange>
+inline constexpr auto adjacent_borrow_ra = []<typename URange>(URange && urange, auto const & make_it)
 {
-    static_assert(N > 0, "You must select N > 0 for radr::adjacent.");
-
-    /* Special case: one underlying iterator; the window is created on dereference */
-    if constexpr (safely_indexable_range<URange>)
+    if constexpr (std::ranges::sized_range<URange>)
     {
-        adjacent_window_fn<N, Deref> fn{std::move(deref)};
-
-        if constexpr (std::ranges::sized_range<URange>)
-        {
-            auto usize = std::ranges::size(urange);
-            auto n     = static_cast<decltype(usize)>(N);
-            return transform_borrow<false>(take_borrow(urange, usize >= n ? usize - n + 1 : 0), std::move(fn));
-        }
-        else // infinite_mp_range
-        {
-            return transform_borrow<false>(std::forward<URange>(urange), std::move(fn));
-        }
+        auto usize = std::ranges::size(urange);
+        auto n     = static_cast<decltype(usize)>(N);
+        return generic_borrow(take_borrow(urange, usize >= n ? usize - n + 1 : 0), make_it);
     }
-    else
+    else // infinite_mp_range
     {
-        return adjacent_borrow_impl_regular<N>(std::move(deref), std::forward<URange>(urange));
+        return generic_borrow(std::forward<URange>(urange), make_it);
     }
-};
-
-//!\brief radr::detail::adjacent_borrow_impl with the plain zip policy.
-template <ptrdiff_t N>
-inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
-    requires std::ranges::forward_range<URange>
-{
-    return adjacent_borrow_impl<N>(zip_policy_tuple{}, std::forward<URange>(urange));
 };
 
 } // namespace radr::detail

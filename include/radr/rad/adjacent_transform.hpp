@@ -16,11 +16,64 @@
 
 #include "radr/concepts.hpp"
 #include "radr/detail/adjacent_iterator.hpp"
+#include "radr/detail/generic_iterator.hpp"
 #include "radr/detail/pipe.hpp"
+#include "radr/rad/transform.hpp"
 #include "radr/range_access.hpp"
 
 namespace radr::detail
 {
+
+//!\brief Iterator of radr::adjacent_transform on radr::safely_indexable_range; stores one iterator only.
+template <std::random_access_iterator UIt, size_t N, typename Fn>
+class adjacent_transform_ra_iterator : public generic_iterator_base<adjacent_transform_ra_iterator<UIt, N, Fn>, UIt>
+{
+    using base_t = generic_iterator_base<adjacent_transform_ra_iterator, UIt>;
+
+    [[no_unique_address]] semiregular_box<Fn> fn{};
+
+    template <std::random_access_iterator UIt2, size_t N2, typename Fn2>
+    friend class adjacent_transform_ra_iterator;
+
+    constexpr decltype(auto) read(UIt const & uit) const
+    {
+        return with_adj_window<N>(uit,
+                                  [&](auto const &... its) -> decltype(auto) { return std::invoke(*fn, *its...); });
+    }
+
+public:
+    using value_type = typename adjacent_window_value<zip_policy_transform<Fn>, UIt, std::make_index_sequence<N>>::type;
+    using typename base_t::difference_type;
+
+    adjacent_transform_ra_iterator() = default;
+
+    constexpr adjacent_transform_ra_iterator(Fn f, UIt u) : base_t{std::move(u)}, fn{std::in_place, std::move(f)} {}
+
+    template <different_from<UIt> UIt2>
+        requires std::convertible_to<UIt2, UIt>
+    constexpr adjacent_transform_ra_iterator(adjacent_transform_ra_iterator<UIt2, N, Fn> i) :
+      base_t{std::move(i).base()}, fn{std::move(i.fn)}
+    {}
+
+    constexpr Fn const & func() const & noexcept { return *fn; }
+    constexpr Fn         func() && { return std::move(*fn); }
+
+    constexpr decltype(auto) operator*() const { return read(this->base()); }
+
+    //!\brief Avoids copying fn.
+    constexpr decltype(auto) operator[](difference_type n) const { return read(this->base() + n); }
+
+    //!\brief This iterator with \p fn2 applied after Fn; used by radr::transform's folding.
+    template <typename Fn2>
+    constexpr auto fold(Fn2 fn2) const
+    {
+        using fn_t = transform::nest_fn<Fn, Fn2>;
+        return adjacent_transform_ra_iterator<UIt, N, fn_t>{
+          fn_t{*fn, std::move(fn2)},
+          this->base()
+        };
+    }
+};
 
 template <ptrdiff_t N>
 inline constexpr auto adjacent_transform_borrow = []<typename URange, typename Fn>(URange && urange, Fn fn)
@@ -36,11 +89,21 @@ inline constexpr auto adjacent_transform_borrow = []<typename URange, typename F
                   "The constraints for radr::adjacent_transform's functor are not met; note that it is invoked with N "
                   "arguments.");
 
-    return adjacent_borrow_impl<N>(
-      zip_policy_transform<Fn>{
-        semiregular_box<Fn>{std::in_place, std::move(fn)}
-    },
-      std::forward<URange>(urange));
+    if constexpr (safely_indexable_range<URange>)
+    {
+        return adjacent_borrow_ra<N>(std::forward<URange>(urange),
+                                     [&]<typename UIt>(UIt uit) {
+            return adjacent_transform_ra_iterator<UIt, N, Fn>{fn, std::move(uit)};
+        });
+    }
+    else
+    {
+        return adjacent_borrow_impl_regular<N>(
+          zip_policy_transform<Fn>{
+            semiregular_box<Fn>{std::in_place, std::move(fn)}
+        },
+          std::forward<URange>(urange));
+    }
 };
 
 } // namespace radr::detail
