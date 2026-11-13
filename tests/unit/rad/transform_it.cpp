@@ -219,8 +219,9 @@ TEST(transform_it_mp, iterator_type)
 
     using uit_t  = radr::iterator_t<std::vector<int>>;
     using ucit_t = radr::const_iterator_t<std::vector<int>>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, times2_t, false>));
-    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>, (radr::detail::transform_iterator<ucit_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, times2_t>));
+    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>,
+                     (radr::detail::indirect_transform_iterator<ucit_t, times2_t>));
 }
 
 TEST(transform_it_mp, fold_transform_over_transform_it)
@@ -235,7 +236,7 @@ TEST(transform_it_mp, fold_transform_over_transform_it)
 
     using uit_t  = radr::iterator_t<std::vector<int>>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
 }
 
 TEST(transform_it_mp, no_fold_transform_it_over_transform)
@@ -250,7 +251,7 @@ TEST(transform_it_mp, no_fold_transform_it_over_transform)
 
     using uit_t   = radr::iterator_t<std::vector<int>>;
     using inner_t = radr::detail::transform_iterator<uit_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, times2_t>));
 }
 
 // regression test: folding radr::transform on a non-common range used the wrong functor type for the sentinel
@@ -269,10 +270,7 @@ TEST(transform_it_mp, fold_transform_noncommon)
     EXPECT_RANGE_EQ(ra, (std::vector<int>{20, 30, 40}));
 
     using urange_t = decltype(std::ref(vec) | radr::take_while(less_four));
-    using nest_t   = radr::detail::transform::nest_fn<decltype(plus1), decltype(times10)>;
-    EXPECT_SAME_TYPE(
-      radr::sentinel_t<decltype(ra)>,
-      (radr::detail::transform_sentinel<radr::iterator_t<urange_t>, radr::sentinel_t<urange_t>, nest_t>));
+    EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, (radr::detail::generic_sentinel<radr::sentinel_t<urange_t>>));
 }
 
 TEST(transform_it_mp, fold_transform_infinite)
@@ -290,7 +288,7 @@ TEST(transform_it_mp, fold_transform_infinite)
 
     using uit_t  = radr::iterator_t<decltype(radr::iota(0))>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::unreachable_sentinel_t);
     radr::test::check_adaptor_concepts<decltype(ra)>(
       {.cat = range_cat::ra, .infinite = true, .constant = true, .borrowed = true});
@@ -326,7 +324,7 @@ TEST(transform_it_mp, no_fold_through_take_while)
 
     EXPECT_RANGE_EQ(ra, (std::vector<int>{3, 5, 7}));
 
-    using inner_t = radr::detail::transform_iterator<radr::iterator_t<std::vector<int>>, times2_t, false>;
+    using inner_t = radr::detail::indirect_transform_iterator<radr::iterator_t<std::vector<int>>, times2_t>;
     EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, decltype(plus1)>));
 }
 
@@ -349,7 +347,7 @@ TEST(transform_it_mp, no_fold_through_take_while_noncommon)
 
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
     // the outer transform is folded into transform_it, but neither is folded into the transform below take_while
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, nest_t>));
 }
 
 TEST(transform_it_mp, default_sentinel)
@@ -377,7 +375,7 @@ TEST(transform_it_mp, fold_transform_default_sentinel)
 
     using uit_t  = radr::iterator_t<decltype(std::ref(lst) | radr::take(3))>;
     using nest_t = radr::detail::transform::nest_fn<times2_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<uit_t, nest_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<uit_t, nest_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::default_sentinel_t);
 }
 
@@ -393,7 +391,7 @@ TEST(transform_it_mp, no_fold_transform_it_default_sentinel)
 
     using uit_t   = radr::iterator_t<decltype(std::ref(lst) | radr::take(3))>;
     using inner_t = radr::detail::transform_iterator<uit_t, decltype(plus1)>;
-    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::transform_iterator<inner_t, times2_t, false>));
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::indirect_transform_iterator<inner_t, times2_t>));
     EXPECT_SAME_TYPE(radr::sentinel_t<decltype(ra)>, std::default_sentinel_t);
 }
 

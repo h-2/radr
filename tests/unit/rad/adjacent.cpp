@@ -33,6 +33,7 @@ TEST(dummy, skipped_because_no_cpp23)
 #    include <radr/rad/take.hpp>
 #    include <radr/rad/take_while.hpp>
 #    include <radr/rad/to_single_pass.hpp>
+#    include <radr/rad/transform.hpp>
 
 using radr::test::range_cat;
 
@@ -331,6 +332,7 @@ TEST(adjacent_mp, value_and_reference_types)
 
     EXPECT_SAME_TYPE(std::ranges::range_reference_t<decltype(ra)>, (std::tuple<int &, int &>));
     EXPECT_SAME_TYPE(std::ranges::range_value_t<decltype(ra)>, (std::tuple<int, int>));
+    EXPECT_SAME_TYPE(std::ranges::range_rvalue_reference_t<decltype(ra)>, (std::tuple<int &&, int &&>));
     EXPECT_SAME_TYPE(radr::detail::range_const_reference_t<decltype(ra)>, (std::tuple<int const &, int const &>));
 }
 
@@ -411,6 +413,52 @@ TEST(adjacent_mp, combine_with_take)
                       {1, 2},
                       {2, 3}
     }));
+}
+
+TEST(adjacent_mp, fold_transform)
+{
+    auto combine = [](auto const & t)
+    {
+        return std::get<0>(t) * 10 + std::get<1>(t);
+    };
+    auto ra = std::ref(vec) | radr::adjacent<2> | radr::transform(combine);
+
+    EXPECT_RANGE_EQ(ra, (std::vector<int>{12, 23, 34, 45}));
+    EXPECT_EQ(ra.begin()[2], 34);
+
+    using uit_t  = radr::iterator_t<std::vector<int>>;
+    using ucit_t = radr::const_iterator_t<std::vector<int>>;
+    using nest_t = radr::detail::transform::nest_fn<radr::detail::adjacent_tuple_fn, decltype(combine)>;
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::adjacent_transform_ra_iterator<uit_t, 2, nest_t>));
+    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>,
+                     (radr::detail::adjacent_transform_ra_iterator<ucit_t, 2, nest_t>));
+    EXPECT_EQ(sizeof(radr::iterator_t<decltype(ra)>), sizeof(uit_t));
+}
+
+TEST(adjacent_mp, fold_transform_reference)
+{
+    // the folded functor receives the same tuple of references as the unfolded one
+    std::vector<int> v{1, 2, 3};
+    auto             first_ref = [](auto const & t) -> auto &
+    {
+        return std::get<0>(t);
+    };
+    auto ra = std::ref(v) | radr::adjacent<2> | radr::transform(first_ref);
+
+    *ra.begin() = 7;
+    EXPECT_EQ(v[0], 7);
+    EXPECT_EQ(&ra.begin()[1], &v[1]);
+}
+
+TEST(adjacent_mp, ra_iterator_type)
+{
+    auto ra = std::ref(vec) | radr::adjacent<2>;
+
+    using uit_t  = radr::iterator_t<std::vector<int>>;
+    using ucit_t = radr::const_iterator_t<std::vector<int>>;
+    EXPECT_SAME_TYPE(radr::iterator_t<decltype(ra)>, (radr::detail::adjacent_ra_iterator<uit_t, 2>));
+    EXPECT_SAME_TYPE(radr::const_iterator_t<decltype(ra)>, (radr::detail::adjacent_ra_iterator<ucit_t, 2>));
+    EXPECT_EQ(sizeof(radr::iterator_t<decltype(ra)>), sizeof(uit_t));
 }
 
 // --------------------------------------------------------------------------

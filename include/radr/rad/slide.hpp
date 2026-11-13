@@ -300,7 +300,7 @@ inline constexpr auto slide_borrow = []<borrowed_mp_range URange, std::integral 
     static constexpr auto kind =
       std::ranges::sized_range<URange> ? borrowing_rad_kind::sized : borrowing_rad_kind::unsized;
 
-    /* Special case that reuses non-deref-ing transform iterators */
+    /* Special case: radr::detail::indirect_transform_iterator over a single underlying iterator */
     if constexpr (safely_indexable_range<URange>)
     {
         // A closure instead of the borrowed range type as template argument; the latter would make the range's
@@ -313,11 +313,11 @@ inline constexpr auto slide_borrow = []<borrowed_mp_range URange, std::integral 
 
         if constexpr (std::ranges::sized_range<URange>)
         {
-            return transform_borrow<false>(take_borrow(borrow_, new_size), fn);
+            return transform_it_borrow(take_borrow(borrow_, new_size), fn);
         }
         else // infinite_mp_range
         {
-            return transform_borrow<false>(borrow_, fn);
+            return transform_it_borrow(borrow_, fn);
         }
     }
     else /* regular case */

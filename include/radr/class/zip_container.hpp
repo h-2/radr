@@ -86,7 +86,7 @@ struct zip_policy_tuple
 template <typename Fn>
 struct zip_policy_transform
 {
-    //!\brief No proxy; iter_move follows radr::detail::transform_iterator and iter_swap is dropped.
+    //!\brief No proxy; iter_move follows the fallback of std::ranges::iter_move and iter_swap is dropped.
     static constexpr bool proxy = false;
 
     //!\brief The stored invocable.
@@ -291,7 +291,7 @@ public:
      * \details The sentinels go through this instead of touching `current` directly, although they are friends:
      *          GCC<=12 does not grant a befriended class's friendship to functions *defined inside* that class,
      *          which is what every sentinel's `operator==` / `operator-` is. Same workaround as in
-     *          radr::detail::transform_sentinel.
+     *          radr::detail::generic_sentinel.
      *
      *          Deliberately *not* called `base()`: the generic fallback in `custom/rebind_iterator.hpp`
      *          is keyed on `it.base()` plus `It(it.base())`, and a `base()` here makes that fallback a
@@ -338,7 +338,17 @@ public:
 
     constexpr zip_iterator & operator++()
     {
-        if constexpr (_all_same)
+        /* adjacent: the iterators are consecutive, so shift and advance only the last (one node load instead
+         * of N); not for random-access iterators, where it prevents vectorisation */
+        if constexpr (kind == zip_iterator_kind::adjacent && !is_random_access)
+        {
+            [&]<size_t... Is>(std::index_sequence<Is...>)
+            {
+                ((current[Is] = current[Is + 1]), ...);
+            }(std::make_index_sequence<_size - 1>{});
+            ++current.back();
+        }
+        else if constexpr (_all_same)
         {
             for (auto & it : current)
                 ++it;
@@ -360,7 +370,16 @@ public:
     constexpr zip_iterator & operator--()
         requires is_bidi
     {
-        if constexpr (_all_same)
+        /* adjacent: see operator++ */
+        if constexpr (kind == zip_iterator_kind::adjacent && !is_random_access)
+        {
+            [&]<size_t... Is>(std::index_sequence<Is...>)
+            {
+                ((current[_size - 1 - Is] = current[_size - 2 - Is]), ...);
+            }(std::make_index_sequence<_size - 1>{});
+            --current.front();
+        }
+        else if constexpr (_all_same)
         {
             for (auto & it : current)
                 --it;
@@ -473,7 +492,7 @@ public:
     {
         if constexpr (ZipPolicy::proxy)
             return tuple_transform(std::ranges::iter_move, i.current);
-        /* same rule as radr::detail::transform_iterator */
+        /* same rule as the fallback of std::ranges::iter_move */
         else if constexpr (std::is_lvalue_reference_v<decltype(*i)>)
             return std::move(*i);
         else

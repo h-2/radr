@@ -15,11 +15,16 @@
 #include <array>
 #include <cstddef>
 #include <ranges>
+#include <tuple>
+#include <utility>
 
 #include "radr/class/borrowing_rad.hpp"
 #include "radr/class/zip_container.hpp"
 #include "radr/concepts.hpp"
+#include "radr/detail/generic_iterator.hpp"
+#include "radr/rad/take.hpp"
 #include "radr/range_access.hpp"
+#include "radr/version.hpp"
 
 namespace radr::detail
 {
@@ -84,6 +89,37 @@ constexpr auto make_adj_it(Deref deref, UIt uit, USen usen)
     return make_adj_it<N>(std::move(deref), make_adj_it_array<N>(std::move(uit), std::move(usen)));
 }
 
+//!\brief The value type of \p Policy for sizeof...(Is) copies of \p UIt.
+template <typename Policy, typename UIt, typename Seq>
+struct adjacent_window_value;
+
+template <typename Policy, typename UIt, size_t... Is>
+struct adjacent_window_value<Policy, UIt, std::index_sequence<Is...>>
+{
+    using type = typename Policy::template value_type<pack_helper<Is, UIt>...>;
+};
+
+//!\brief The N consecutive iterators starting at \p uit, created by sequential increments.
+template <size_t N, std::random_access_iterator UIt>
+constexpr std::array<UIt, N> make_adj_window_its(UIt uit)
+{
+    return [&]<size_t... Is>(std::index_sequence<Is...>)
+    {
+        /* braced-init-list: evaluated left to right */
+        return std::array<UIt, N>{(Is == 0 ? uit : ++uit)...};
+    }(std::make_index_sequence<N>{});
+}
+
+//!\brief Invokes \p f on the N iterators [uit, uit + N).
+template <size_t N, std::random_access_iterator UIt, typename F>
+constexpr decltype(auto) with_adj_window(UIt const & uit, F && f)
+{
+    return [&]<size_t... Is>(std::array<UIt, N> const & its, std::index_sequence<Is...>) -> decltype(auto)
+    {
+        return f(its[Is]...);
+    }(make_adj_window_its<N>(uit), std::make_index_sequence<N>{});
+}
+
 template <typename UIt, typename USen>
 class adjacent_sentinel
 {
@@ -142,13 +178,12 @@ public:
 template <typename Deref, typename It1, typename... Its, typename USen>
 adjacent_sentinel(zip_iterator<zip_iterator_kind::adjacent, Deref, It1, Its...>, USen) -> adjacent_sentinel<It1, USen>;
 
+//!\brief Borrow function of radr::adjacent(_transform) for ranges that are not radr::safely_indexable_range.
 template <ptrdiff_t N>
-inline constexpr auto adjacent_borrow_impl =
+inline constexpr auto adjacent_borrow_impl_regular =
   []<typename Deref, std::ranges::borrowed_range URange>(Deref deref, URange && urange)
     requires std::ranges::forward_range<URange>
 {
-    static_assert(N > 0, "You must select N > 0 for radr::adjacent.");
-
     auto beg  = make_adj_it<N>(deref, radr::begin(urange), radr::end(urange));
     auto cbeg = make_adj_it<N>(deref, radr::cbegin(urange), radr::cend(urange));
 
@@ -174,11 +209,6 @@ inline constexpr auto adjacent_borrow_impl =
         if constexpr (infinite_mp_range<URange>)
         {
             return std::tuple{std::unreachable_sentinel, std::unreachable_sentinel};
-        }
-        /* RA + sized*/
-        else if constexpr (std::ranges::random_access_range<URange> && std::ranges::sized_range<URange>)
-        {
-            return std::tuple{beg + s, cbeg + s};
         }
         /* bidi + common */
         else if constexpr (std::ranges::bidirectional_range<URange> && common_range<URange>)
@@ -219,12 +249,20 @@ inline constexpr auto adjacent_borrow_impl =
     return borrowing_rad{beg, end, cbeg, cend, s};
 };
 
-//!\brief radr::detail::adjacent_borrow_impl with the plain zip policy.
+//!\brief radr::adjacent_borrow_impl_regular for radr::safely_indexable_range; \p make_it creates the iterator.
 template <ptrdiff_t N>
-inline constexpr auto adjacent_borrow = []<std::ranges::borrowed_range URange>(URange && urange)
-    requires std::ranges::forward_range<URange>
+inline constexpr auto adjacent_borrow_ra = []<typename URange>(URange && urange, auto const & make_it)
 {
-    return adjacent_borrow_impl<N>(zip_policy_tuple{}, std::forward<URange>(urange));
+    if constexpr (std::ranges::sized_range<URange>)
+    {
+        auto usize = std::ranges::size(urange);
+        auto n     = static_cast<decltype(usize)>(N);
+        return generic_borrow(take_borrow(urange, usize >= n ? usize - n + 1 : 0), make_it);
+    }
+    else // infinite_mp_range
+    {
+        return generic_borrow(std::forward<URange>(urange), make_it);
+    }
 };
 
 } // namespace radr::detail
